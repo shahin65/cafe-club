@@ -1,0 +1,9 @@
+{
+  "DJANGO_SECRET_KEY": "REPLACE_WITH_A_PRIVATE_RANDOM_KEY_OF_AT_LEAST_50_CHARACTERS",
+  "DJANGO_ALLOWED_HOSTS": "cafeclub.amytisapp.ir",
+  "DB_NAME": "exmykvwq_cafeclub",
+  "DB_USER": "exmykvwq_cafeclub",
+  "DB_PASSWORD": "REPLACE_WITH_THE_NEW_DATABASE_PASSWORD",
+  "DB_HOST": "localhost",
+  "DB_PORT": "3306"
+}

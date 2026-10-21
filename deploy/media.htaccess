@@ -1,0 +1,5 @@
+Options -Indexes -ExecCGI
+<FilesMatch "(?i)\.(php[0-9]?|phtml|phar|cgi|pl|py|sh|html?|svg|js|css)$">
+    Require all denied
+</FilesMatch>
+Header set X-Content-Type-Options "nosniff"

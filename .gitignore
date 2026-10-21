@@ -15,3 +15,5 @@ staticfiles/
 *.sqlite3-*
 *.pem
 *.key
+production.json
+_deploy/

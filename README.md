@@ -42,8 +42,8 @@ python manage.py test
 
 ## Deployment status
 
-Production deployment still needs database configuration, HTTPS/cookie settings,
-static/media serving, backups, and a WSGI entry point for the hosting environment.
-The current WSGI application is `config.wsgi.application`.
-Run `python manage.py check --deploy` with production settings before publishing.
+Production configuration is in `config.production`; the cPanel WSGI entry point
+is `passenger_wsgi.py`. See [DEPLOYMENT.md](DEPLOYMENT.md) for the isolated hosting
+resources, private configuration, content transfer, static/media serving and
+validation steps. Run the deployment checks with production settings before publishing.
 Do not upload `.venv`, database backups, `.env` files, or private keys to GitHub.
