@@ -1,0 +1,212 @@
+# English translations. Persian source strings live in the templates.
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: en\n"
+
+msgid "کافه کلاب"
+msgstr "Cafe Club"
+
+msgid "ناوبری اصلی"
+msgstr "Main navigation"
+
+msgid "خانه"
+msgstr "Home"
+
+msgid "آگهی"
+msgstr "Ads"
+
+msgid "مکان"
+msgstr "Location"
+
+msgid "نوار پایین"
+msgstr "Bottom bar"
+
+msgid "شب‌های بازی"
+msgstr "Game nights"
+
+msgid "بازی‌ها"
+msgstr "Games"
+
+msgid "میزها"
+msgstr "Tables"
+
+msgid "زبان"
+msgstr "Language"
+
+msgid "مهمان"
+msgstr "Guest"
+
+msgid "پنل مدیریت"
+msgstr "Admin panel"
+
+msgid "کافه کلاب؛ شب‌های بازی، کنسول و میز استنتاج"
+msgstr "Cafe Club — game nights, consoles, and deduction tables"
+
+msgid "از نقش‌آفرینی تا کنسول"
+msgstr "From roleplay to console"
+
+msgid "یک کافه برای بازی‌های گروهی"
+msgstr "A cafe for games played together"
+
+msgid "شب‌های مرموز، میز کنسول و دورهمی کارت؛ بنرها را از پنل مدیریت، به فارسی و انگلیسی، به‌روز کنید."
+msgstr "Mysterious nights, a console table, and a card circle. Update the banners in Persian and English from the admin panel."
+
+msgid "بنرهای کافه"
+msgstr "Cafe banners"
+
+msgid "تقسیم نقش سریع"
+msgstr "Quick role assignment"
+
+msgid "بنر %(order)s"
+msgstr "Banner %(order)s"
+
+msgid "جزئیات"
+msgstr "Details"
+
+msgid "وب‌سایت بیرونی"
+msgstr "External website"
+
+msgid "بنر فعالی برای نمایش وجود ندارد."
+msgstr "There is no active banner to show."
+
+msgid "شب‌های نقش‌آفرینی و سناریوهای شهری کافه کلاب اینجاست. برنامه رویدادها از پنل مدیریت به‌روز می‌شود."
+msgstr "This is where Cafe Club’s roleplay nights and city scenarios live. Event details are updated from the admin panel."
+
+msgid "میزهای کنسول برای بازی گروهی آماده‌اند. زمان میز را هماهنگ کنید و با دوستان‌تان بازی را شروع کنید."
+msgstr "Console tables are ready for group play. Arrange a time and start a game with your friends."
+
+msgid "کارت، استنتاج و گفت‌وگوی روبه‌رو. یک میز انتخاب کنید و ببینید چه کسی حقیقت را می‌گوید."
+msgstr "Cards, deduction, and a conversation across the table. Pick a seat and find out who is telling the truth."
+
+msgid "بازگشت به خانه"
+msgstr "Back home"
+
+msgid "نفره"
+msgstr "players"
+
+msgid "بازی را چند نفره اجرا می‌کنید؟"
+msgstr "How many players?"
+
+msgid "نقش‌های این سناریو هنوز کامل نیست."
+msgstr "This scenario’s roles are not complete yet."
+
+msgid "نقش‌ها با چه حالتی تقسیم شود؟"
+msgstr "How should the roles be dealt?"
+
+msgid "به ترتیب نفرات"
+msgstr "In player order"
+
+msgid "از نفر اول تا نفر آخر نقش بده."
+msgstr "Give a role from the first player to the last."
+
+msgid "به ترتیب صندلی"
+msgstr "By chair"
+
+msgid "شماره صندلی اعلام می‌شود و نقش به همان صندلی می‌رسد."
+msgstr "A chair number is called, and that chair receives the role."
+
+msgid "تصادفی"
+msgstr "Random"
+
+msgid "هر کس روی کادر دلخواه خودش بزند."
+msgstr "Each person taps the frame they want."
+
+msgid "همه نقش‌ها پخش شد."
+msgstr "All roles have been dealt."
+
+msgid "تقسیم نقش مجدد"
+msgstr "Deal roles again"
+
+msgid "روی کادر دلخواه بزنید."
+msgstr "Tap any frame."
+
+msgid "صندلی شماره"
+msgstr "Chair number"
+
+msgid "نفر شماره"
+msgstr "Player number"
+
+msgid "برای دیدن نقش، شماره را لمس کنید."
+msgstr "Tap the number to see the role."
+
+msgid "نقش"
+msgstr "Role"
+
+msgid "توضیح نقش"
+msgstr "Role description"
+
+msgid "بستن"
+msgstr "Close"
+
+msgid "برای دیدن نقش، کارت را لمس کنید."
+msgstr "Tap the card to see the role."
+
+msgid "بازگشت به کارت‌ها"
+msgstr "Back to the cards"
+
+msgid "نفر بعدی"
+msgstr "Next player"
+
+msgid "مدیریت بازی"
+msgstr "Game management"
+
+msgid "حرکت آخر"
+msgstr "Final move"
+
+msgid "قرعه مرگ"
+msgstr "Death lottery"
+
+msgid "قرعه جدید"
+msgstr "New draw"
+
+msgid "بازگشت"
+msgstr "Back"
+
+msgid "برای دیدن کارت، آن را لمس کنید."
+msgstr "Tap the card to see it."
+
+msgid "زمان نوبت"
+msgstr "Turn timer"
+
+msgid "زنگ هشدار"
+msgstr "Alarm"
+
+msgid "نوبت گفتگو"
+msgstr "Speaking turn"
+
+msgid "نوبت چالش"
+msgstr "Challenge turn"
+
+msgid "کم کردن زمان"
+msgstr "Decrease time"
+
+msgid "زیاد کردن زمان"
+msgstr "Increase time"
+
+msgid "شروع"
+msgstr "Start"
+
+msgid "پایان"
+msgstr "Stop"
+
+msgid "پخش موسیقی"
+msgstr "Music"
+
+msgid "آهنگ‌ها فقط روی همین دستگاه می‌مانند و برای فاز شب از لیست پخش می‌شوند."
+msgstr "Songs stay on this device and play from the list during the night phase."
+
+msgid "افزودن به لیست"
+msgstr "Add to the list"
+
+msgid "پخش"
+msgstr "Play"
+
+msgid "توقف"
+msgstr "Pause"
+
+msgid "آهنگی انتخاب نشده"
+msgstr "No song selected"
+
+msgid "حذف آهنگ"
+msgstr "Remove song"

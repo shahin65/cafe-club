@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% load i18n static %}
+
+{% block title %}{% trans "مدیریت بازی" %}{% endblock %}
+
+{% block content %}
+  <section class="deal-sheet">
+    <h1>{% trans "مدیریت بازی" %}</h1>
+    <p>{{ scenario.name }}</p>
+    <section class="turn-timers" aria-labelledby="turn-timers-title">
+      <header class="turn-timers-bar">
+        <div class="turn-timers-title">
+          <img src="{% static 'Icon-Time.png' %}" alt="" width="40" height="40">
+          <h2 id="turn-timers-title">{% trans "زمان نوبت" %}</h2>
+        </div>
+        <button class="alarm-toggle" type="button" aria-pressed="true" aria-label="{% trans 'زنگ هشدار' %}">
+          <img src="{% static 'Icon-Alarm.png' %}" alt="" width="36" height="36">
+        </button>
+      </header>
+      <article class="turn-timer" data-timer="talk" data-seconds="30">
+        <div class="timer-face">
+          <svg viewBox="0 0 100 100">
+            <circle class="timer-track" cx="50" cy="50" r="42"></circle>
+            <circle class="timer-fill" cx="50" cy="50" r="42"></circle>
+          </svg>
+          <span class="timer-count">30</span>
+        </div>
+        <div class="timer-meta">
+          <p>{% trans "نوبت گفتگو" %}</p>
+          <div class="timer-steps">
+            <button class="timer-step" type="button" data-step="-5" aria-label="{% trans 'کم کردن زمان' %}">−</button>
+            <button class="timer-step" type="button" data-step="5" aria-label="{% trans 'زیاد کردن زمان' %}">+</button>
+          </div>
+        </div>
+        <button class="timer-run" type="button" data-start="{% trans 'شروع' %}" data-end="{% trans 'پایان' %}">{% trans "شروع" %}</button>
+      </article>
+      <article class="turn-timer" data-timer="challenge" data-seconds="20">
+        <div class="timer-face">
+          <svg viewBox="0 0 100 100">
+            <circle class="timer-track" cx="50" cy="50" r="42"></circle>
+            <circle class="timer-fill" cx="50" cy="50" r="42"></circle>
+          </svg>
+          <span class="timer-count">20</span>
+        </div>
+        <div class="timer-meta">
+          <p>{% trans "نوبت چالش" %}</p>
+          <div class="timer-steps">
+            <button class="timer-step" type="button" data-step="-5" aria-label="{% trans 'کم کردن زمان' %}">−</button>
+            <button class="timer-step" type="button" data-step="5" aria-label="{% trans 'زیاد کردن زمان' %}">+</button>
+          </div>
+        </div>
+        <button class="timer-run" type="button" data-start="{% trans 'شروع' %}" data-end="{% trans 'پایان' %}">{% trans "شروع" %}</button>
+      </article>
+    </section>
+    <section class="music-player" aria-labelledby="music-player-title">
+      <header class="turn-timers-bar">
+        <div class="turn-timers-title">
+          <img src="{% static 'Icon-music.png' %}" alt="" width="40" height="40">
+          <h2 id="music-player-title">{% trans "پخش موسیقی" %}</h2>
+        </div>
+      </header>
+      <p class="music-note">{% trans "آهنگ‌ها فقط روی همین دستگاه می‌مانند و برای فاز شب از لیست پخش می‌شوند." %}</p>
+      <div class="music-controls">
+        <button class="music-add" type="button">{% trans "افزودن به لیست" %}</button>
+        <input class="music-file" type="file" accept="audio/*,.mp3,.m4a,.aac,.ogg,.wav,.flac" multiple hidden>
+        <button class="music-play" type="button" data-play="{% trans 'پخش' %}" data-pause="{% trans 'توقف' %}" disabled>{% trans "پخش" %}</button>
+      </div>
+      <p class="music-now">{% trans "آهنگی انتخاب نشده" %}</p>
+      <ul class="music-list"></ul>
+      <audio class="music-audio" preload="none"></audio>
+    </section>
+    <div class="choice-list">
+      {% if show_final %}
+        <a class="choice" href="{% url 'deal_final' %}">
+          <img src="{% static 'Icon-Endmove.png' %}" alt="" width="56" height="56">
+          <span><strong>{% trans "حرکت آخر" %}</strong></span>
+        </a>
+      {% endif %}
+      {% if show_lottery %}
+        <a class="choice" href="{% url 'deal_lottery' %}">
+          <img src="{% static 'Icon-Lot.png' %}" alt="" width="56" height="56">
+          <span><strong>{% trans "قرعه مرگ" %}</strong></span>
+        </a>
+      {% endif %}
+    </div>
+  </section>
+  <script src="{% static 'js/turn-timers.js' %}?v=2"></script>
+  <script src="{% static 'js/music-player.js' %}?v=1"></script>
+{% endblock %}

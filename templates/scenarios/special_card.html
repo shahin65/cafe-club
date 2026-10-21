@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% load i18n static %}
+
+{% block title %}{% if kind == "lottery" %}{% trans "قرعه مرگ" %}{% else %}{% trans "حرکت آخر" %}{% endif %}{% endblock %}
+
+{% block content %}
+  <section class="deal-sheet card-sheet">
+    {% csrf_token %}
+    <div class="card-scene{% if already %} is-known{% endif %}" data-reveal="{{ reveal_url }}" data-kind="{{ kind }}">
+      <div class="card-inner">
+        <div class="card-face card-back" style="background-image: url('{% static 'Card-Background.webp' %}')"></div>
+        <div class="card-face card-front">
+          <img class="card-art" alt="">
+          {% if kind == "lottery" %}
+            <p class="fate-word" hidden></p>
+          {% else %}
+            <p class="final-blurb" hidden></p>
+            <p class="final-name"></p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    <p class="card-hint">{% trans "برای دیدن کارت، آن را لمس کنید." %}</p>
+    <a class="choice deal-safe host-back" href="{{ back_url }}">{% trans "بازگشت" %}</a>
+  </section>
+  <script>
+    (function () {
+      var scene = document.querySelector(".card-scene");
+      var inner = scene.querySelector(".card-inner");
+      var token = document.querySelector("[name=csrfmiddlewaretoken]").value;
+      var hint = document.querySelector(".card-hint");
+      var busy = false;
+
+      function show(data) {
+        scene.querySelector(".card-art").src = data.card;
+        if (data.word) {
+          var fate = scene.querySelector(".fate-word");
+          fate.textContent = data.word;
+          fate.hidden = false;
+        } else {
+          scene.querySelector(".final-name").textContent = data.name;
+          if (data.description) {
+            var blurb = scene.querySelector(".final-blurb");
+            blurb.textContent = data.description;
+            blurb.hidden = false;
+          }
+        }
+        hint.hidden = true;
+        scene.classList.add("is-open");
+        inner.classList.add("is-flipped");
+      }
+
+      function reveal() {
+        if (busy || inner.classList.contains("is-flipped")) return;
+        busy = true;
+        fetch(scene.dataset.reveal, {
+          method: "POST",
+          headers: {"X-CSRFToken": token, "X-Requested-With": "XMLHttpRequest"}
+        }).then(function (response) {
+          if (!response.ok) throw new Error("reveal");
+          return response.json();
+        }).then(show).catch(function () {
+          busy = false;
+        });
+      }
+
+      scene.addEventListener("click", function () {
+        reveal();
+      });
+      if (scene.classList.contains("is-known")) reveal();
+    })();
+  </script>
+{% endblock %}

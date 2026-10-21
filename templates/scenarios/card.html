@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% load i18n static %}
+
+{% block title %}{% trans "نقش" %}{% endblock %}
+
+{% block content %}
+  <section class="deal-sheet card-sheet">
+    {% csrf_token %}
+    {% if mode == "chair" or mode == "order" %}
+      <p class="deal-kicker">
+        {% if mode == "chair" %}
+          <img src="{% static 'Icon-Chair.png' %}" alt="" width="36" height="36">
+          <span>{% trans "صندلی شماره" %} <strong class="deal-number">{{ slot }}</strong></span>
+        {% else %}
+          <img src="{% static 'Icon-Numerical.png' %}" alt="" width="36" height="36">
+          <span>{% trans "نفر شماره" %} <strong class="deal-number">{{ slot }}</strong></span>
+        {% endif %}
+      </p>
+    {% endif %}
+    <div class="card-scene{% if already %} is-known{% endif %}" data-reveal="{% url 'deal_reveal' slot %}">
+      <div class="card-inner">
+        <div class="card-face card-back" style="background-image: url('{% static 'Card-Background.webp' %}')"></div>
+        <div class="card-face card-front">
+          <img class="card-art" alt="">
+          <button class="role-help" type="button" hidden>{% trans "توضیح نقش" %}</button>
+          <div class="role-caption">
+            <img class="role-icon" alt="" hidden>
+            <p class="role-name"></p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <dialog class="role-note">
+      <form method="dialog">
+        <h2>{% trans "توضیح نقش" %}</h2>
+        <p></p>
+        <button type="submit">{% trans "بستن" %}</button>
+      </form>
+    </dialog>
+    <p class="card-hint">{% trans "برای دیدن نقش، کارت را لمس کنید." %}</p>
+    <a class="choice deal-safe deal-next" href="{{ board_url }}" hidden>{{ continue_label }}</a>
+    <a class="choice deal-safe deal-host" href="{% url 'deal_host' %}" hidden>
+      <img src="{% static 'Icon-Opreator.png' %}" alt="" width="40" height="40">
+      <span>{% trans "مدیریت بازی" %}</span>
+    </a>
+    <a class="choice deal-safe deal-restart" href="{% url 'deal_restart' %}" hidden>
+      <img src="{% static 'Icon-Refresh.png' %}" alt="" width="40" height="40">
+      <span>{% trans "تقسیم نقش مجدد" %}</span>
+    </a>
+  </section>
+  <script>
+    (function () {
+      var scene = document.querySelector(".card-scene");
+      var inner = scene.querySelector(".card-inner");
+      var token = document.querySelector("[name=csrfmiddlewaretoken]").value;
+      var hint = document.querySelector(".card-hint");
+      var next = document.querySelector(".deal-next");
+      var host = document.querySelector(".deal-host");
+      var restart = document.querySelector(".deal-restart");
+      var help = scene.querySelector(".role-help");
+      var note = document.querySelector(".role-note");
+      var busy = false;
+
+      function show(data) {
+        scene.querySelector(".card-art").src = data.card;
+        scene.querySelector(".role-name").textContent = data.name;
+        var icon = scene.querySelector(".role-icon");
+        if (data.icon) {
+          icon.src = data.icon;
+          icon.hidden = false;
+        }
+        if (data.description) {
+          note.querySelector("p").textContent = data.description;
+          help.hidden = false;
+        }
+        hint.hidden = true;
+        if (data.done) {
+          host.hidden = false;
+          restart.hidden = false;
+        } else {
+          next.hidden = false;
+        }
+        scene.classList.add("is-open");
+        inner.classList.add("is-flipped");
+      }
+
+      function reveal() {
+        if (busy || inner.classList.contains("is-flipped")) return;
+        busy = true;
+        fetch(scene.dataset.reveal, {
+          method: "POST",
+          headers: {"X-CSRFToken": token, "X-Requested-With": "XMLHttpRequest"}
+        }).then(function (response) {
+          if (!response.ok) throw new Error("reveal");
+          return response.json();
+        }).then(show).catch(function () {
+          busy = false;
+        });
+      }
+
+      scene.addEventListener("click", function (event) {
+        if (event.target.closest(".role-help, .role-note, a")) return;
+        reveal();
+      });
+      help.addEventListener("click", function (event) {
+        event.stopPropagation();
+        note.showModal();
+      });
+      if (scene.classList.contains("is-known")) reveal();
+    })();
+  </script>
+{% endblock %}

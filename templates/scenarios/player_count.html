@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{{ scenario.name }}{% endblock %}
+
+{% block content %}
+  <section class="deal-sheet">
+    <h1>{{ scenario.name }}</h1>
+    {% if sizes %}
+      <p>{% trans "بازی را چند نفره اجرا می‌کنید؟" %}</p>
+      <div class="choice-list">
+        {% for size in sizes %}
+          <a class="choice" href="{% url 'deal_mode' scenario.id size.player_count %}">{{ size.player_count }} {% trans "نفره" %}</a>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p>{% trans "نقش‌های این سناریو هنوز کامل نیست." %}</p>
+    {% endif %}
+  </section>
+{% endblock %}

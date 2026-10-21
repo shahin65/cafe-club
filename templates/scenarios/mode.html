@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% load i18n static %}
+
+{% block title %}{{ scenario.name }}{% endblock %}
+
+{% block content %}
+  <section class="deal-sheet">
+    <h1>{{ scenario.name }}</h1>
+    <p>{{ size.player_count }} {% trans "نفره" %}</p>
+    <h2>{% trans "نقش‌ها با چه حالتی تقسیم شود؟" %}</h2>
+    <div class="choice-list">
+      <a class="choice" href="{% url 'deal_board' scenario.id size.player_count 'order' %}?fresh=1">
+        <img src="{% static 'Icon-Numerical.png' %}" alt="" width="56" height="56">
+        <span>
+          <strong>{% trans "به ترتیب نفرات" %}</strong>
+          <small>{% trans "از نفر اول تا نفر آخر نقش بده." %}</small>
+        </span>
+      </a>
+      <a class="choice" href="{% url 'deal_board' scenario.id size.player_count 'chair' %}?fresh=1">
+        <img src="{% static 'Icon-Chair.png' %}" alt="" width="56" height="56">
+        <span>
+          <strong>{% trans "به ترتیب صندلی" %}</strong>
+          <small>{% trans "شماره صندلی اعلام می‌شود و نقش به همان صندلی می‌رسد." %}</small>
+        </span>
+      </a>
+      <a class="choice" href="{% url 'deal_board' scenario.id size.player_count 'random' %}?fresh=1">
+        <img src="{% static 'Icon-Accidental.png' %}" alt="" width="56" height="56">
+        <span>
+          <strong>{% trans "تصادفی" %}</strong>
+          <small>{% trans "هر کس روی کادر دلخواه خودش بزند." %}</small>
+        </span>
+      </a>
+    </div>
+  </section>
+{% endblock %}

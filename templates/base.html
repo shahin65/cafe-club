@@ -1,0 +1,79 @@
+{% load i18n static %}
+{% get_current_language as LANGUAGE_CODE %}
+{% get_current_language_bidi as LANGUAGE_BIDI %}
+<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{% trans "کافه کلاب" %}{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Lalezar&family=Vazirmatn:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/site.css' %}?v=15">
+</head>
+<body{% if role_deal_active %} data-deal-active="1" data-deal-cancel="{% url 'deal_cancel' %}"{% endif %}>
+  <header class="app-bar">
+    <details class="profile">
+      <summary class="profile-button">
+        <img src="{% static 'Icon-profile.png' %}" alt="" width="36" height="36">
+        <span class="username">{% if request.user.is_authenticated %}{{ request.user.get_username }}{% else %}{% trans "مهمان" %}{% endif %}</span>
+      </summary>
+      <div class="profile-menu">
+        <p class="profile-menu-label">{% trans "زبان" %}</p>
+        <form action="{% url 'set_language' %}" method="post">
+          {% csrf_token %}
+          <input type="hidden" name="next" value="{{ request.get_full_path }}">
+          <button type="submit" name="language" value="fa" {% if LANGUAGE_CODE == 'fa' %}aria-pressed="true"{% endif %}>فارسی</button>
+          <button type="submit" name="language" value="en" {% if LANGUAGE_CODE == 'en' %}aria-pressed="true"{% endif %}>English</button>
+        </form>
+      </div>
+    </details>
+    <a class="app-name" href="{% url 'home' %}">{% trans "کافه کلاب" %}</a>
+  </header>
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+  <nav class="tab-bar" aria-label="{% trans 'نوار پایین' %}">
+    <button class="tab" type="button" aria-disabled="true">
+      <img src="{% static 'Icon-Advertisement.png' %}" alt="" width="36" height="36">
+      <span>{% trans "آگهی" %}</span>
+    </button>
+    <a class="tab{% if request.resolver_match.url_name == 'home' %} is-active{% endif %}" href="{% url 'home' %}" {% if request.resolver_match.url_name == 'home' %}aria-current="page"{% endif %}>
+      <img src="{% static 'Icon-Home.png' %}" alt="" width="44" height="44">
+      <span>{% trans "خانه" %}</span>
+    </a>
+    <button class="tab" type="button" aria-disabled="true">
+      <img src="{% static 'Icon-Location.png' %}" alt="" width="36" height="36">
+      <span>{% trans "مکان" %}</span>
+    </button>
+  </nav>
+  <script>
+    document.addEventListener("click", function (event) {
+      var profile = document.querySelector(".profile");
+      if (profile && !profile.contains(event.target)) {
+        profile.open = false;
+      }
+    });
+    if (document.body.dataset.dealActive) {
+      var leaveMessage = "آیا از ادامه پخش نقش منصرف شدید؟";
+      var cancelUrl = document.body.dataset.dealCancel;
+      history.pushState({dealGuard: 1}, "", location.href);
+      window.addEventListener("popstate", function () {
+        if (window.confirm(leaveMessage)) {
+          window.location.href = cancelUrl;
+        } else {
+          history.pushState({dealGuard: 1}, "", location.href);
+        }
+      });
+      document.addEventListener("click", function (event) {
+        var link = event.target.closest("a");
+        if (!link || link.classList.contains("deal-safe") || link.target === "_blank") return;
+        if (link.origin !== location.origin) return;
+        event.preventDefault();
+        if (window.confirm(leaveMessage)) window.location.href = cancelUrl;
+      });
+    }
+  </script>
+</body>
+</html>

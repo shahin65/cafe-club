@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% load i18n static %}
+
+{% block title %}{% trans "قرعه مرگ" %}{% endblock %}
+
+{% block content %}
+  <section class="deal-sheet">
+    <h1>{% trans "قرعه مرگ" %}</h1>
+    <form method="post">
+      {% csrf_token %}
+      <button class="choice lottery-button" type="submit">
+        <img src="{% static 'Icon-Lot.png' %}" alt="" width="56" height="56">
+        <span><strong>{% trans "قرعه جدید" %}</strong></span>
+      </button>
+    </form>
+    {% if boxes %}
+      <ul class="mystery-grid mystery-pair">
+        {% for box in boxes %}
+          <li>
+            <a class="mystery-card" href="{% url 'deal_lottery_card' box.index %}">؟</a>
+          </li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+    <a class="choice host-back" href="{% url 'deal_host' %}">{% trans "بازگشت" %}</a>
+  </section>
+{% endblock %}

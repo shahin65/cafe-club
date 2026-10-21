@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "حرکت آخر" %}{% endblock %}
+
+{% block content %}
+  <section class="deal-sheet">
+    <h1>{% trans "حرکت آخر" %}</h1>
+    <p>{% trans "روی کادر دلخواه بزنید." %}</p>
+    <ul class="mystery-grid">
+      {% for box in boxes %}
+        <li>
+          {% if box.done %}
+            <span class="mystery-card is-done" aria-hidden="true">✓</span>
+          {% else %}
+            <a class="mystery-card" href="{% url 'deal_final_card' box.number %}">؟</a>
+          {% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+    <a class="choice host-back" href="{% url 'deal_host' %}">{% trans "بازگشت" %}</a>
+  </section>
+{% endblock %}
