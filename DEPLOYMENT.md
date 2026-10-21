@@ -32,9 +32,10 @@ python manage.py check --deploy --database default --settings=config.production
 ```
 
 Create the database with `utf8mb4` and give its dedicated user access only to the
-new database. The driver is mysqlclient; its Linux build needs MySQL/MariaDB
-client headers, pkg-config and a compiler. Verify these are available before
-installation; do not change the other applications' environments.
+new database. The driver is Oracle's MySQL Connector/Python, which provides its
+own Django backend and installs without compiling on this hosting account.
+The host denies compiler execution, so mysqlclient cannot be built here.
+Do not change the other applications' environments.
 
 ## Public files and HTTPS
 

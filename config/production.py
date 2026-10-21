@@ -54,7 +54,7 @@ CSRF_TRUSTED_ORIGINS = [f"https://{host}" for host in ALLOWED_HOSTS]
 
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.mysql",
+        "ENGINE": "mysql.connector.django",
         "NAME": required_value("DB_NAME"),
         "USER": required_value("DB_USER"),
         "PASSWORD": required_value("DB_PASSWORD"),
