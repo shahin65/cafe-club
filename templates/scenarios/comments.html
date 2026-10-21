@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% load i18n static %}
+
+{% block title %}{% trans "نظر کاربران" %} | {{ scenario.display_name }}{% endblock %}
+
+{% block extrahead %}
+  <meta name="robots" content="noindex,follow">
+{% endblock %}
+
+{% block content %}
+  <section class="sheet comments-sheet">
+    <p class="doc-kicker">{{ scenario.display_name }}</p>
+    <h1>{% trans "نظر کاربران" %}</h1>
+    {% if messages %}
+      <ul class="form-messages">
+        {% for message in messages %}
+          <li class="{{ message.tags }}">{{ message }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+    {% if comments %}
+      <ol class="comment-thread">
+        {% for comment in comments %}
+          <li class="comment{% if comment.is_admin %} is-admin{% endif %}">
+            <p class="comment-meta">
+              <strong>{{ comment.author_name }}</strong>
+              {% if comment.is_admin %}<span>{% trans "مدیریت" %}</span>{% endif %}
+            </p>
+            <p>{{ comment.body }}</p>
+            <details class="reply-box">
+              <summary>{% trans "پاسخ" %}</summary>
+              <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="parent" value="{{ comment.id }}">
+                <label>{% trans "نام" %}<input name="author_name" maxlength="40" required></label>
+                <label>{% trans "پاسخ شما" %}<textarea name="body" rows="3" maxlength="1000" required></textarea></label>
+                <input class="hp" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+                <button type="submit">{% trans "ارسال پاسخ" %}</button>
+              </form>
+            </details>
+            {% if comment.replies.all %}
+              <ol class="comment-replies">
+                {% for reply in comment.replies.all %}
+                  <li class="comment{% if reply.is_admin %} is-admin{% endif %}">
+                    <p class="comment-meta">
+                      <strong>{{ reply.author_name }}</strong>
+                      {% if reply.is_admin %}<span>{% trans "مدیریت" %}</span>{% endif %}
+                    </p>
+                    <p>{{ reply.body }}</p>
+                  </li>
+                {% endfor %}
+              </ol>
+            {% endif %}
+          </li>
+        {% endfor %}
+      </ol>
+    {% else %}
+      <p>{% trans "هنوز نظر تأییدشده‌ای برای این سناریو نیست." %}</p>
+    {% endif %}
+    <form class="comment-form" method="post">
+      {% csrf_token %}
+      <h2>{% trans "ارسال نظر" %}</h2>
+      <p class="music-note">{% trans "نظر پس از تأیید مدیریت روی سایت دیده می‌شود." %}</p>
+      <label>{% trans "نام" %}<input name="author_name" maxlength="40" required></label>
+      <label>{% trans "نظر شما" %}<textarea name="body" rows="4" maxlength="1000" required></textarea></label>
+      <input class="hp" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+      <button type="submit">{% trans "ارسال نظر" %}</button>
+    </form>
+  </section>
+{% endblock %}
+
+{% block tab_bar %}
+  {% include "scenarios/_host_tabs.html" %}
+{% endblock %}

@@ -1,5 +1,9 @@
+from django.contrib import messages
+from django.db.models import Prefetch
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
+from django.utils.translation import get_language, gettext as _, override
 from django.views.decorators.http import require_POST
 
 from scenarios.dealing import (
@@ -19,7 +23,7 @@ from scenarios.dealing import (
     latest_lottery,
     same_deal,
 )
-from scenarios.models import FinalMoveCard, Role, Scenario, ScenarioSize
+from scenarios.models import FinalMoveCard, Role, Scenario, ScenarioComment, ScenarioSize
 
 
 def _playable_sizes(scenario):
@@ -337,4 +341,88 @@ def lottery_reveal(request, index):
             "word": FATE_WORDS[current["outcomes"][index]],
             "card": final_card_static(),
         }
+    )
+
+
+def _localized_absolute(request, viewname, slug, language):
+    with override(language):
+        path = reverse(viewname, kwargs={"slug": slug})
+    return request.build_absolute_uri(path)
+
+
+def _page_seo(request, scenario, kind):
+    viewname = "scenario_rulebook" if kind == "rulebook" else "scenario_rules"
+    language = (get_language() or "fa").split("-")[0]
+    canonical = _localized_absolute(request, viewname, scenario.slug, language)
+    image = ""
+    if scenario.icon:
+        image = request.build_absolute_uri(scenario.icon.url)
+    return {
+        "kind": kind,
+        "title": scenario.page_title(kind),
+        "body": scenario.page_body_html(kind),
+        "meta_title": scenario.page_meta_title(kind),
+        "meta_description": scenario.page_meta_description(kind),
+        "canonical": canonical,
+        "hreflang_fa": _localized_absolute(request, viewname, scenario.slug, "fa"),
+        "hreflang_en": _localized_absolute(request, viewname, scenario.slug, "en"),
+        "og_image": image,
+        "in_language": "en" if language == "en" else "fa",
+    }
+
+
+def scenario_rulebook(request, slug):
+    scenario = get_object_or_404(Scenario, slug=slug)
+    return render(
+        request,
+        "scenarios/scenario_page.html",
+        {"scenario": scenario, "page": _page_seo(request, scenario, "rulebook"), "tab_active": "rulebook"},
+    )
+
+
+def scenario_rules(request, slug):
+    scenario = get_object_or_404(Scenario, slug=slug)
+    return render(
+        request,
+        "scenarios/scenario_page.html",
+        {"scenario": scenario, "page": _page_seo(request, scenario, "rules"), "tab_active": "rules"},
+    )
+
+
+def scenario_comments(request, slug):
+    scenario = get_object_or_404(Scenario, slug=slug)
+    if request.method == "POST":
+        if request.POST.get("website"):
+            return redirect(scenario.get_comments_url())
+        name = (request.POST.get("author_name") or "").strip()[:40]
+        body = (request.POST.get("body") or "").strip()[:1000]
+        parent = None
+        parent_id = request.POST.get("parent")
+        if parent_id:
+            parent = ScenarioComment.objects.filter(
+                pk=parent_id,
+                scenario=scenario,
+                is_approved=True,
+            ).first()
+        if name and body:
+            ScenarioComment.objects.create(
+                scenario=scenario,
+                parent=parent,
+                author_name=name,
+                body=body,
+            )
+            messages.success(request, _("نظر شما ثبت شد و پس از تأیید مدیریت نمایش داده می‌شود."))
+        else:
+            messages.error(request, _("نام و متن نظر را وارد کنید."))
+        return redirect(scenario.get_comments_url())
+    roots = scenario.comments.filter(is_approved=True, parent__isnull=True).prefetch_related(
+        Prefetch(
+            "replies",
+            queryset=ScenarioComment.objects.filter(is_approved=True).order_by("created_at", "id"),
+        )
+    )
+    return render(
+        request,
+        "scenarios/comments.html",
+        {"scenario": scenario, "comments": roots, "tab_active": "comments"},
     )

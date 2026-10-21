@@ -1,11 +1,13 @@
 from collections import Counter
 
+from django import forms
 from django.contrib import admin, messages
 from django.core.exceptions import ValidationError
 from django.forms.models import BaseInlineFormSet
 from django.utils.html import format_html
 
-from .models import SIDE_FIELDS, FinalMoveCard, Role, Scenario, ScenarioSize
+from .models import SIDE_FIELDS, FinalMoveCard, Role, Scenario, ScenarioComment, ScenarioSize
+from .widgets import PageHtmlWidget
 
 SIDE_LABELS = dict(Role._meta.get_field("side").choices)
 
@@ -159,15 +161,72 @@ class ScenarioSizeAdmin(admin.ModelAdmin):
         return [inline(self.model, self.admin_site) for inline in inlines]
 
 
+class ScenarioCommentAdminForm(forms.ModelForm):
+    admin_reply = forms.CharField(
+        label="پاسخ مدیریت",
+        required=False,
+        widget=forms.Textarea(attrs={"rows": 4}),
+        help_text="پس از ذخیره، این متن به‌عنوان پاسخ تأییدشدهٔ مدیریت ثبت می‌شود.",
+    )
+
+    class Meta:
+        model = ScenarioComment
+        fields = "__all__"
+
+
+class ScenarioCommentAdmin(admin.ModelAdmin):
+    form = ScenarioCommentAdminForm
+    list_display = ("short_body", "scenario", "author_name", "is_approved", "is_admin", "parent", "created_at")
+    list_filter = ("is_approved", "is_admin", "scenario")
+    search_fields = ("author_name", "body", "scenario__name")
+    list_select_related = ("scenario", "parent")
+    ordering = ("-created_at",)
+    actions = ("approve_comments",)
+    fields = (
+        "scenario",
+        "parent",
+        "author_name",
+        "body",
+        "is_approved",
+        "is_admin",
+        "created_at",
+        "admin_reply",
+    )
+    readonly_fields = ("created_at",)
+
+    @admin.display(description="متن")
+    def short_body(self, obj):
+        return obj.body[:60]
+
+    @admin.action(description="تأیید نظرهای انتخاب‌شده")
+    def approve_comments(self, request, queryset):
+        updated = queryset.update(is_approved=True)
+        self.message_user(request, f"{updated} نظر تأیید شد.")
+
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        reply = (form.cleaned_data.get("admin_reply") or "").strip()
+        if not reply:
+            return
+        ScenarioComment.objects.create(
+            scenario=obj.scenario,
+            parent=obj,
+            author_name=request.user.get_username() or "مدیریت",
+            body=reply,
+            is_approved=True,
+            is_admin=True,
+        )
+
+
 class ScenarioAdmin(admin.ModelAdmin):
-    list_display = ("name", "player_modes", "has_final_move", "has_death_lottery", "is_featured", "home_order")
+    list_display = ("name", "slug", "player_modes", "has_final_move", "has_death_lottery", "is_featured", "home_order")
     list_filter = ("is_featured", "has_final_move", "has_death_lottery")
-    search_fields = ("name",)
+    search_fields = ("name", "name_en", "slug")
     ordering = ("home_order", "id")
     inlines = (ScenarioSizeInline,)
     readonly_fields = ("icon_preview",)
     fieldsets = (
-        ("سناریو", {"fields": ("name", "icon", "icon_preview", "has_final_move", "has_death_lottery")}),
+        ("سناریو", {"fields": ("name", "name_en", "slug", "icon", "icon_preview", "has_final_move", "has_death_lottery")}),
         (
             "صفحه اول",
             {
@@ -175,7 +234,33 @@ class ScenarioAdmin(admin.ModelAdmin):
                 "description": "بعد از ذخیره، برای هر حالت روی «تغییر» بزنید و نقش‌ها را کامل کنید. سپس تا ۶ سناریوی کامل را تأیید کنید. ترتیب صفحه اول هر عددی می‌تواند باشد و سقف آن سه نیست.",
             },
         ),
+        (
+            "رول‌بوک فارسی",
+            {
+                "fields": ("rulebook_title_fa", "rulebook_body_fa", "rulebook_meta_title_fa", "rulebook_meta_description_fa"),
+                "description": "صفحه معرفی سناریو و رول‌بوک. عنوان و توضیح سئو برای نمایش در گوگل است.",
+            },
+        ),
+        (
+            "رول‌بوک انگلیسی",
+            {"fields": ("rulebook_title_en", "rulebook_body_en", "rulebook_meta_title_en", "rulebook_meta_description_en")},
+        ),
+        (
+            "قوانین فارسی",
+            {"fields": ("rules_title_fa", "rules_body_fa", "rules_meta_title_fa", "rules_meta_description_fa")},
+        ),
+        (
+            "قوانین انگلیسی",
+            {"fields": ("rules_title_en", "rules_body_en", "rules_meta_title_en", "rules_meta_description_en")},
+        ),
     )
+
+    def formfield_for_dbfield(self, db_field, request, **kwargs):
+        if db_field.name in {"rulebook_body_fa", "rules_body_fa"}:
+            kwargs["widget"] = PageHtmlWidget(language="fa")
+        elif db_field.name in {"rulebook_body_en", "rules_body_en"}:
+            kwargs["widget"] = PageHtmlWidget(language="en")
+        return super().formfield_for_dbfield(db_field, request, **kwargs)
 
     @admin.display(description="آیکون")
     def icon_preview(self, obj):
@@ -211,3 +296,4 @@ class ScenarioAdmin(admin.ModelAdmin):
 
 admin.site.register(Scenario, ScenarioAdmin)
 admin.site.register(ScenarioSize, ScenarioSizeAdmin)
+admin.site.register(ScenarioComment, ScenarioCommentAdmin)

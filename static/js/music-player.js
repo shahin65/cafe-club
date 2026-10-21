@@ -3,20 +3,28 @@
   if (!root) return;
 
   var DB_NAME = "cafe-club-music";
+  var DB_VERSION = 2;
+  var PHASE_KEY = "cafe-club-game-phase";
   var list = root.querySelector(".music-list");
   var audio = root.querySelector(".music-audio");
   var fileInput = root.querySelector(".music-file");
   var playButton = root.querySelector(".music-play");
+  var phaseButton = root.querySelector(".phase-toggle");
   var now = root.querySelector(".music-now");
+  var note = root.querySelector(".music-note");
   var tracks = [];
   var currentId = null;
   var objectUrl = "";
+  var night = sessionStorage.getItem(PHASE_KEY) === "night";
 
   function openDb() {
     return new Promise(function (resolve, reject) {
-      var request = indexedDB.open(DB_NAME, 1);
+      var request = indexedDB.open(DB_NAME, DB_VERSION);
       request.onupgradeneeded = function () {
-        request.result.createObjectStore("tracks", {keyPath: "id"});
+        var db = request.result;
+        if (!db.objectStoreNames.contains("tracks")) {
+          db.createObjectStore("tracks", {keyPath: "id"});
+        }
       };
       request.onsuccess = function () {
         resolve(request.result);
@@ -70,15 +78,34 @@
     });
   }
 
+  function blobFor(track) {
+    if (track.blob) return track.blob;
+    return new Blob([track.buffer], {type: track.type || "audio/mpeg"});
+  }
+
   function setNow(text) {
     now.textContent = text;
   }
 
+  function paintPhase() {
+    root.classList.toggle("is-night", night);
+    phaseButton.setAttribute("aria-pressed", night ? "true" : "false");
+    phaseButton.querySelector(".phase-label").textContent = night
+      ? phaseButton.dataset.night
+      : phaseButton.dataset.day;
+    note.textContent = night ? note.dataset.night : note.dataset.day;
+    sessionStorage.setItem(PHASE_KEY, night ? "night" : "day");
+  }
+
+  function canPlay() {
+    return night && tracks.length > 0;
+  }
+
   function paintPlayButton() {
-    var playing = !audio.paused && !audio.ended;
+    var playing = night && !audio.paused && !audio.ended;
     playButton.textContent = playing ? playButton.dataset.pause : playButton.dataset.play;
     playButton.classList.toggle("is-playing", playing);
-    playButton.disabled = tracks.length === 0;
+    playButton.disabled = !canPlay();
   }
 
   function render() {
@@ -91,12 +118,18 @@
       choose.className = "music-track";
       choose.textContent = track.name;
       choose.addEventListener("click", function () {
+        if (!night) {
+          currentId = track.id;
+          setNow(track.name);
+          render();
+          return;
+        }
         playTrack(track.id);
       });
       var remove = document.createElement("button");
       remove.type = "button";
       remove.className = "music-remove";
-      remove.setAttribute("aria-label", "حذف آهنگ");
+      remove.setAttribute("aria-label", list.dataset.remove || "حذف آهنگ");
       remove.textContent = "×";
       remove.addEventListener("click", function () {
         removeTrack(track.id);
@@ -105,8 +138,15 @@
       item.appendChild(remove);
       list.appendChild(item);
     });
+    paintPhase();
     paintPlayButton();
-    if (!tracks.length) setNow(now.dataset.empty || now.textContent);
+    if (!tracks.length) setNow(now.dataset.empty);
+    else if (currentId) {
+      var selected = tracks.filter(function (track) {
+        return track.id === currentId;
+      })[0];
+      if (selected) setNow(selected.name);
+    }
   }
 
   function revokeUrl() {
@@ -117,13 +157,14 @@
   }
 
   function playTrack(id) {
+    if (!night) return;
     var track = tracks.filter(function (item) {
       return item.id === id;
     })[0];
     if (!track) return;
     currentId = id;
     revokeUrl();
-    objectUrl = URL.createObjectURL(track.blob);
+    objectUrl = URL.createObjectURL(blobFor(track));
     audio.src = objectUrl;
     setNow(track.name);
     render();
@@ -131,12 +172,17 @@
   }
 
   function playNext() {
-    if (!tracks.length) return;
+    if (!night || !tracks.length) return;
     var index = tracks.findIndex(function (track) {
       return track.id === currentId;
     });
     var next = tracks[(index + 1) % tracks.length];
     playTrack(next.id);
+  }
+
+  function pausePlayback() {
+    audio.pause();
+    paintPlayButton();
   }
 
   function removeTrack(id) {
@@ -166,23 +212,25 @@
     var saves = files.filter(function (file) {
       return file.type.indexOf("audio/") === 0 || /\.(mp3|m4a|aac|ogg|wav|flac)$/i.test(file.name);
     }).map(function (file) {
-      var track = {
-        id: Date.now() + Math.random(),
-        name: file.name.replace(/\.[^.]+$/, ""),
-        blob: file
-      };
-      return saveTrack(track).then(function () {
-        tracks.push(track);
+      return file.arrayBuffer().then(function (buffer) {
+        var track = {
+          id: Date.now() + Math.random(),
+          name: file.name.replace(/\.[^.]+$/, ""),
+          type: file.type || "audio/mpeg",
+          buffer: buffer
+        };
+        return saveTrack(track).then(function () {
+          tracks.push(track);
+        });
       });
     });
     Promise.all(saves).then(render);
   });
 
   playButton.addEventListener("click", function () {
-    if (!tracks.length) return;
+    if (!canPlay()) return;
     if (!audio.paused && !audio.ended) {
-      audio.pause();
-      paintPlayButton();
+      pausePlayback();
       return;
     }
     if (!currentId || audio.ended || !audio.src) {
@@ -192,15 +240,23 @@
     audio.play().then(paintPlayButton).catch(paintPlayButton);
   });
 
+  phaseButton.addEventListener("click", function () {
+    night = !night;
+    if (!night) pausePlayback();
+    render();
+  });
+
   audio.addEventListener("ended", function () {
-    playNext();
+    if (night) playNext();
   });
   audio.addEventListener("play", paintPlayButton);
   audio.addEventListener("pause", paintPlayButton);
 
   now.dataset.empty = now.textContent;
   loadTracks().then(function (saved) {
-    tracks = saved;
+    tracks = saved.filter(function (track) {
+      return track.buffer || track.blob;
+    });
     render();
   }).catch(function () {
     render();

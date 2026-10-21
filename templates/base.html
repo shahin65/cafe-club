@@ -7,10 +7,11 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}{% trans "کافه کلاب" %}{% endblock %}</title>
+  {% block extrahead %}{% endblock %}
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Lalezar&family=Vazirmatn:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{% static 'css/site.css' %}?v=15">
+  <link rel="stylesheet" href="{% static 'css/site.css' %}?v=18">
 </head>
 <body{% if role_deal_active %} data-deal-active="1" data-deal-cancel="{% url 'deal_cancel' %}"{% endif %}>
   <header class="app-bar">
@@ -34,6 +35,7 @@
   <main>
     {% block content %}{% endblock %}
   </main>
+  {% block tab_bar %}
   <nav class="tab-bar" aria-label="{% trans 'نوار پایین' %}">
     <button class="tab" type="button" aria-disabled="true">
       <img src="{% static 'Icon-Advertisement.png' %}" alt="" width="36" height="36">
@@ -48,6 +50,7 @@
       <span>{% trans "مکان" %}</span>
     </button>
   </nav>
+  {% endblock %}
   <script>
     document.addEventListener("click", function (event) {
       var profile = document.querySelector(".profile");

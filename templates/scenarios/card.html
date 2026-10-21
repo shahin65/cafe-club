@@ -19,7 +19,9 @@
     {% endif %}
     <div class="card-scene{% if already %} is-known{% endif %}" data-reveal="{% url 'deal_reveal' slot %}">
       <div class="card-inner">
-        <div class="card-face card-back" style="background-image: url('{% static 'Card-Background.webp' %}')"></div>
+        <div class="card-face card-back" style="background-image: url('{% static 'Card-Background.webp' %}')">
+          <img class="card-back-logo" src="{{ card_back_logo }}" alt="">
+        </div>
         <div class="card-face card-front">
           <img class="card-art" alt="">
           <button class="role-help" type="button" hidden>{% trans "توضیح نقش" %}</button>

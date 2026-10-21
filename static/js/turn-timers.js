@@ -4,6 +4,7 @@
   var MIN_SECONDS = 5;
   var MAX_SECONDS = 180;
   var STORAGE_KEY = "cafe-club-turn-timers";
+  var RING_GAP = 900;
   var audioCtx = null;
 
   function readStore() {
@@ -27,9 +28,9 @@
   }
 
   function stopNodes(nodes) {
-    nodes.forEach(function (osc) {
+    nodes.forEach(function (node) {
       try {
-        osc.stop();
+        node.stop();
       } catch (error) {
         /* already finished */
       }
@@ -40,45 +41,70 @@
   function scheduleBell(ctx, at, nodes) {
     var master = ctx.createGain();
     master.gain.setValueAtTime(0.0001, at);
-    master.gain.exponentialRampToValueAtTime(0.9, at + 0.006);
-    master.gain.exponentialRampToValueAtTime(0.0001, at + 2.1);
+    master.gain.exponentialRampToValueAtTime(0.95, at + 0.008);
+    master.gain.exponentialRampToValueAtTime(0.22, at + 0.18);
+    master.gain.exponentialRampToValueAtTime(0.0001, at + 1.65);
     master.connect(ctx.destination);
 
-    var clickLength = Math.floor(ctx.sampleRate * 0.02);
-    var clickBuffer = ctx.createBuffer(1, Math.max(clickLength, 1), ctx.sampleRate);
+    var clickLength = Math.max(1, Math.floor(ctx.sampleRate * 0.018));
+    var clickBuffer = ctx.createBuffer(1, clickLength, ctx.sampleRate);
     var clickData = clickBuffer.getChannelData(0);
     for (var i = 0; i < clickData.length; i++) {
-      clickData[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / clickData.length, 4);
+      clickData[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / clickData.length, 5);
     }
     var click = ctx.createBufferSource();
     var clickFilter = ctx.createBiquadFilter();
     var clickGain = ctx.createGain();
     click.buffer = clickBuffer;
-    clickFilter.type = "highpass";
-    clickFilter.frequency.setValueAtTime(1400, at);
-    clickGain.gain.setValueAtTime(0.55, at);
-    clickGain.gain.exponentialRampToValueAtTime(0.0001, at + 0.04);
+    clickFilter.type = "bandpass";
+    clickFilter.frequency.setValueAtTime(2400, at);
+    clickFilter.Q.setValueAtTime(0.9, at);
+    clickGain.gain.setValueAtTime(0.7, at);
+    clickGain.gain.exponentialRampToValueAtTime(0.0001, at + 0.05);
     click.connect(clickFilter);
     clickFilter.connect(clickGain);
     clickGain.connect(master);
     click.start(at);
-    click.stop(at + 0.05);
+    click.stop(at + 0.06);
     nodes.push(click);
 
+    var pitch = 880;
+    var carrier = ctx.createOscillator();
+    var modulator = ctx.createOscillator();
+    var modGain = ctx.createGain();
+    var clang = ctx.createGain();
+    carrier.type = "sine";
+    modulator.type = "sine";
+    carrier.frequency.setValueAtTime(pitch, at);
+    modulator.frequency.setValueAtTime(pitch * 2.4, at);
+    modGain.gain.setValueAtTime(pitch * 3.2, at);
+    modGain.gain.exponentialRampToValueAtTime(18, at + 0.28);
+    clang.gain.setValueAtTime(0.42, at);
+    clang.gain.exponentialRampToValueAtTime(0.0001, at + 0.55);
+    modulator.connect(modGain);
+    modGain.connect(carrier.frequency);
+    carrier.connect(clang);
+    clang.connect(master);
+    carrier.start(at);
+    modulator.start(at);
+    carrier.stop(at + 0.6);
+    modulator.stop(at + 0.6);
+    nodes.push(carrier, modulator);
+
     var partials = [
-      [1, 0.55, 2.0],
-      [2, 0.38, 1.45],
-      [2.76, 0.32, 1.05],
-      [3.4, 0.2, 0.75],
-      [4.52, 0.14, 0.5],
-      [5.68, 0.08, 0.35]
+      [0.5, 0.18, 1.35],
+      [1, 0.62, 1.6],
+      [2, 0.28, 1.05],
+      [2.76, 0.36, 1.2],
+      [4.07, 0.16, 0.7],
+      [5.4, 0.1, 0.48]
     ];
-    var pitch = 740;
     partials.forEach(function (part) {
       var osc = ctx.createOscillator();
       var gain = ctx.createGain();
       osc.type = "sine";
       osc.frequency.setValueAtTime(pitch * part[0], at);
+      osc.frequency.exponentialRampToValueAtTime(pitch * part[0] * 0.985, at + part[2]);
       gain.gain.setValueAtTime(part[1], at);
       gain.gain.exponentialRampToValueAtTime(0.0001, at + part[2]);
       osc.connect(gain);
@@ -89,20 +115,11 @@
     });
   }
 
-  function scheduleAlarm(endsAt, nodes) {
+  function ringNow(nodes) {
     var ctx = audio();
     if (!ctx) return;
-    var now = ctx.currentTime;
-    var elapsed = (Date.now() - endsAt) / 1000;
-    [5, 10].forEach(function (mark) {
-      if (mark > elapsed) scheduleBell(ctx, now + (mark - elapsed), nodes);
-    });
-    if (15 > elapsed) {
-      var triple = now + (15 - elapsed);
-      scheduleBell(ctx, triple, nodes);
-      scheduleBell(ctx, triple + 0.72, nodes);
-      scheduleBell(ctx, triple + 1.44, nodes);
-    }
+    if (nodes.length > 30) stopNodes(nodes);
+    scheduleBell(ctx, ctx.currentTime, nodes);
   }
 
   function paint(card, total, remaining) {
@@ -121,6 +138,7 @@
     var endsAt = saved.endsAt || null;
     var alarmOn = store.alarm !== false;
     var bells = [];
+    var lastRing = 0;
 
     function persist() {
       store[key] = {total: total, endsAt: endsAt};
@@ -152,6 +170,19 @@
       card.classList.toggle("is-expired", expired());
     }
 
+    function hush() {
+      lastRing = 0;
+      stopNodes(bells);
+    }
+
+    function ringWhileExpired() {
+      if (!expired() || !alarmOn) return;
+      var now = Date.now();
+      if (lastRing && now - lastRing < RING_GAP) return;
+      lastRing = now;
+      ringNow(bells);
+    }
+
     card.querySelectorAll(".timer-step").forEach(function (button) {
       button.addEventListener("click", function () {
         if (endsAt) return;
@@ -164,44 +195,31 @@
     card.querySelector(".timer-run").addEventListener("click", function () {
       if (endsAt) {
         endsAt = null;
-        delete card.dataset.alarmed;
-        stopNodes(bells);
+        hush();
         persist();
         render();
         return;
       }
       audio();
-      delete card.dataset.alarmed;
+      hush();
       endsAt = Date.now() + total * 1000;
       persist();
       render();
     });
 
     render();
-    if (expired() && alarmOn) {
-      card.dataset.alarmed = "1";
-      scheduleAlarm(endsAt, bells);
-    }
+    ringWhileExpired();
     return {
       tick: function () {
         if (!endsAt) return;
-        var left = remaining();
         render();
-        if (left <= 0 && alarmOn && !card.dataset.alarmed) {
-          card.dataset.alarmed = "1";
-          scheduleAlarm(endsAt, bells);
-        }
+        ringWhileExpired();
       },
       setAlarm: function (enabled) {
         alarmOn = enabled;
-        if (!enabled) {
-          stopNodes(bells);
-          delete card.dataset.alarmed;
-        } else if (expired() && !card.dataset.alarmed) {
-          card.dataset.alarmed = "1";
-          scheduleAlarm(endsAt, bells);
-        }
+        if (!enabled) hush();
         persist();
+        ringWhileExpired();
       }
     };
   }

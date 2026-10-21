@@ -159,6 +159,11 @@ main {
     border-top: 1px solid #222;
 }
 
+a.tab {
+    opacity: 0.9;
+    color: #d7d7d7;
+}
+
 .tab {
     display: flex;
     flex-direction: column;
@@ -454,6 +459,12 @@ h1, h2 {
     border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
+.turn-timer.is-expired {
+    border-color: #ff3b3b;
+    background: rgba(72, 8, 8, 0.72);
+    animation: timer-card-alarm 0.7s steps(2, end) infinite;
+}
+
 .timer-face {
     position: relative;
     width: 92px;
@@ -487,7 +498,8 @@ h1, h2 {
 }
 
 .turn-timer.is-expired .timer-fill,
-.turn-timer.is-expired .timer-count {
+.turn-timer.is-expired .timer-count,
+.turn-timer.is-expired .timer-face {
     animation: timer-alarm 0.55s steps(2, end) infinite;
 }
 
@@ -496,12 +508,24 @@ h1, h2 {
     filter: drop-shadow(0 0 5px rgba(255, 50, 50, 0.95)) drop-shadow(0 0 12px rgba(180, 0, 0, 0.8));
 }
 
-.turn-timer.is-expired .timer-count {
+.turn-timer.is-expired .timer-count,
+.turn-timer.is-expired .timer-meta p,
+.turn-timer.is-expired .timer-run {
     color: #ff5a5a;
 }
 
 @keyframes timer-alarm {
-    50% { opacity: 0.2; }
+    50% {
+        opacity: 0.45;
+        filter: brightness(1.35);
+    }
+}
+
+@keyframes timer-card-alarm {
+    50% {
+        background: rgba(130, 12, 12, 0.88);
+        border-color: #ff6b6b;
+    }
 }
 
 .timer-count {
@@ -559,6 +583,39 @@ h1, h2 {
     font-weight: 700;
 }
 
+.phase-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    background: rgba(0, 0, 0, 0.45);
+    color: var(--ink);
+    font: inherit;
+    cursor: pointer;
+    padding: 6px 10px;
+    border-radius: 12px;
+}
+
+.phase-toggle img {
+    width: 28px;
+    height: 28px;
+    object-fit: contain;
+}
+
+.phase-toggle .phase-night,
+.music-player.is-night .phase-toggle .phase-day {
+    display: none;
+}
+
+.music-player.is-night .phase-toggle .phase-night {
+    display: block;
+}
+
+.phase-toggle[aria-pressed="true"] {
+    border-color: rgba(212, 180, 131, 0.85);
+    color: var(--gold);
+}
+
 .music-player {
     display: grid;
     gap: 12px;
@@ -567,6 +624,11 @@ h1, h2 {
     border-radius: 16px;
     background: rgba(0, 0, 0, 0.55);
     border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.music-player.is-night {
+    border-color: rgba(212, 180, 131, 0.45);
+    box-shadow: inset 0 0 0 1px rgba(212, 180, 131, 0.12);
 }
 
 .music-player .music-note,
@@ -613,8 +675,8 @@ h1, h2 {
 }
 
 .music-play.is-playing {
-    border-color: rgba(240, 193, 74, 0.7);
-    color: #f0c14a;
+    border-color: rgba(212, 180, 131, 0.7);
+    color: var(--gold);
 }
 
 .music-list {
@@ -644,8 +706,9 @@ h1, h2 {
 }
 
 .music-list li.is-current .music-track {
-    border-color: rgba(240, 193, 74, 0.85);
-    background: rgba(240, 193, 74, 0.12);
+    border-color: rgba(212, 180, 131, 0.85);
+    background: rgba(212, 180, 131, 0.12);
+    color: var(--gold);
 }
 
 .music-remove {
@@ -789,8 +852,19 @@ h1, h2 {
 }
 
 .card-back {
+    display: grid;
+    place-items: center;
     background-position: center;
     background-size: cover;
+}
+
+.card-back-logo {
+    width: 44%;
+    max-width: 168px;
+    height: auto;
+    object-fit: contain;
+    pointer-events: none;
+    filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.55));
 }
 
 .card-front {
@@ -966,6 +1040,151 @@ button.choice {
     50% { transform: rotate(3deg) translateY(-8px); }
 }
 
+.doc-back {
+    position: fixed;
+    top: calc(56px + 10px);
+    left: 12px;
+    z-index: 8;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    max-width: min(78vw, 280px);
+    padding: 8px 12px;
+    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.82);
+    border: 1px solid rgba(212, 180, 131, 0.55);
+    color: var(--gold);
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 0.85rem;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+}
+
+.doc-back img {
+    width: 28px;
+    height: 28px;
+    object-fit: contain;
+}
+
+.scenario-doc {
+    padding-top: 8px;
+}
+
+.doc-kicker {
+    margin: 0 0 6px;
+    color: var(--gold);
+    font-weight: 700;
+}
+
+.scenario-doc p,
+.scenario-html {
+    color: var(--ink);
+    line-height: 1.85;
+}
+
+.scenario-html img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 12px;
+}
+
+.scenario-html h2,
+.scenario-html h3,
+.scenario-html h4 {
+    color: var(--gold);
+}
+
+.comments-sheet .form-messages {
+    margin: 0 0 12px;
+    padding: 0;
+    list-style: none;
+}
+
+.comments-sheet .form-messages .success {
+    color: var(--gold);
+}
+
+.comments-sheet .form-messages .error {
+    color: #ff8a8a;
+}
+
+.comment-thread,
+.comment-replies {
+    margin: 0 0 18px;
+    padding: 0;
+    list-style: none;
+}
+
+.comment {
+    margin: 0 0 12px;
+    padding: 12px;
+    border-radius: 14px;
+    background: rgba(0, 0, 0, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.comment.is-admin {
+    border-color: rgba(212, 180, 131, 0.55);
+}
+
+.comment-meta {
+    display: flex;
+    gap: 8px;
+    margin: 0 0 8px;
+    color: var(--gold);
+}
+
+.comment-replies {
+    margin: 12px 0 0;
+    padding-inline-start: 14px;
+}
+
+.comment-form,
+.reply-box form {
+    display: grid;
+    gap: 10px;
+}
+
+.comment-form,
+.reply-box {
+    margin-top: 12px;
+}
+
+.comment-form label,
+.reply-box label {
+    display: grid;
+    gap: 4px;
+}
+
+.comment-form input,
+.comment-form textarea,
+.reply-box input,
+.reply-box textarea,
+.comment-form button,
+.reply-box button {
+    font: inherit;
+    color: var(--ink);
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    background: rgba(0, 0, 0, 0.45);
+    border-radius: 12px;
+    padding: 10px 12px;
+}
+
+.comment-form button,
+.reply-box button {
+    cursor: pointer;
+    font-weight: 700;
+    color: var(--gold);
+}
+
+.hp {
+    position: absolute;
+    left: -9999px;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+}
+
 @media (min-width: 720px) {
     .mystery-grid {
         grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -985,8 +1204,10 @@ button.choice {
         transition: none;
     }
 
+    .turn-timer.is-expired,
     .turn-timer.is-expired .timer-fill,
-    .turn-timer.is-expired .timer-count {
+    .turn-timer.is-expired .timer-count,
+    .turn-timer.is-expired .timer-face {
         animation: none;
     }
 }

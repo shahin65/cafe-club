@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% load i18n static %}
+
+{% block title %}{{ page.meta_title }}{% endblock %}
+
+{% block extrahead %}
+  <meta name="description" content="{{ page.meta_description }}">
+  <meta name="robots" content="index,follow">
+  <link rel="canonical" href="{{ page.canonical }}">
+  <link rel="alternate" hreflang="fa" href="{{ page.hreflang_fa }}">
+  <link rel="alternate" hreflang="en" href="{{ page.hreflang_en }}">
+  <link rel="alternate" hreflang="x-default" href="{{ page.hreflang_fa }}">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="{% trans 'کافه کلاب' %}">
+  <meta property="og:locale" content="{% if page.in_language == 'en' %}en_US{% else %}fa_IR{% endif %}">
+  <meta property="og:title" content="{{ page.meta_title }}">
+  <meta property="og:description" content="{{ page.meta_description }}">
+  <meta property="og:url" content="{{ page.canonical }}">
+  {% if page.og_image %}
+    <meta property="og:image" content="{{ page.og_image }}">
+  {% endif %}
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="{{ page.meta_title }}">
+  <meta name="twitter:description" content="{{ page.meta_description }}">
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Article",
+      "headline": "{{ page.title|escapejs }}",
+      "description": "{{ page.meta_description|escapejs }}",
+      "inLanguage": "{{ page.in_language }}",
+      "mainEntityOfPage": "{{ page.canonical|escapejs }}",
+      "isPartOf": {
+        "@type": "WebSite",
+        "name": "{% trans 'کافه کلاب' %}",
+        "url": "{{ request.scheme }}://{{ request.get_host }}/"
+      }
+    }
+  </script>
+{% endblock %}
+
+{% block content %}
+  <a class="doc-back" href="{% url 'deal_host' %}">
+    <img src="{% static 'Icon-Opreator.png' %}" alt="" width="28" height="28">
+    <span>{% trans "بازگشت به مدیریت بازی" %}</span>
+  </a>
+  <article class="sheet scenario-doc">
+    <p class="doc-kicker">{{ scenario.display_name }}</p>
+    <h1>{{ page.title }}</h1>
+    {% if page.body %}
+      <div class="scenario-html">{{ page.body|safe }}</div>
+    {% else %}
+      <p>{% trans "متن این صفحه هنوز از پنل مدیریت وارد نشده است." %}</p>
+    {% endif %}
+  </article>
+{% endblock %}
+
+{% block tab_bar %}
+  {% include "scenarios/_host_tabs.html" %}
+{% endblock %}

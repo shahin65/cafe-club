@@ -27,6 +27,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "django.contrib.sitemaps",
     "banners.apps.BannersConfig",
     "scenarios.apps.ScenariosConfig",
 ]
@@ -57,6 +58,7 @@ TEMPLATES = [
                 "django.contrib.messages.context_processors.messages",
                 "django.template.context_processors.i18n",
                 "scenarios.context_processors.role_deal",
+                "scenarios.context_processors.branding",
             ],
         },
     },

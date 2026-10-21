@@ -1,10 +1,15 @@
 import random
 
+from io import BytesIO
+
+from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
+from PIL import Image
 
 from scenarios.dealing import create_deal, shuffled
-from scenarios.models import FinalMoveCard, Role, Scenario, ScenarioSize
+from scenarios.models import FinalMoveCard, Role, Scenario, ScenarioComment, ScenarioSize
 
 
 def make_complete_scenario(name="سناریو بازپرس", featured=False):
@@ -119,6 +124,7 @@ class RoleDealTests(TestCase):
         response = self.client.get(f"/deal/{scenario.id}/2/order/?fresh=1", follow=True)
         self.assertContains(response, "نفر شماره")
         self.assertContains(response, "Card-Background.webp")
+        self.assertContains(response, "Logo.png")
         self.assertContains(response, "مدیریت بازی")
         self.assertNotContains(response, "برای دیدن نقش، شماره را لمس کنید.")
         deal = self.client.session["role_deal"]
@@ -167,11 +173,23 @@ class HostToolsTests(TestCase):
         self.assertContains(response, "Icon-Time.png")
         self.assertContains(response, "Icon-Alarm.png")
         self.assertContains(response, "Icon-music.png")
+        self.assertContains(response, "Icon-Day.png")
+        self.assertContains(response, "Icon-Night.png")
         self.assertContains(response, "پخش موسیقی")
+        self.assertContains(response, "فاز روز")
+        self.assertContains(response, "فاز شب")
         self.assertContains(response, "نوبت گفتگو")
         self.assertContains(response, "نوبت چالش")
         self.assertContains(response, 'data-seconds="30"')
         self.assertContains(response, 'data-seconds="20"')
+        self.assertContains(response, "Icon-Rules.png")
+        self.assertContains(response, "Icon-Search.png")
+        self.assertContains(response, "Icon-Comment.png")
+        self.assertContains(response, "رول بوک")
+        self.assertContains(response, "قوانین")
+        self.assertContains(response, "نظر کاربران")
+        self.assertNotContains(response, "Icon-Advertisement.png")
+        self.assertNotContains(response, "Icon-Location.png")
 
     def test_host_hides_tools_the_scenario_does_not_have(self):
         scenario = make_complete_scenario()
@@ -220,3 +238,107 @@ class HostToolsTests(TestCase):
         self.assertIn(first.json()["word"], ["مرگ", "زندگی"])
         self.client.post("/deal/lottery/")
         self.assertEqual(len(self.client.session["role_deal"]["lottery_rounds"]), 2)
+
+
+class ScenarioPagesAndCommentsTests(TestCase):
+    def test_rulebook_and_rules_have_seo_and_language_alternates(self):
+        scenario = make_complete_scenario()
+        scenario.name_en = "Inspector"
+        scenario.rulebook_title_fa = "رول‌بوک بازپرس"
+        scenario.rulebook_body_fa = "معرفی کامل سناریو بازپرس برای گرداننده."
+        scenario.rulebook_meta_description_fa = "رول‌بوک رسمی سناریو بازپرس کافه کلاب."
+        scenario.rules_title_fa = "قوانین بازپرس"
+        scenario.rules_body_fa = "قوانین میز بازپرس برای شب و روز."
+        scenario.rulebook_title_en = "Inspector rulebook"
+        scenario.rulebook_body_en = "The full inspector scenario guide for the host."
+        scenario.save()
+        rulebook = self.client.get(f"/scenario/{scenario.slug}/rulebook/")
+        self.assertContains(rulebook, "رول‌بوک بازپرس")
+        self.assertContains(rulebook, "بازگشت به مدیریت بازی")
+        self.assertContains(rulebook, "doc-back")
+        self.assertContains(rulebook, 'rel="canonical"')
+        self.assertContains(rulebook, 'hreflang="en"')
+        self.assertContains(rulebook, 'name="description"')
+        self.assertContains(rulebook, "application/ld+json")
+        self.assertContains(rulebook, "Icon-Rules.png")
+        self.assertContains(rulebook, "Icon-Search.png")
+        english = self.client.get(f"/en/scenario/{scenario.slug}/rulebook/")
+        self.assertContains(english, "Inspector rulebook")
+        rules = self.client.get(f"/scenario/{scenario.slug}/rules/")
+        self.assertContains(rules, "قوانین بازپرس")
+        sitemap = self.client.get("/sitemap.xml")
+        self.assertContains(sitemap, "/rulebook/")
+        self.assertContains(sitemap, "/rules/")
+        self.assertContains(sitemap, "/en/scenario/")
+        robots = self.client.get("/robots.txt")
+        self.assertContains(robots, "Sitemap:")
+        self.assertContains(robots, "Disallow: /admin/")
+
+    def test_comments_need_approval_and_can_be_replied_to(self):
+        scenario = make_complete_scenario()
+        hidden = ScenarioComment.objects.create(
+            scenario=scenario,
+            author_name="علی",
+            body="این نظر هنوز نباید دیده شود.",
+        )
+        page = self.client.get(f"/scenario/{scenario.slug}/comments/")
+        self.assertNotContains(page, "این نظر هنوز نباید دیده شود.")
+        self.client.post(
+            f"/scenario/{scenario.slug}/comments/",
+            {"author_name": "سارا", "body": "نظر جدید برای تأیید"},
+        )
+        self.assertFalse(ScenarioComment.objects.get(body="نظر جدید برای تأیید").is_approved)
+        hidden.is_approved = True
+        hidden.save(update_fields=["is_approved"])
+        ScenarioComment.objects.create(
+            scenario=scenario,
+            parent=hidden,
+            author_name="مدیریت",
+            body="پاسخ رسمی میز",
+            is_approved=True,
+            is_admin=True,
+        )
+        approved = self.client.get(f"/scenario/{scenario.slug}/comments/")
+        self.assertContains(approved, "این نظر هنوز نباید دیده شود.")
+        self.assertContains(approved, "پاسخ رسمی میز")
+        self.assertNotContains(approved, "نظر جدید برای تأیید")
+        self.client.post(
+            f"/scenario/{scenario.slug}/comments/",
+            {"author_name": "نرگس", "body": "پاسخ بازیکن", "parent": hidden.id},
+        )
+        reply = ScenarioComment.objects.get(body="پاسخ بازیکن")
+        self.assertEqual(reply.parent_id, hidden.id)
+        self.assertFalse(reply.is_approved)
+
+    def test_rulebook_keeps_safe_html_and_strips_scripts(self):
+        scenario = make_complete_scenario()
+        scenario.rulebook_body_fa = (
+            '<p style="text-align:center"><strong>متن وسط</strong></p>'
+            '<script>alert(1)</script><img src="javascript:alert(1)">'
+        )
+        scenario.save()
+        scenario.refresh_from_db()
+        page = self.client.get(f"/scenario/{scenario.slug}/rulebook/")
+        self.assertContains(page, "<strong>متن وسط</strong>")
+        self.assertContains(page, "text-align:center")
+        self.assertNotContains(page, "javascript:alert")
+        self.assertNotContains(page, "alert(1)")
+
+    def test_page_image_upload_is_staff_only(self):
+        buffer = BytesIO()
+        Image.new("RGB", (4, 4), (20, 30, 40)).save(buffer, format="PNG")
+        png = buffer.getvalue()
+        forbidden = self.client.post(
+            "/staff/scenario-page-image/",
+            {"upload": SimpleUploadedFile("dot.png", png, content_type="image/png")},
+        )
+        self.assertEqual(forbidden.status_code, 302)
+        user = get_user_model().objects.create_superuser("host", "host@example.com", "pass-word-123")
+        self.client.force_login(user)
+        uploaded = self.client.post(
+            "/staff/scenario-page-image/",
+            {"upload": SimpleUploadedFile("dot.png", png, content_type="image/png")},
+        )
+        self.assertEqual(uploaded.status_code, 200)
+        self.assertEqual(uploaded.json()["uploaded"], 1)
+        self.assertIn("/media/scenario_pages/", uploaded.json()["url"])

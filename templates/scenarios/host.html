@@ -58,15 +58,20 @@
           <img src="{% static 'Icon-music.png' %}" alt="" width="40" height="40">
           <h2 id="music-player-title">{% trans "پخش موسیقی" %}</h2>
         </div>
+        <button class="phase-toggle" type="button" aria-pressed="false" data-day="{% trans 'فاز روز' %}" data-night="{% trans 'فاز شب' %}">
+          <img class="phase-day" src="{% static 'Icon-Day.png' %}" alt="" width="36" height="36">
+          <img class="phase-night" src="{% static 'Icon-Night.png' %}" alt="" width="36" height="36">
+          <span class="phase-label">{% trans "فاز روز" %}</span>
+        </button>
       </header>
-      <p class="music-note">{% trans "آهنگ‌ها فقط روی همین دستگاه می‌مانند و برای فاز شب از لیست پخش می‌شوند." %}</p>
+      <p class="music-note" data-day="{% trans 'آهنگ‌ها روی همین دستگاه می‌مانند. برای پخش، فاز را روی شب بگذارید.' %}" data-night="{% trans 'فاز شب است. آهنگ را از لیست انتخاب کنید؛ تا توقف، قطعه بعدی پخش می‌شود.' %}">{% trans "آهنگ‌ها روی همین دستگاه می‌مانند. برای پخش، فاز را روی شب بگذارید." %}</p>
       <div class="music-controls">
         <button class="music-add" type="button">{% trans "افزودن به لیست" %}</button>
         <input class="music-file" type="file" accept="audio/*,.mp3,.m4a,.aac,.ogg,.wav,.flac" multiple hidden>
         <button class="music-play" type="button" data-play="{% trans 'پخش' %}" data-pause="{% trans 'توقف' %}" disabled>{% trans "پخش" %}</button>
       </div>
       <p class="music-now">{% trans "آهنگی انتخاب نشده" %}</p>
-      <ul class="music-list"></ul>
+      <ul class="music-list" data-remove="{% trans 'حذف آهنگ' %}"></ul>
       <audio class="music-audio" preload="none"></audio>
     </section>
     <div class="choice-list">
@@ -82,8 +87,16 @@
           <span><strong>{% trans "قرعه مرگ" %}</strong></span>
         </a>
       {% endif %}
+      <a class="choice" href="{{ scenario.get_comments_url }}">
+        <img src="{% static 'Icon-Comment.png' %}" alt="" width="56" height="56">
+        <span><strong>{% trans "نظر کاربران" %}</strong></span>
+      </a>
     </div>
   </section>
-  <script src="{% static 'js/turn-timers.js' %}?v=2"></script>
-  <script src="{% static 'js/music-player.js' %}?v=1"></script>
+  <script src="{% static 'js/turn-timers.js' %}?v=3"></script>
+  <script src="{% static 'js/music-player.js' %}?v=2"></script>
+{% endblock %}
+
+{% block tab_bar %}
+  {% include "scenarios/_host_tabs.html" %}
 {% endblock %}

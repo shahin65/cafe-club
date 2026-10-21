@@ -3,6 +3,9 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
+    path("scenario/<str:slug>/rulebook/", views.scenario_rulebook, name="scenario_rulebook"),
+    path("scenario/<str:slug>/rules/", views.scenario_rules, name="scenario_rules"),
+    path("scenario/<str:slug>/comments/", views.scenario_comments, name="scenario_comments"),
     path("deal/<int:scenario_id>/", views.start, name="deal_start"),
     path("deal/<int:scenario_id>/<int:player_count>/", views.choose_mode, name="deal_mode"),
     path(

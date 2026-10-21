@@ -193,6 +193,18 @@ msgstr "Stop"
 msgid "پخش موسیقی"
 msgstr "Music"
 
+msgid "فاز روز"
+msgstr "Day phase"
+
+msgid "فاز شب"
+msgstr "Night phase"
+
+msgid "آهنگ‌ها روی همین دستگاه می‌مانند. برای پخش، فاز را روی شب بگذارید."
+msgstr "Songs stay on this device. Switch to night phase to play them."
+
+msgid "فاز شب است. آهنگ را از لیست انتخاب کنید؛ تا توقف، قطعه بعدی پخش می‌شود."
+msgstr "Night phase is on. Choose a song; the next track plays until you pause."
+
 msgid "آهنگ‌ها فقط روی همین دستگاه می‌مانند و برای فاز شب از لیست پخش می‌شوند."
 msgstr "Songs stay on this device and play from the list during the night phase."
 
@@ -210,3 +222,51 @@ msgstr "No song selected"
 
 msgid "حذف آهنگ"
 msgstr "Remove song"
+
+msgid "بازگشت به مدیریت بازی"
+msgstr "Back to game host"
+
+msgid "قوانین"
+msgstr "Rules"
+
+msgid "رول بوک"
+msgstr "Rulebook"
+
+msgid "نظر کاربران"
+msgstr "Player comments"
+
+msgid "متن این صفحه هنوز از پنل مدیریت وارد نشده است."
+msgstr "This page has not been written in the admin panel yet."
+
+msgid "مدیریت"
+msgstr "Host"
+
+msgid "پاسخ"
+msgstr "Reply"
+
+msgid "نام"
+msgstr "Name"
+
+msgid "پاسخ شما"
+msgstr "Your reply"
+
+msgid "ارسال پاسخ"
+msgstr "Send reply"
+
+msgid "هنوز نظر تأییدشده‌ای برای این سناریو نیست."
+msgstr "No approved comments for this scenario yet."
+
+msgid "ارسال نظر"
+msgstr "Post a comment"
+
+msgid "نظر پس از تأیید مدیریت روی سایت دیده می‌شود."
+msgstr "Comments appear after the host approves them."
+
+msgid "نظر شما"
+msgstr "Your comment"
+
+msgid "نظر شما ثبت شد و پس از تأیید مدیریت نمایش داده می‌شود."
+msgstr "Your comment was saved and will appear after approval."
+
+msgid "نام و متن نظر را وارد کنید."
+msgstr "Enter a name and a comment."
