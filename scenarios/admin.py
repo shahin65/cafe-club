@@ -6,7 +6,7 @@ from django.core.exceptions import ValidationError
 from django.forms.models import BaseInlineFormSet
 from django.utils.html import format_html
 
-from .models import SIDE_FIELDS, FinalMoveCard, Role, Scenario, ScenarioComment, ScenarioSize
+from .models import SIDE_FIELDS, CardBranding, FinalMoveCard, Role, Scenario, ScenarioComment, ScenarioSize
 from .widgets import PageHtmlWidget
 
 SIDE_LABELS = dict(Role._meta.get_field("side").choices)
@@ -219,14 +219,14 @@ class ScenarioCommentAdmin(admin.ModelAdmin):
 
 
 class ScenarioAdmin(admin.ModelAdmin):
-    list_display = ("name", "slug", "player_modes", "has_final_move", "has_death_lottery", "is_featured", "home_order")
-    list_filter = ("is_featured", "has_final_move", "has_death_lottery")
+    list_display = ("name", "slug", "owner", "player_modes", "has_final_move", "has_death_lottery", "is_featured", "home_order")
+    list_filter = ("is_featured", "has_final_move", "has_death_lottery", "owner")
     search_fields = ("name", "name_en", "slug")
     ordering = ("home_order", "id")
     inlines = (ScenarioSizeInline,)
     readonly_fields = ("icon_preview",)
     fieldsets = (
-        ("سناریو", {"fields": ("name", "name_en", "slug", "icon", "icon_preview", "has_final_move", "has_death_lottery")}),
+        ("سناریو", {"fields": ("name", "name_en", "slug", "owner", "icon", "icon_preview", "has_final_move", "has_death_lottery")}),
         (
             "صفحه اول",
             {
@@ -297,3 +297,4 @@ class ScenarioAdmin(admin.ModelAdmin):
 admin.site.register(Scenario, ScenarioAdmin)
 admin.site.register(ScenarioSize, ScenarioSizeAdmin)
 admin.site.register(ScenarioComment, ScenarioCommentAdmin)
+admin.site.register(CardBranding)

@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+  <section class="sheet wizard-sheet">
+    <h1>{{ title }}</h1>
+    {% if hint %}<p>{{ hint }}</p>{% endif %}
+    {% if error %}<p class="wizard-error">{{ error }}</p>{% endif %}
+    <form class="wizard-form" method="post" {% if mode == "name" %}enctype="multipart/form-data"{% endif %}>
+      {% csrf_token %}
+      {% if mode == "name" %}
+        <label>{% trans "اسم سناریو" %}<input type="text" name="name" value="{{ value }}" required maxlength="120"></label>
+        <label>{% trans "آیکون از روی دستگاه" %}<input type="file" name="icon" accept="image/*"></label>
+      {% elif mode == "count" %}
+        <label>{% trans "تعداد" %}<input type="number" name="count" min="{{ min_count }}" max="20" value="{{ value }}" required></label>
+      {% elif mode == "names" %}
+        {% for field in fields %}
+          <label>{% trans "نقش" %} {{ forloop.counter }}<input type="text" name="name_{{ field.index }}" value="{{ field.value }}" required maxlength="80"></label>
+        {% endfor %}
+      {% elif mode == "extras" %}
+        <label class="wizard-check"><input type="checkbox" name="has_independent" value="1" {% if has_independent %}checked{% endif %}> {% trans "مستقل دارد" %}</label>
+        <label class="wizard-check"><input type="checkbox" name="has_werewolf" value="1" {% if has_werewolf %}checked{% endif %}> {% trans "گرگینه دارد" %}</label>
+      {% elif mode == "tools" %}
+        <label class="wizard-check"><input type="checkbox" name="has_final_move" value="1" {% if has_final_move %}checked{% endif %}> {% trans "کارت حرکت آخر دارد" %}</label>
+        <label class="wizard-check"><input type="checkbox" name="has_death_lottery" value="1" {% if has_death_lottery %}checked{% endif %}> {% trans "قرعه مرگ دارد" %}</label>
+      {% endif %}
+      <button class="choice wizard-submit" type="submit">{% trans "ادامه" %}</button>
+    </form>
+  </section>
+{% endblock %}

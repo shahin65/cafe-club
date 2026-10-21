@@ -55,16 +55,30 @@ a {
     position: sticky;
     top: 0;
     z-index: 5;
-    display: flex;
+    display: grid;
+    grid-template-columns: 44px 1fr auto;
     align-items: center;
-    justify-content: space-between;
+    direction: ltr;
     height: 56px;
     padding: 0 16px;
     background: #000;
     color: #fff;
 }
 
+.app-settings {
+    display: grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: #9a9a9a;
+    cursor: pointer;
+}
+
 .app-name {
+    justify-self: center;
     font-size: 1.05rem;
     font-weight: 600;
     text-decoration: none;
@@ -72,6 +86,7 @@ a {
 
 .profile {
     position: relative;
+    justify-self: end;
 }
 
 .profile-button {
@@ -123,7 +138,9 @@ a {
     gap: 4px;
 }
 
+.profile-menu a,
 .profile-menu button {
+    display: block;
     width: 100%;
     padding: 8px 10px;
     border: 0;
@@ -132,11 +149,40 @@ a {
     color: #fff;
     font: inherit;
     text-align: start;
+    text-decoration: none;
     cursor: pointer;
 }
 
 .profile-menu button[aria-pressed="true"] {
     background: #2a2a2a;
+}
+
+.username-form {
+    margin-bottom: 8px;
+}
+
+.username-form label {
+    display: grid;
+    gap: 4px;
+    padding: 0 10px 6px;
+    color: #9a9a9a;
+    font-size: 0.8rem;
+}
+
+.username-form input {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid #2a2a2a;
+    border-radius: 8px;
+    background: #0d0d0d;
+    color: #fff;
+    font: inherit;
+}
+
+.profile-soon {
+    color: #9a9a9a !important;
+    cursor: not-allowed !important;
+    opacity: 0.7;
 }
 
 main {
@@ -229,7 +275,11 @@ a.tab {
     place-items: center;
     width: 36px;
     height: 36px;
+    padding: 0;
+    border: 0;
+    background: transparent;
     color: #d7d7d7;
+    cursor: pointer;
 }
 
 .quick-roles-title {
@@ -263,7 +313,7 @@ html[dir="rtl"] .quick-roles-title {
     overflow: visible;
 }
 
-.quick-role-list a {
+.quick-role-list a:not(.favorite-edit) {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -1174,6 +1224,221 @@ button.choice {
 .reply-box button {
     cursor: pointer;
     font-weight: 700;
+    color: var(--gold);
+}
+
+.favorite-scenarios {
+    max-width: 920px;
+    margin: 0 auto 16px;
+}
+
+.favorite-create {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 72px;
+    margin: 18px auto 4px;
+    max-width: 280px;
+    padding: 12px 18px;
+    border-radius: 16px;
+    background: rgba(0, 0, 0, 0.55);
+    border: 1px solid rgba(230, 194, 122, 0.55);
+    color: var(--gold);
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.favorite-plus {
+    display: grid;
+    place-items: center;
+    font-size: 1.35rem;
+    line-height: 1;
+    font-weight: 700;
+}
+
+.favorite-add {
+    color: #d7d7d7;
+    text-decoration: none;
+}
+
+.favorite-list li {
+    position: relative;
+}
+
+.settings-dialog {
+    width: min(92vw, 380px);
+    padding: 18px;
+    border: 1px solid rgba(230, 194, 122, 0.35);
+    border-radius: 16px;
+    background: #141414;
+    color: inherit;
+}
+
+.settings-dialog::backdrop {
+    background: rgba(0, 0, 0, 0.72);
+}
+
+.settings-panel h2 {
+    margin: 0 0 12px;
+    font-size: 1.15rem;
+}
+
+.settings-item,
+.settings-close,
+.settings-back {
+    display: block;
+    width: 100%;
+    margin: 0 0 8px;
+    padding: 12px 14px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.45);
+    color: inherit;
+    font: inherit;
+    text-align: start;
+    cursor: pointer;
+}
+
+.settings-item {
+    color: var(--gold);
+    font-weight: 700;
+}
+
+.settings-language-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.settings-language-item img {
+    width: 24px;
+    height: 24px;
+    object-fit: contain;
+}
+
+.language-form {
+    display: grid;
+    gap: 8px;
+}
+
+.language-form button {
+    padding: 12px 14px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.45);
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+}
+
+.language-form button[aria-pressed="true"] {
+    border-color: var(--gold);
+    color: var(--gold);
+}
+
+.coming-soon {
+    margin: 28px 0;
+    font-size: 1.8rem;
+    font-weight: 700;
+    text-align: center;
+    color: var(--gold);
+}
+
+.logo-presets {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin: 12px 0;
+}
+
+.logo-choice {
+    display: grid;
+    gap: 6px;
+    justify-items: center;
+    padding: 10px 6px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.45);
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+}
+
+.logo-choice.is-selected {
+    border-color: var(--gold);
+}
+
+.logo-choice img {
+    width: 56px;
+    height: 56px;
+    object-fit: contain;
+}
+
+.logo-upload label {
+    display: grid;
+    gap: 8px;
+}
+
+.logo-upload input {
+    font: inherit;
+    color: inherit;
+}
+
+.favorite-edit {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    z-index: 1;
+    display: grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    min-height: 0;
+    padding: 0;
+    background: transparent;
+    border: 0;
+    color: #9a9a9a;
+    text-decoration: none;
+}
+
+.wizard-form {
+    display: grid;
+    gap: 12px;
+}
+
+.wizard-form label {
+    display: grid;
+    gap: 6px;
+}
+
+.wizard-form input[type="text"],
+.wizard-form input[type="number"],
+.wizard-form input[type="password"],
+.wizard-form input[type="file"] {
+    font: inherit;
+    color: var(--ink);
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    background: rgba(0, 0, 0, 0.45);
+    border-radius: 12px;
+    padding: 10px 12px;
+}
+
+.wizard-check {
+    display: flex !important;
+    align-items: center;
+    gap: 8px;
+}
+
+.wizard-error {
+    color: #ff8b8b;
+}
+
+.wizard-submit {
+    justify-content: center;
+}
+
+.wizard-link {
     color: var(--gold);
 }
 

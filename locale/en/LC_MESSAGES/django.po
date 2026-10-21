@@ -270,3 +270,183 @@ msgstr "Your comment was saved and will appear after approval."
 
 msgid "نام و متن نظر را وارد کنید."
 msgstr "Enter a name and a comment."
+
+msgid "سناریو دلخواه من"
+msgstr "My custom scenarios"
+
+msgid "سناریو دلخواهتو بساز"
+msgstr "Create your custom scenario"
+
+msgid "ویرایش"
+msgstr "Edit"
+
+msgid "ورود"
+msgstr "Log in"
+
+msgid "خروج"
+msgstr "Log out"
+
+msgid "ساخت حساب"
+msgstr "Create account"
+
+msgid "برای ساخت و دیدن سناریوهای دلخواه، وارد حساب خود شوید."
+msgstr "Log in to create and see your custom scenarios."
+
+msgid "نام کاربری"
+msgstr "Username"
+
+msgid "رمز عبور"
+msgstr "Password"
+
+msgid "حساب ندارید؟ ساخت حساب"
+msgstr "No account? Create one"
+
+msgid "سناریوهای دلخواه فقط روی همین حساب شما می‌مانند."
+msgstr "Custom scenarios stay on this account only."
+
+msgid "حساب دارید؟ ورود"
+msgstr "Already have an account? Log in"
+
+msgid "اسم سناریو"
+msgstr "Scenario name"
+
+msgid "آیکون از روی دستگاه"
+msgstr "Icon from this device"
+
+msgid "تعداد"
+msgstr "Count"
+
+msgid "مستقل دارد"
+msgstr "Has independents"
+
+msgid "گرگینه دارد"
+msgstr "Has werewolves"
+
+msgid "کارت حرکت آخر دارد"
+msgstr "Has final-move cards"
+
+msgid "قرعه مرگ دارد"
+msgstr "Has death lottery"
+
+msgid "ادامه"
+msgstr "Continue"
+
+msgid "یک عدد بین ۱ تا ۲۰ وارد کنید."
+msgstr "Enter a number from 1 to 20."
+
+msgid "یک عدد بین ۰ تا ۲۰ وارد کنید."
+msgstr "Enter a number from 0 to 20."
+
+msgid "اگر مافیا و شهروند صفر است، مستقل یا گرگینه را انتخاب کنید."
+msgstr "If mafia and citizens are zero, choose independent or werewolf."
+
+msgid "اسم همهٔ نقش‌ها را وارد کنید."
+msgstr "Enter every role name."
+
+msgid "یک اسم انتخاب کنید و اگر خواستید عکس آیکون را از گوشی بردارید."
+msgstr "Choose a name and optionally pick an icon from your phone."
+
+msgid "اسم سناریو را وارد کنید."
+msgstr "Enter a scenario name."
+
+msgid "فقط تصویر کوچک JPG یا PNG از دستگاه خودتان انتخاب کنید."
+msgstr "Choose a small JPG or PNG from your own device."
+
+msgid "این سناریو فقط برای حساب شما ذخیره می‌شود. عکس آیکون از روی همین دستگاه خوانده می‌شود."
+msgstr "This scenario is saved only on your account. The icon is read from this device."
+
+msgid "تعداد مافیا"
+msgstr "Mafia count"
+
+msgid "بازی شما چند تا مافیا دارد؟"
+msgstr "How many mafia does your game have?"
+
+msgid "نقش‌های مافیا"
+msgstr "Mafia roles"
+
+msgid "به تعداد مافیا، اسم نقش‌ها را وارد کنید."
+msgstr "Enter one mafia role name for each mafia."
+
+msgid "تعداد شهروند"
+msgstr "Citizen count"
+
+msgid "بازی شما چند شهروند دارد؟"
+msgstr "How many citizens does your game have?"
+
+msgid "نقش‌های شهروند"
+msgstr "Citizen roles"
+
+msgid "به تعداد شهروند، اسم نقش‌ها را وارد کنید."
+msgstr "Enter one citizen role name for each citizen."
+
+msgid "نقش‌های ویژه"
+msgstr "Special roles"
+
+msgid "اگر بازی شما مستقل یا گرگینه دارد، همان را انتخاب کنید."
+msgstr "Select independent or werewolf if your game has them."
+
+msgid "تعداد مستقل"
+msgstr "Independent count"
+
+msgid "چند نقش مستقل در بازی هست؟"
+msgstr "How many independent roles are in the game?"
+
+msgid "نقش‌های مستقل"
+msgstr "Independent roles"
+
+msgid "اسم نقش‌های مستقل را وارد کنید."
+msgstr "Enter the independent role names."
+
+msgid "تعداد گرگینه"
+msgstr "Werewolf count"
+
+msgid "چند نقش گرگینه در بازی هست؟"
+msgstr "How many werewolf roles are in the game?"
+
+msgid "نقش‌های گرگینه"
+msgstr "Werewolf roles"
+
+msgid "اسم نقش‌های گرگینه را وارد کنید."
+msgstr "Enter the werewolf role names."
+
+msgid "ابزار میزبان"
+msgstr "Host tools"
+
+msgid "اگر بازی شما کارت حرکت آخر یا قرعه مرگ دارد، همان را انتخاب کنید."
+msgstr "Select final-move cards or death lottery if your game has them."
+
+msgid "تعداد حرکت آخر"
+msgstr "Final-move count"
+
+msgid "چند کارت حرکت آخر در بازی هست؟"
+msgstr "How many final-move cards are in the game?"
+
+msgid "کارت‌های حرکت آخر"
+msgstr "Final-move cards"
+
+msgid "اسم کارت‌های حرکت آخر را وارد کنید."
+msgstr "Enter the final-move card names."
+
+msgid "تنظیمات"
+msgstr "Settings"
+
+msgid "تغییر لوگو"
+msgstr "Change logo"
+
+msgid "یک لوگوی آماده انتخاب کنید یا لوگوی کافه یا کلاب خودتان را از گوشی بگذارید."
+msgstr "Pick a ready logo, or add your cafe or club logo from your phone."
+
+msgid "لوگوی کافه یا کلاب از روی دستگاه"
+msgstr "Cafe or club logo from this device"
+
+msgid "زبان برنامه"
+msgstr "App language"
+
+msgid "ثبت کلاب یا کافه"
+msgstr "Register a cafe or club"
+
+msgid "ذخیره"
+msgstr "Save"
+
+msgid "به زودی"
+msgstr "Coming soon"

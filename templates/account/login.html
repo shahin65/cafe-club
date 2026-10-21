@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "ورود" %}{% endblock %}
+
+{% block content %}
+  <section class="sheet wizard-sheet">
+    <h1>{% trans "ورود" %}</h1>
+    <p>{% trans "برای ساخت و دیدن سناریوهای دلخواه، وارد حساب خود شوید." %}</p>
+    <form class="wizard-form" method="post">
+      {% csrf_token %}
+      {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+      {% if form.non_field_errors %}
+        <p class="wizard-error">{{ form.non_field_errors|striptags }}</p>
+      {% endif %}
+      <label>{% trans "نام کاربری" %}{{ form.username }}</label>
+      <label>{% trans "رمز عبور" %}{{ form.password }}</label>
+      <button class="choice wizard-submit" type="submit">{% trans "ورود" %}</button>
+    </form>
+    <p><a class="wizard-link" href="{% url 'register' %}{% if next %}?next={{ next|urlencode }}{% endif %}">{% trans "حساب ندارید؟ ساخت حساب" %}</a></p>
+  </section>
+{% endblock %}

@@ -15,7 +15,8 @@
   var tracks = [];
   var currentId = null;
   var objectUrl = "";
-  var night = sessionStorage.getItem(PHASE_KEY) === "night";
+  var storedPhase = sessionStorage.getItem(PHASE_KEY);
+  var night = storedPhase ? storedPhase === "night" : true;
 
   function openDb() {
     return new Promise(function (resolve, reject) {
@@ -90,9 +91,7 @@
   function paintPhase() {
     root.classList.toggle("is-night", night);
     phaseButton.setAttribute("aria-pressed", night ? "true" : "false");
-    phaseButton.querySelector(".phase-label").textContent = night
-      ? phaseButton.dataset.night
-      : phaseButton.dataset.day;
+    phaseButton.querySelector(".phase-label").textContent = phaseButton.dataset.night;
     note.textContent = night ? note.dataset.night : note.dataset.day;
     sessionStorage.setItem(PHASE_KEY, night ? "night" : "day");
   }

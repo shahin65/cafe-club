@@ -55,8 +55,18 @@ class BannerSeedTests(TestCase):
         self.assertContains(persian, 'aria-current="page"')
         self.assertContains(persian, "Icon-Location.png")
         self.assertContains(persian, "Icon-Advertisement.png")
-        self.assertNotContains(persian, 'href="/location')
-        self.assertNotContains(persian, 'href="/ads')
+        self.assertContains(persian, 'href="/location/"')
+        self.assertContains(persian, 'href="/ads/"')
+        self.assertContains(persian, "Icon-Language.png")
+        self.assertContains(persian, "زبان برنامه")
+        self.assertContains(persian, 'rel="icon"')
+        self.assertContains(persian, "Logo.png")
+        self.assertContains(persian, "ثبت کلاب یا کافه")
+        self.assertContains(persian, "data-open-app-settings")
+        ads = self.client.get("/ads/")
+        self.assertContains(ads, "به زودی")
+        location = self.client.get("/location/")
+        self.assertContains(location, "به زودی")
         self.assertNotContains(persian, "جزئیات")
         self.assertContains(persian, 'data-interval="3000"')
         self.assertContains(persian, 'href="/nights/"')
@@ -111,3 +121,31 @@ class BannerSeedTests(TestCase):
             self.assertEqual(banner.title_for_current_language(), "ایستگاه بازی کنسول")
         with translation.override("en"):
             self.assertEqual(banner.title_for_current_language(), "Console Gaming Station")
+
+    def test_profile_username_is_saved_for_the_guest(self):
+        saved = self.client.post("/account/username/", {"username": "میزبان", "next": "/"})
+        self.assertRedirects(saved, "/")
+        named = self.client.get("/")
+        self.assertContains(named, "میزبان")
+        self.assertNotContains(named, "مهمان")
+
+    def test_profile_redirect_rejects_external_and_backslash_urls(self):
+        for target in ("https://example.com/", "//example.com/", "/\\example.com/"):
+            with self.subTest(target=target):
+                response = self.client.post(
+                    "/account/username/", {"username": "guest", "next": target}
+                )
+                self.assertRedirects(response, "/")
+
+    def test_registration_rejects_backslash_external_redirect(self):
+        response = self.client.post(
+            "/account/register/",
+            {
+                "username": "redirectcheck",
+                "password1": "Local-only-test-pass-712!",
+                "password2": "Local-only-test-pass-712!",
+                "next": "/\\example.com/",
+            },
+        )
+        self.assertTrue(User.objects.filter(username="redirectcheck").exists())
+        self.assertRedirects(response, "/")

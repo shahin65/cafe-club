@@ -8,49 +8,74 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}{% trans "کافه کلاب" %}{% endblock %}</title>
   {% block extrahead %}{% endblock %}
+  <link rel="icon" href="{% static 'Logo.png' %}">
+  <link rel="apple-touch-icon" href="{% static 'Logo.png' %}">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Lalezar&family=Vazirmatn:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{% static 'css/site.css' %}?v=18">
+  <link rel="stylesheet" href="{% static 'css/site.css' %}?v=23">
 </head>
 <body{% if role_deal_active %} data-deal-active="1" data-deal-cancel="{% url 'deal_cancel' %}"{% endif %}>
   <header class="app-bar">
+    <button class="app-settings" type="button" data-open-app-settings aria-label="{% trans 'تنظیمات' %}">
+      <svg viewBox="0 0 24 24" width="22" height="22">
+        <path fill="currentColor" d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.2 7.2 0 0 0-1.63-.94l-.36-2.54a.5.5 0 0 0-.5-.42h-3.84a.5.5 0 0 0-.5.42l-.36 2.54c-.58.23-1.12.54-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.71 8.84a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32c.13.22.39.31.6.22l2.39-.96c.5.4 1.05.72 1.63.94l.36 2.54c.05.24.26.42.5.42h3.84c.24 0 .45-.18.5-.42l.36 2.54c.58-.23 1.12-.54 1.63-.94l2.39.96c.22.09.47 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58ZM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7Z"/>
+      </svg>
+    </button>
+    <a class="app-name" href="{% url 'home' %}">{% trans "کافه کلاب" %}</a>
     <details class="profile">
       <summary class="profile-button">
         <img src="{% static 'Icon-profile.png' %}" alt="" width="36" height="36">
-        <span class="username">{% if request.user.is_authenticated %}{{ request.user.get_username }}{% else %}{% trans "مهمان" %}{% endif %}</span>
+        <span class="username">{% if profile_username %}{{ profile_username }}{% else %}{% trans "مهمان" %}{% endif %}</span>
       </summary>
       <div class="profile-menu">
-        <p class="profile-menu-label">{% trans "زبان" %}</p>
-        <form action="{% url 'set_language' %}" method="post">
+        <form class="username-form" action="{% url 'save_username' %}" method="post">
           {% csrf_token %}
           <input type="hidden" name="next" value="{{ request.get_full_path }}">
-          <button type="submit" name="language" value="fa" {% if LANGUAGE_CODE == 'fa' %}aria-pressed="true"{% endif %}>فارسی</button>
-          <button type="submit" name="language" value="en" {% if LANGUAGE_CODE == 'en' %}aria-pressed="true"{% endif %}>English</button>
+          <label>{% trans "نام کاربری" %}
+            <input type="text" name="username" value="{{ profile_username }}" maxlength="40" required placeholder="{% trans 'نام کاربری' %}">
+          </label>
+          <button type="submit">{% trans "ذخیره" %}</button>
         </form>
+        {% if request.user.is_authenticated %}
+          <form action="{% url 'logout' %}" method="post">
+            {% csrf_token %}
+            <button type="submit">{% trans "خروج" %}</button>
+          </form>
+        {% else %}
+          <a href="{% url 'login' %}">{% trans "ورود" %}</a>
+        {% endif %}
+        <button class="profile-soon" type="button" disabled>{% trans "ثبت کلاب یا کافه" %}</button>
       </div>
     </details>
-    <a class="app-name" href="{% url 'home' %}">{% trans "کافه کلاب" %}</a>
   </header>
+  <dialog class="settings-dialog" id="app-settings">
+    <div class="settings-panel" data-panel="menu">
+      <h2>{% trans "تنظیمات" %}</h2>
+      <button class="settings-item settings-language-item" type="button" data-panel-target="language">
+        <img src="{% static 'Icon-Language.png' %}" alt="" width="24" height="24">
+        <span>{% trans "زبان برنامه" %}</span>
+      </button>
+      <button class="settings-close" type="button" data-close-settings>{% trans "بستن" %}</button>
+    </div>
+    <div class="settings-panel" data-panel="language" hidden>
+      <button class="settings-back" type="button" data-panel-target="menu">{% trans "بازگشت" %}</button>
+      <h2>{% trans "زبان برنامه" %}</h2>
+      <form class="language-form" action="{% url 'set_language' %}" method="post">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <button type="submit" name="language" value="fa" {% if LANGUAGE_CODE == 'fa' %}aria-pressed="true"{% endif %}>فارسی</button>
+        <button type="submit" name="language" value="en" {% if LANGUAGE_CODE == 'en' %}aria-pressed="true"{% endif %}>English</button>
+      </form>
+    </div>
+  </dialog>
   <main>
     {% block content %}{% endblock %}
   </main>
   {% block tab_bar %}
-  <nav class="tab-bar" aria-label="{% trans 'نوار پایین' %}">
-    <button class="tab" type="button" aria-disabled="true">
-      <img src="{% static 'Icon-Advertisement.png' %}" alt="" width="36" height="36">
-      <span>{% trans "آگهی" %}</span>
-    </button>
-    <a class="tab{% if request.resolver_match.url_name == 'home' %} is-active{% endif %}" href="{% url 'home' %}" {% if request.resolver_match.url_name == 'home' %}aria-current="page"{% endif %}>
-      <img src="{% static 'Icon-Home.png' %}" alt="" width="44" height="44">
-      <span>{% trans "خانه" %}</span>
-    </a>
-    <button class="tab" type="button" aria-disabled="true">
-      <img src="{% static 'Icon-Location.png' %}" alt="" width="36" height="36">
-      <span>{% trans "مکان" %}</span>
-    </button>
-  </nav>
+    {% include "_default_tabs.html" %}
   {% endblock %}
+  <script src="{% static 'js/app-settings.js' %}?v=1"></script>
   <script>
     document.addEventListener("click", function (event) {
       var profile = document.querySelector(".profile");

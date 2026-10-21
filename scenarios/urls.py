@@ -1,11 +1,26 @@
 from django.urls import path
 
-from . import views
+from . import branding, custom_views, views
 
 urlpatterns = [
+    path("my-scenarios/create/", custom_views.custom_name, name="custom_name"),
+    path("my-scenarios/<int:scenario_id>/edit/", custom_views.custom_edit, name="custom_edit"),
+    path("my-scenarios/create/mafia/", custom_views.custom_mafia_count, name="custom_mafia_count"),
+    path("my-scenarios/create/mafia/roles/", custom_views.custom_mafia_names, name="custom_mafia_names"),
+    path("my-scenarios/create/citizens/", custom_views.custom_citizen_count, name="custom_citizen_count"),
+    path("my-scenarios/create/citizens/roles/", custom_views.custom_citizen_names, name="custom_citizen_names"),
+    path("my-scenarios/create/extras/", custom_views.custom_extras, name="custom_extras"),
+    path("my-scenarios/create/independent/", custom_views.custom_independent_count, name="custom_independent_count"),
+    path("my-scenarios/create/independent/roles/", custom_views.custom_independent_names, name="custom_independent_names"),
+    path("my-scenarios/create/werewolf/", custom_views.custom_werewolf_count, name="custom_werewolf_count"),
+    path("my-scenarios/create/werewolf/roles/", custom_views.custom_werewolf_names, name="custom_werewolf_names"),
+    path("my-scenarios/create/tools/", custom_views.custom_tools, name="custom_tools"),
+    path("my-scenarios/create/final/", custom_views.custom_final_count, name="custom_final_count"),
+    path("my-scenarios/create/final/roles/", custom_views.custom_final_names, name="custom_final_names"),
     path("scenario/<str:slug>/rulebook/", views.scenario_rulebook, name="scenario_rulebook"),
     path("scenario/<str:slug>/rules/", views.scenario_rules, name="scenario_rules"),
     path("scenario/<str:slug>/comments/", views.scenario_comments, name="scenario_comments"),
+    path("settings/logo/", branding.save_card_logo, name="card_logo"),
     path("deal/<int:scenario_id>/", views.start, name="deal_start"),
     path("deal/<int:scenario_id>/<int:player_count>/", views.choose_mode, name="deal_mode"),
     path(

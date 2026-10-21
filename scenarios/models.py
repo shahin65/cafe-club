@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.urls import reverse
@@ -82,6 +83,15 @@ class Scenario(models.Model):
         default=0,
         help_text="عدد کوچکتر زودتر نشان داده می‌شود.",
     )
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name="سازنده",
+        related_name="custom_scenarios",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        help_text="خالی یعنی سناریوی رسمی کافه. اگر پر باشد فقط همان کاربر آن را می‌بیند.",
+    )
     rulebook_title_fa = models.CharField("عنوان رول‌بوک فارسی", max_length=160, blank=True)
     rulebook_title_en = models.CharField("عنوان رول‌بوک انگلیسی", max_length=160, blank=True)
     rulebook_body_fa = models.TextField(
@@ -123,9 +133,11 @@ class Scenario(models.Model):
 
     def clean(self):
         super().clean()
+        if self.owner_id and self.is_featured:
+            raise ValidationError({"is_featured": "سناریوی شخصی کاربر را نمی‌توان برای صفحه اول تأیید کرد."})
         if not self.is_featured:
             return
-        others = Scenario.objects.filter(is_featured=True)
+        others = Scenario.objects.filter(is_featured=True, owner__isnull=True)
         if self.pk:
             others = others.exclude(pk=self.pk)
         if others.count() >= 6:
@@ -141,9 +153,14 @@ class Scenario(models.Model):
                 }
             )
 
+    def is_custom(self):
+        return bool(self.owner_id)
+
     def save(self, *args, **kwargs):
         from scenarios.html_safe import sanitize_page_html
 
+        if self.owner_id:
+            self.is_featured = False
         self.slug = unique_scenario_slug(self.name, self.pk, self.slug)
         for field in (
             "rulebook_body_fa",
@@ -359,6 +376,24 @@ class FinalMoveCard(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class CardBranding(models.Model):
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        verbose_name="کاربر",
+        related_name="card_branding",
+        on_delete=models.CASCADE,
+    )
+    preset = models.CharField("لوگوی آماده", max_length=20, blank=True)
+    image = models.ImageField("لوگوی اختصاصی", upload_to="card_logos", blank=True)
+
+    class Meta:
+        verbose_name = "لوگوی پشت کارت"
+        verbose_name_plural = "لوگوهای پشت کارت"
+
+    def __str__(self):
+        return self.user.get_username()
 
 
 class ScenarioComment(models.Model):

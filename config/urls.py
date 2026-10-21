@@ -21,6 +21,8 @@ def robots_txt(request):
             "Disallow: /admin/",
             "Disallow: /deal/",
             "Disallow: /staff/",
+            "Disallow: /account/",
+            "Disallow: /my-scenarios/",
             f"Sitemap: {sitemap_url}",
             "",
         ]

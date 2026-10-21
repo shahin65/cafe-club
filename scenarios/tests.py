@@ -9,7 +9,7 @@ from django.test import TestCase
 from PIL import Image
 
 from scenarios.dealing import create_deal, shuffled
-from scenarios.models import FinalMoveCard, Role, Scenario, ScenarioComment, ScenarioSize
+from scenarios.models import CardBranding, FinalMoveCard, Role, Scenario, ScenarioComment, ScenarioSize
 
 
 def make_complete_scenario(name="سناریو بازپرس", featured=False):
@@ -71,9 +71,20 @@ class ScenarioRulesTests(TestCase):
         response = self.client.get("/")
         content = response.content.decode()
         self.assertLess(content.find("quick-roles"), content.find("ad-rotator"))
+        self.assertLess(content.find("ad-rotator"), content.find("favorite-scenarios"))
         self.assertContains(response, "تقسیم نقش سریع")
+        self.assertContains(response, "سناریو دلخواه من")
+        self.assertContains(response, "Icon-Favorite.png")
+        self.assertContains(response, "سناریو دلخواهتو بساز")
         self.assertContains(response, "Icon-Fast.png")
         self.assertContains(response, "quick-roles-gear")
+        self.assertContains(response, "data-open-settings")
+        self.assertContains(response, "تغییر لوگو")
+        self.assertContains(response, 'value="cafeclub"')
+        self.assertContains(response, "Logo.png")
+        self.assertContains(response, "Logo-Dun.png")
+        self.assertContains(response, "Logo-Legendary.jpg")
+        self.assertContains(response, "Logo-Win.jpg")
         self.assertContains(response, shown.name)
         self.assertNotContains(response, hidden.name)
         self.assertNotContains(response, "2 نفره")
@@ -173,10 +184,10 @@ class HostToolsTests(TestCase):
         self.assertContains(response, "Icon-Time.png")
         self.assertContains(response, "Icon-Alarm.png")
         self.assertContains(response, "Icon-music.png")
-        self.assertContains(response, "Icon-Day.png")
+        self.assertNotContains(response, "Icon-Day.png")
         self.assertContains(response, "Icon-Night.png")
         self.assertContains(response, "پخش موسیقی")
-        self.assertContains(response, "فاز روز")
+        self.assertNotContains(response, "فاز روز")
         self.assertContains(response, "فاز شب")
         self.assertContains(response, "نوبت گفتگو")
         self.assertContains(response, "نوبت چالش")
@@ -342,3 +353,103 @@ class ScenarioPagesAndCommentsTests(TestCase):
         self.assertEqual(uploaded.status_code, 200)
         self.assertEqual(uploaded.json()["uploaded"], 1)
         self.assertIn("/media/scenario_pages/", uploaded.json()["url"])
+
+
+class CustomScenarioTests(TestCase):
+    def test_custom_wizard_is_private_and_plays_without_rulebook_tabs(self):
+        owner = get_user_model().objects.create_user("host", "host@example.com", "pass-word-123")
+        stranger = get_user_model().objects.create_user("guest", "guest@example.com", "pass-word-123")
+        home = self.client.get("/")
+        self.assertContains(home, "سناریو دلخواهتو بساز")
+        self.assertContains(home, "/account/login/")
+        create = self.client.get("/my-scenarios/create/")
+        self.assertRedirects(create, "/account/login/?next=/my-scenarios/create/")
+        self.client.force_login(owner)
+        self.client.get("/my-scenarios/create/?fresh=1")
+        self.assertRedirects(self.client.post("/my-scenarios/create/", {"name": "شب خصوصی"}), "/my-scenarios/create/mafia/")
+        self.assertRedirects(self.client.post("/my-scenarios/create/mafia/", {"count": "1"}), "/my-scenarios/create/mafia/roles/")
+        self.assertRedirects(self.client.post("/my-scenarios/create/mafia/roles/", {"name_0": "پدرخوانده"}), "/my-scenarios/create/citizens/")
+        self.assertRedirects(self.client.post("/my-scenarios/create/citizens/", {"count": "1"}), "/my-scenarios/create/citizens/roles/")
+        self.assertRedirects(self.client.post("/my-scenarios/create/citizens/roles/", {"name_0": "شهروند"}), "/my-scenarios/create/extras/")
+        self.assertRedirects(self.client.post("/my-scenarios/create/extras/", {}), "/my-scenarios/create/tools/")
+        done = self.client.post("/my-scenarios/create/tools/", {})
+        self.assertRedirects(done, "/")
+        scenario = Scenario.objects.get(name="شب خصوصی")
+        self.assertEqual(scenario.owner, owner)
+        self.assertFalse(scenario.is_featured)
+        listed = self.client.get("/")
+        self.assertContains(listed, "شب خصوصی")
+        self.assertContains(listed, "favorite-edit")
+        self.assertContains(listed, f'href="/deal/{scenario.id}/"')
+        self.assertContains(listed, f'href="/my-scenarios/{scenario.id}/edit/"')
+        self.assertNotContains(listed, ">ویرایش</a>")
+        self.client.logout()
+        hidden = self.client.get("/")
+        self.assertNotContains(hidden, "شب خصوصی")
+        self.assertEqual(self.client.get(f"/deal/{scenario.id}/").status_code, 404)
+        self.assertEqual(self.client.get(f"/scenario/{scenario.slug}/rulebook/").status_code, 404)
+        self.client.force_login(stranger)
+        self.assertEqual(self.client.get(f"/deal/{scenario.id}/").status_code, 404)
+        self.assertNotContains(self.client.get("/"), "شب خصوصی")
+        self.client.force_login(owner)
+        finish_two_player_deal(self.client, scenario)
+        host = self.client.get("/deal/host/")
+        self.assertContains(host, "مدیریت بازی")
+        self.assertContains(host, "Icon-Home.png")
+        self.assertNotContains(host, "Icon-Rules.png")
+        self.assertNotContains(host, "Icon-Search.png")
+        self.assertNotContains(host, "Icon-Comment.png")
+        self.assertNotContains(host, "رول بوک")
+        self.assertNotContains(host, "قوانین")
+        self.assertNotContains(host, "نظر کاربران")
+
+    def test_mafia_and_citizen_counts_can_be_zero(self):
+        owner = get_user_model().objects.create_user("wolf", "wolf@example.com", "pass-word-123")
+        self.client.force_login(owner)
+        self.client.get("/my-scenarios/create/?fresh=1")
+        self.client.post("/my-scenarios/create/", {"name": "فقط گرگینه"})
+        self.assertRedirects(self.client.post("/my-scenarios/create/mafia/", {"count": "0"}), "/my-scenarios/create/citizens/")
+        self.assertRedirects(self.client.post("/my-scenarios/create/citizens/", {"count": "0"}), "/my-scenarios/create/extras/")
+        extras = self.client.post("/my-scenarios/create/extras/", {})
+        self.assertContains(extras, "اگر مافیا و شهروند صفر است")
+        self.assertRedirects(self.client.post("/my-scenarios/create/extras/", {"has_werewolf": "1"}), "/my-scenarios/create/werewolf/")
+        self.assertRedirects(self.client.post("/my-scenarios/create/werewolf/", {"count": "2"}), "/my-scenarios/create/werewolf/roles/")
+        self.assertRedirects(
+            self.client.post("/my-scenarios/create/werewolf/roles/", {"name_0": "گرگ", "name_1": "آلفا"}),
+            "/my-scenarios/create/tools/",
+        )
+        self.assertRedirects(self.client.post("/my-scenarios/create/tools/", {}), "/")
+        scenario = Scenario.objects.get(name="فقط گرگینه")
+        size = scenario.sizes.get()
+        self.assertEqual(size.mafia_count, 0)
+        self.assertEqual(size.citizen_count, 0)
+        self.assertEqual(size.werewolf_count, 2)
+        self.assertEqual(size.player_count, 2)
+
+
+class CardLogoTests(TestCase):
+    def test_preset_logo_is_used_on_final_move_card_back(self):
+        scenario = make_complete_scenario()
+        self.assertRedirects(self.client.post("/settings/logo/", {"preset": "win"}), "/")
+        finish_two_player_deal(self.client, scenario)
+        card = self.client.get("/deal/final/1/")
+        self.assertContains(card, "Logo-Win.jpg")
+        self.assertContains(card, "card-back-logo")
+        role = self.client.get("/deal/card/1/")
+        self.assertContains(role, "Logo-Win.jpg")
+
+    def test_uploaded_logo_is_kept_for_the_logged_in_user(self):
+        user = get_user_model().objects.create_user("brand", "brand@example.com", "pass-word-123")
+        self.client.force_login(user)
+        buffer = BytesIO()
+        Image.new("RGB", (8, 8), (10, 20, 30)).save(buffer, format="PNG")
+        response = self.client.post(
+            "/settings/logo/",
+            {"logo": SimpleUploadedFile("cafe.png", buffer.getvalue(), content_type="image/png")},
+        )
+        self.assertRedirects(response, "/")
+        self.assertTrue(CardBranding.objects.get(user=user).image)
+        scenario = make_complete_scenario()
+        finish_two_player_deal(self.client, scenario)
+        card = self.client.get("/deal/final/1/")
+        self.assertContains(card, "/media/card_logos/")

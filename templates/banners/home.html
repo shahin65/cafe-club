@@ -6,11 +6,11 @@
 {% block content %}
   <section class="quick-roles" aria-labelledby="quick-roles-title">
     <header class="quick-roles-bar">
-      <span class="quick-roles-gear" aria-hidden="true">
+      <button class="quick-roles-gear" type="button" data-open-settings aria-label="{% trans 'تنظیمات' %}">
         <svg viewBox="0 0 24 24" width="22" height="22">
           <path fill="currentColor" d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.2 7.2 0 0 0-1.63-.94l-.36-2.54a.5.5 0 0 0-.5-.42h-3.84a.5.5 0 0 0-.5.42l-.36 2.54c-.58.23-1.12.54-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.71 8.84a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32c.13.22.39.31.6.22l2.39-.96c.5.4 1.05.72 1.63.94l.36 2.54c.05.24.26.42.5.42h3.84c.24 0 .45-.18.5-.42l.36-2.54c.58-.23 1.12-.54 1.63-.94l2.39.96c.22.09.47 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58ZM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7Z"/>
         </svg>
-      </span>
+      </button>
       <div class="quick-roles-title">
         <img src="{% static 'Icon-Fast.png' %}" alt="" width="40" height="40">
         <h2 id="quick-roles-title">{% trans "تقسیم نقش سریع" %}</h2>
@@ -55,6 +55,77 @@
       <p class="empty">{% trans "بنر فعالی برای نمایش وجود ندارد." %}</p>
     {% endfor %}
   </section>
+
+  <section class="favorite-scenarios" aria-labelledby="favorite-scenarios-title">
+    <header class="quick-roles-bar">
+      {% if my_scenarios %}
+        <a class="quick-roles-gear favorite-add" href="{% url 'custom_name' %}?fresh=1" aria-label="{% trans 'سناریو دلخواهتو بساز' %}">
+          <svg viewBox="0 0 24 24" width="22" height="22">
+            <path fill="currentColor" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2Z"/>
+          </svg>
+        </a>
+      {% else %}
+        <span class="quick-roles-gear" aria-hidden="true"></span>
+      {% endif %}
+      <div class="quick-roles-title">
+        <img src="{% static 'Icon-Favorite.png' %}" alt="" width="40" height="40">
+        <h2 id="favorite-scenarios-title">{% trans "سناریو دلخواه من" %}</h2>
+      </div>
+    </header>
+    {% if my_scenarios %}
+      <ul class="quick-role-list favorite-list">
+        {% for scenario in my_scenarios %}
+          <li>
+            <a class="favorite-edit" href="{% url 'custom_edit' scenario.id %}" aria-label="{% trans 'ویرایش' %}">
+              <svg viewBox="0 0 24 24" width="16" height="16">
+                <path fill="currentColor" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25ZM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83Z"/>
+              </svg>
+            </a>
+            <a href="{% url 'deal_start' scenario.id %}">
+              {% if scenario.icon %}
+                <img class="quick-role-icon" src="{{ scenario.icon.url }}" alt="">
+              {% endif %}
+              <p class="quick-role-name">{{ scenario.name }}</p>
+            </a>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <a class="favorite-create" href="{% if request.user.is_authenticated %}{% url 'custom_name' %}?fresh=1{% else %}{% url 'login' %}?next={% url 'custom_name' %}{% endif %}">
+        <span class="favorite-plus" aria-hidden="true">+</span>
+        <span>{% trans "سناریو دلخواهتو بساز" %}</span>
+      </a>
+    {% endif %}
+  </section>
+  <dialog class="settings-dialog" id="quick-settings">
+    <div class="settings-panel" data-panel="menu">
+      <h2>{% trans "تنظیمات" %}</h2>
+      <button class="settings-item" type="button" data-panel-target="logo">{% trans "تغییر لوگو" %}</button>
+      <button class="settings-close" type="button" data-close-settings>{% trans "بستن" %}</button>
+    </div>
+    <div class="settings-panel" data-panel="logo" hidden>
+      <button class="settings-back" type="button" data-panel-target="menu">{% trans "بازگشت" %}</button>
+      <h2>{% trans "تغییر لوگو" %}</h2>
+      <p>{% trans "یک لوگوی آماده انتخاب کنید یا لوگوی کافه یا کلاب خودتان را از گوشی بگذارید." %}</p>
+      <form class="logo-presets" method="post" action="{% url 'card_logo' %}">
+        {% csrf_token %}
+        {% for preset in card_logo_presets %}
+          <button class="logo-choice{% if card_logo_choice.key == preset.key %} is-selected{% endif %}" type="submit" name="preset" value="{{ preset.key }}">
+            <img src="{{ preset.url }}" alt="{{ preset.label }}">
+            <span>{{ preset.label }}</span>
+          </button>
+        {% endfor %}
+      </form>
+      <form class="logo-upload" method="post" action="{% url 'card_logo' %}" enctype="multipart/form-data">
+        {% csrf_token %}
+        <label>
+          {% trans "لوگوی کافه یا کلاب از روی دستگاه" %}
+          <input type="file" name="logo" accept="image/*" onchange="this.form.submit()">
+        </label>
+      </form>
+    </div>
+  </dialog>
+  <script src="{% static 'js/quick-settings.js' %}?v=1"></script>
   <script>
     (function () {
       var root = document.querySelector(".ad-rotator");

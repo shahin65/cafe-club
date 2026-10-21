@@ -26,6 +26,18 @@ from scenarios.dealing import (
 from scenarios.models import FinalMoveCard, Role, Scenario, ScenarioComment, ScenarioSize
 
 
+def _visible_scenario(request, scenario_id):
+    scenario = get_object_or_404(Scenario, pk=scenario_id)
+    if scenario.is_custom() and (not request.user.is_authenticated or scenario.owner_id != request.user.id):
+        raise Http404
+    return scenario
+
+
+def _public_scenario_page(request, slug):
+    scenario = get_object_or_404(Scenario, slug=slug, owner__isnull=True)
+    return scenario
+
+
 def _playable_sizes(scenario):
     sizes = []
     for size in scenario.sizes.prefetch_related("roles"):
@@ -51,7 +63,7 @@ def _board_url(deal):
 
 
 def start(request, scenario_id):
-    scenario = get_object_or_404(Scenario, pk=scenario_id)
+    scenario = _visible_scenario(request, scenario_id)
     sizes = _playable_sizes(scenario)
     if len(sizes) == 1:
         return redirect("deal_mode", scenario_id=scenario.id, player_count=sizes[0].player_count)
@@ -63,7 +75,7 @@ def start(request, scenario_id):
 
 
 def choose_mode(request, scenario_id, player_count):
-    scenario = get_object_or_404(Scenario, pk=scenario_id)
+    scenario = _visible_scenario(request, scenario_id)
     size = _size_or_404(scenario, player_count)
     return render(
         request,
@@ -75,7 +87,7 @@ def choose_mode(request, scenario_id, player_count):
 def board(request, scenario_id, player_count, mode):
     if mode not in MODES:
         raise Http404
-    scenario = get_object_or_404(Scenario, pk=scenario_id)
+    scenario = _visible_scenario(request, scenario_id)
     size = _size_or_404(scenario, player_count)
     deal = request.session.get(SESSION_KEY)
     fresh = request.GET.get("fresh") == "1"
@@ -189,8 +201,8 @@ def _save_deal(request, deal):
     request.session.modified = True
 
 
-def _scenario_and_size(deal):
-    scenario = get_object_or_404(Scenario, pk=deal["scenario_id"])
+def _scenario_and_size(request, deal):
+    scenario = _visible_scenario(request, deal["scenario_id"])
     size = get_object_or_404(
         ScenarioSize,
         scenario=scenario,
@@ -203,7 +215,7 @@ def host(request):
     deal = _finished_deal(request)
     if not deal:
         return redirect("home")
-    scenario, size = _scenario_and_size(deal)
+    scenario, size = _scenario_and_size(request, deal)
     if ensure_host_tools(deal, size):
         _save_deal(request, deal)
     return render(
@@ -213,6 +225,7 @@ def host(request):
             "scenario": scenario,
             "show_final": scenario.has_final_move and bool(deal.get("final_slots")),
             "show_lottery": scenario.has_death_lottery,
+            "is_custom": scenario.is_custom(),
         },
     )
 
@@ -221,7 +234,7 @@ def final_board(request):
     deal = _finished_deal(request)
     if not deal:
         return redirect("home")
-    scenario, size = _scenario_and_size(deal)
+    scenario, size = _scenario_and_size(request, deal)
     if ensure_host_tools(deal, size):
         _save_deal(request, deal)
     if not scenario.has_final_move or not deal.get("final_slots"):
@@ -280,7 +293,7 @@ def lottery(request):
     deal = _finished_deal(request)
     if not deal:
         return redirect("home")
-    scenario, size = _scenario_and_size(deal)
+    scenario, size = _scenario_and_size(request, deal)
     if ensure_host_tools(deal, size):
         _save_deal(request, deal)
     if not scenario.has_death_lottery:
@@ -372,7 +385,7 @@ def _page_seo(request, scenario, kind):
 
 
 def scenario_rulebook(request, slug):
-    scenario = get_object_or_404(Scenario, slug=slug)
+    scenario = _public_scenario_page(request, slug)
     return render(
         request,
         "scenarios/scenario_page.html",
@@ -381,7 +394,7 @@ def scenario_rulebook(request, slug):
 
 
 def scenario_rules(request, slug):
-    scenario = get_object_or_404(Scenario, slug=slug)
+    scenario = _public_scenario_page(request, slug)
     return render(
         request,
         "scenarios/scenario_page.html",
@@ -390,7 +403,7 @@ def scenario_rules(request, slug):
 
 
 def scenario_comments(request, slug):
-    scenario = get_object_or_404(Scenario, slug=slug)
+    scenario = _public_scenario_page(request, slug)
     if request.method == "POST":
         if request.POST.get("website"):
             return redirect(scenario.get_comments_url())

@@ -26,16 +26,33 @@ PAGES = {
             "یک میز انتخاب کنید و ببینید چه کسی حقیقت را می‌گوید."
         ),
     },
+    "ads": {
+        "title": _("آگهی"),
+        "body": _("به زودی"),
+        "coming_soon": True,
+    },
+    "location": {
+        "title": _("مکان"),
+        "body": _("به زودی"),
+        "coming_soon": True,
+    },
 }
 
 
 def home(request):
     banners = Banner.objects.filter(is_active=True)
-    quick_scenarios = Scenario.objects.filter(is_featured=True).prefetch_related("sizes")[:6]
+    quick_scenarios = Scenario.objects.filter(is_featured=True, owner__isnull=True).prefetch_related("sizes")[:6]
+    mine = []
+    if request.user.is_authenticated:
+        mine = [
+            scenario
+            for scenario in Scenario.objects.filter(owner=request.user).prefetch_related("sizes__roles", "sizes__final_move_cards")
+            if scenario.is_complete()
+        ]
     return render(
         request,
         "banners/home.html",
-        {"banners": banners, "quick_scenarios": quick_scenarios},
+        {"banners": banners, "quick_scenarios": quick_scenarios, "my_scenarios": mine},
     )
 
 

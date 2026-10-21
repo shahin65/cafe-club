@@ -11,7 +11,7 @@ class ScenarioRulebookSitemap(Sitemap):
     x_default = True
 
     def items(self):
-        return [item for item in Scenario.objects.exclude(slug="") if item.has_indexable_page("rulebook")]
+        return [item for item in Scenario.objects.filter(owner__isnull=True).exclude(slug="") if item.has_indexable_page("rulebook")]
 
     def location(self, obj):
         return obj.get_rulebook_url()
@@ -25,7 +25,7 @@ class ScenarioRulesSitemap(Sitemap):
     x_default = True
 
     def items(self):
-        return [item for item in Scenario.objects.exclude(slug="") if item.has_indexable_page("rules")]
+        return [item for item in Scenario.objects.filter(owner__isnull=True).exclude(slug="") if item.has_indexable_page("rules")]
 
     def location(self, obj):
         return obj.get_rules_url()
