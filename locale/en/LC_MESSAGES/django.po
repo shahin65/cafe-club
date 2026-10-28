@@ -19,6 +19,144 @@ msgstr "Ads"
 msgid "مکان"
 msgstr "Location"
 
+msgid "کجا برم؟"
+msgstr "Where to?"
+
+msgid "ثبت کافه یا کلاب من"
+msgstr "List my cafe or club"
+
+msgid "نام کلاب"
+msgstr "Club name"
+
+msgid "لوگو"
+msgstr "Logo"
+
+msgid "تصویر ۱"
+msgstr "Photo 1"
+
+msgid "تصویر ۲"
+msgstr "Photo 2"
+
+msgid "تصویر ۳"
+msgstr "Photo 3"
+
+msgid "حداکثر سه تصویر می‌توانید آپلود کنید."
+msgstr "You can upload up to three photos."
+
+msgid "نام مدیر یا سوپروایزر مجموعه"
+msgstr "Manager or supervisor name"
+
+msgid "تلفن"
+msgstr "Phone"
+
+msgid "شنبه تا پنجشنبه ۱۸ تا ۲۴"
+msgstr "Saturday to Thursday 18:00–24:00"
+
+msgid "ارسال برای بررسی"
+msgstr "Submit for review"
+
+msgid "شهرتان را انتخاب کنید تا نزدیک‌ترین کافه و کلاب‌ها برایتان فهرست شود."
+msgstr "Choose your city to see the nearest cafes and clubs."
+
+msgid "فیلتر مکان‌ها"
+msgstr "Place filters"
+
+msgid "شهر شما"
+msgstr "Your city"
+
+msgid "نزدیک‌ترین"
+msgstr "Nearest"
+
+msgid "جستجو"
+msgstr "Search"
+
+msgid "همه شهرها"
+msgstr "All cities"
+
+msgid "نمایش بیشتر"
+msgstr "Show more"
+
+msgid "بدون امتیاز"
+msgstr "No rating"
+
+msgid "نظر"
+msgstr "reviews"
+
+msgid "هنوز شعبه‌ای برای نمایش نیست."
+msgstr "No branches to show yet."
+
+msgid "شهر را انتخاب کنید"
+msgstr "Select a city"
+
+msgid "نمایش شعب"
+msgstr "Show branches"
+
+msgid "نزدیک‌ترین کلاب به من"
+msgstr "Nearest club to me"
+
+msgid "جستجوی نام کافه یا کلاب"
+msgstr "Search cafe or club name"
+
+msgid "اسم کافه را بنویسید"
+msgstr "Type the cafe name"
+
+msgid "مرتب‌سازی"
+msgstr "Sort"
+
+msgid "بر اساس نام"
+msgstr "By name"
+
+msgid "بر اساس فاصله"
+msgstr "By distance"
+
+msgid "بر اساس امتیاز"
+msgstr "By rating"
+
+msgid "اعمال"
+msgstr "Apply"
+
+msgid "هنوز امتیازی ندارد"
+msgstr "No ratings yet"
+
+msgid "در این شهر هنوز شعبه‌ای ثبت نشده است."
+msgstr "No branches are listed in this city yet."
+
+msgid "مسیریابی با"
+msgstr "Navigate with"
+
+msgid "یکی از برنامه‌های نقشه را انتخاب کنید."
+msgstr "Choose a maps app."
+
+msgid "مسیریابی"
+msgstr "Directions"
+
+msgid "مدیر یا سوپروایزر"
+msgstr "Manager or supervisor"
+
+msgid "روزها و ساعات کاری"
+msgstr "Working days and hours"
+
+msgid "آدرس"
+msgstr "Address"
+
+msgid "تلفن تماس"
+msgstr "Phone"
+
+msgid "امتیاز"
+msgstr "Rating"
+
+msgid "فاصله"
+msgstr "Distance"
+
+msgid "امتیاز شما"
+msgstr "Your rating"
+
+msgid "هنوز نظر تأییدشده‌ای برای این کافه نیست."
+msgstr "There are no approved reviews for this cafe yet."
+
+msgid "جمع این دو عدد را بنویسید"
+msgstr "Enter the sum of these two numbers"
+
 msgid "نوار پایین"
 msgstr "Bottom bar"
 
@@ -235,8 +373,8 @@ msgstr "Rulebook"
 msgid "نظر کاربران"
 msgstr "Player comments"
 
-msgid "متن این صفحه هنوز از پنل مدیریت وارد نشده است."
-msgstr "This page has not been written in the admin panel yet."
+msgid "این سناریو فاقد توضیحات میباشد"
+msgstr "This scenario has no description."
 
 msgid "مدیریت"
 msgstr "Host"
@@ -430,6 +568,12 @@ msgstr "Enter the final-move card names."
 msgid "تنظیمات"
 msgstr "Settings"
 
+msgid "دانلود اپلیکیشن"
+msgstr "Download the app"
+
+msgid "ما را در شبکه‌های اجتماعی دنبال کنید"
+msgstr "Follow us on social media"
+
 msgid "تغییر لوگو"
 msgstr "Change logo"
 
@@ -450,3 +594,87 @@ msgstr "Save"
 
 msgid "به زودی"
 msgstr "Coming soon"
+
+msgid "پروفایل"
+msgstr "Profile"
+
+msgid "شناسه کاربری"
+msgstr "User ID"
+
+msgid "با ورود یا اتصال جیمیل، شناسه شش‌رقمی شما ساخته می‌شود."
+msgstr "Your six-digit ID is created after you sign in or connect Gmail."
+
+msgid "تیک آبی"
+msgstr "Blue tick"
+
+msgid "تیک آبی فعال"
+msgstr "Blue tick is active"
+
+msgid "ذخیره نام"
+msgstr "Save name"
+
+msgid "ثبت نام سریع با اتصال اکانت جیمیل"
+msgstr "Quick sign-up by connecting Gmail"
+
+msgid "اتصال اکانت جیمیل"
+msgstr "Connect Gmail account"
+
+msgid "با یک کلیک اکانت جیمیل خود را به پروفایل وصل کنید."
+msgstr "Connect your Gmail account to this profile with one tap."
+
+msgid "ثبت نام"
+msgstr "Sign up"
+
+msgid "درخواست برای فعال سازی تیک آبی"
+msgstr "Request blue tick activation"
+
+msgid "نام و نام خانوادگی"
+msgstr "Full name"
+
+msgid "شماره تماس"
+msgstr "Phone number"
+
+msgid "ارسال درخواست تیک آبی"
+msgstr "Send blue tick request"
+
+msgid "برای ارسال درخواست ابتدا ثبت نام کنید."
+msgstr "Sign up first to send a request."
+
+msgid "جیمیل متصل"
+msgstr "Connected Gmail"
+
+msgid "با اتصال جیمیل می‌توانید وارد شوید و حساب را بازیابی کنید."
+msgstr "Connect Gmail to sign in and recover your account."
+
+msgid "ادامه با جیمیل گوگل"
+msgstr "Continue with Google Gmail"
+
+msgid "نشانی جیمیل"
+msgstr "Gmail address"
+
+msgid "ارسال کد تایید"
+msgstr "Send verification code"
+
+msgid "کد تایید شش‌رقمی"
+msgstr "Six-digit verification code"
+
+msgid "تایید جیمیل"
+msgstr "Confirm Gmail"
+
+msgid "امکانات تیک آبی"
+msgstr "Blue-tick tools"
+
+msgid "عکس پروفایل"
+msgstr "Profile photo"
+
+msgid "بیوگرافی"
+msgstr "Bio"
+
+msgid "چند خط درباره خودتان"
+msgstr "A few lines about yourself"
+
+msgid "ذخیره پروفایل"
+msgstr "Save profile"
+
+msgid "ورود یا بازیابی با جیمیل"
+msgstr "Sign in or recover with Gmail"

@@ -147,6 +147,30 @@ input, textarea, select, .button, input[type="submit"], .submit-row input {
     font-family: "Vazirmatn", Tahoma, "Segoe UI", sans-serif;
 }
 
+.cafe-blue-tick {
+    margin: 0 0 18px;
+    padding: 16px;
+    border: 1px solid var(--hairline-color);
+    border-radius: 12px;
+    background: var(--darkened-bg);
+}
+
+.cafe-blue-tick h2 {
+    margin: 0 0 8px;
+}
+
+.cafe-blue-tick form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: end;
+}
+
+.cafe-blue-tick input {
+    min-width: 140px;
+    padding: 8px 10px;
+}
+
 @media (max-width: 767px) {
     .banner-preview {
         width: 96px;

@@ -1,5 +1,5 @@
 {% extends "admin/base_site.html" %}
-{% load i18n static %}
+{% load i18n static admin_notices %}
 
 {% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static "admin/css/dashboard.css" %}">{% endblock %}
 
@@ -14,8 +14,9 @@
 {% block content %}
 <div class="cafe-dashboard-intro">
   <h2>خوش آمدید به داشبورد کافه کلاب</h2>
-  <p>بنرهای صفحه اصلی را از اینجا مدیریت کنید. عنوان و توضیحات هر بنر به فارسی و انگلیسی قابل ویرایش است و ترتیب پیش‌فرض نمایش، بنر ۱ تا بنر ۴ است.</p>
+  <p>بنرهای صفحه اصلی را از اینجا مدیریت کنید. لینک دانلود اپ و شبکه‌های اجتماعی صفحه تنظیمات را از بخش «تنظیمات» وارد کنید. کافه و کلاب‌ها، درخواست ثبت کافه، نظرها، آگهی‌ها و تیک آبی هم از همین داشبورد مدیریت می‌شوند.</p>
 </div>
+{% new_ads_notice %}
 <div id="content-main">
   {% include "admin/app_list.html" with app_list=app_list show_changelinks=True %}
 </div>

@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "آگهی" %} | {% trans "کافه کلاب" %}{% endblock %}
+
+{% block content %}
+  <section class="sheet places-sheet">
+    <div class="venue-card ads-panel">
+      <h1 class="places-title">{% trans "آگهی" %}</h1>
+      <p class="ad-intro">{% trans "ایوینت مافیا، پانتومیم، گل یا پوچ داری یا تورنومنت برگذار میکنی رایگان آگهی بده" %}</p>
+      <a class="places-add-btn" href="{% url 'ad_create' %}">
+        <span aria-hidden="true">+</span>
+        {% trans "درج آگهی رایگان" %}
+      </a>
+      {% if messages %}
+        <ul class="form-messages">
+          {% for message in messages %}
+            <li>{{ message }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+      <p class="ad-note">{% trans "هر آگهی رایگان تا سه روز نمایش داده می‌شود." %}</p>
+      {% if ads %}
+        <ul class="ad-list">
+          {% for ad in ads %}
+            <li class="ad-card">
+              <img src="{{ ad.image.url }}" alt="{{ ad.event_name }}">
+              <div>
+                <strong>{{ ad.event_name }}</strong>
+                <span>{{ ad.organizer_name }}</span>
+                <span>{{ ad.starts_at }}</span>
+                <span>{{ ad.address }}</span>
+                <span>{% trans "قیمت ورودی" %}: {{ ad.ticket_price }}</span>
+                <span>{% trans "بانک کافه" %}: {{ ad.cafe_bank }}</span>
+                <span dir="ltr">{{ ad.phone }}</span>
+              </div>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="coming-soon">{% trans "هنوز آگهی فعالی ثبت نشده است." %}</p>
+      {% endif %}
+    </div>
+  </section>
+{% endblock %}

@@ -5,7 +5,8 @@ from io import BytesIO
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import TestCase
+from django.test import Client, TestCase
+from django.utils.encoding import iri_to_uri
 from PIL import Image
 
 from scenarios.dealing import create_deal, shuffled
@@ -70,6 +71,7 @@ class ScenarioRulesTests(TestCase):
         hidden = make_complete_scenario(name="سناریو پنهان", featured=False)
         response = self.client.get("/")
         content = response.content.decode()
+        self.assertLess(content.find("نصب اپلیکیشن"), content.find("quick-roles"))
         self.assertLess(content.find("quick-roles"), content.find("ad-rotator"))
         self.assertLess(content.find("ad-rotator"), content.find("favorite-scenarios"))
         self.assertContains(response, "تقسیم نقش سریع")
@@ -79,6 +81,7 @@ class ScenarioRulesTests(TestCase):
         self.assertContains(response, "Icon-Fast.png")
         self.assertContains(response, "quick-roles-gear")
         self.assertContains(response, "data-open-settings")
+        self.assertContains(response, "Icon-Settings2.png")
         self.assertContains(response, "تغییر لوگو")
         self.assertContains(response, 'value="cafeclub"')
         self.assertContains(response, "Logo.png")
@@ -187,6 +190,8 @@ class HostToolsTests(TestCase):
         self.assertNotContains(response, "Icon-Day.png")
         self.assertContains(response, "Icon-Night.png")
         self.assertContains(response, "پخش موسیقی")
+        self.assertContains(response, "music-icon-play")
+        self.assertContains(response, "music-icon-pause")
         self.assertNotContains(response, "فاز روز")
         self.assertContains(response, "فاز شب")
         self.assertContains(response, "نوبت گفتگو")
@@ -199,8 +204,12 @@ class HostToolsTests(TestCase):
         self.assertContains(response, "رول بوک")
         self.assertContains(response, "قوانین")
         self.assertContains(response, "نظر کاربران")
+        self.assertContains(response, f'href="{iri_to_uri(scenario.get_rulebook_url())}"')
+        self.assertContains(response, f'href="{iri_to_uri(scenario.get_rules_url())}"')
         self.assertNotContains(response, "Icon-Advertisement.png")
         self.assertNotContains(response, "Icon-Location.png")
+        empty_rules = self.client.get(f"/scenario/{scenario.slug}/rules/")
+        self.assertContains(empty_rules, "این سناریو فاقد توضیحات میباشد")
 
     def test_host_hides_tools_the_scenario_does_not_have(self):
         scenario = make_complete_scenario()
@@ -361,9 +370,9 @@ class CustomScenarioTests(TestCase):
         stranger = get_user_model().objects.create_user("guest", "guest@example.com", "pass-word-123")
         home = self.client.get("/")
         self.assertContains(home, "سناریو دلخواهتو بساز")
-        self.assertContains(home, "/account/login/")
+        self.assertContains(home, 'href="/my-scenarios/create/?fresh=1"')
         create = self.client.get("/my-scenarios/create/")
-        self.assertRedirects(create, "/account/login/?next=/my-scenarios/create/")
+        self.assertEqual(create.status_code, 200)
         self.client.force_login(owner)
         self.client.get("/my-scenarios/create/?fresh=1")
         self.assertRedirects(self.client.post("/my-scenarios/create/", {"name": "شب خصوصی"}), "/my-scenarios/create/mafia/")
@@ -396,12 +405,35 @@ class CustomScenarioTests(TestCase):
         host = self.client.get("/deal/host/")
         self.assertContains(host, "مدیریت بازی")
         self.assertContains(host, "Icon-Home.png")
-        self.assertNotContains(host, "Icon-Rules.png")
-        self.assertNotContains(host, "Icon-Search.png")
+        self.assertContains(host, "Icon-Rules.png")
+        self.assertContains(host, "Icon-Search.png")
         self.assertNotContains(host, "Icon-Comment.png")
-        self.assertNotContains(host, "رول بوک")
-        self.assertNotContains(host, "قوانین")
+        self.assertContains(host, "رول بوک")
+        self.assertContains(host, "قوانین")
+        self.assertContains(host, f'href="{iri_to_uri(scenario.get_rulebook_url())}"')
+        self.assertContains(host, f'href="{iri_to_uri(scenario.get_rules_url())}"')
         self.assertNotContains(host, "نظر کاربران")
+        empty = self.client.get(f"/scenario/{scenario.slug}/rulebook/")
+        self.assertContains(empty, "این سناریو فاقد توضیحات میباشد")
+
+    def test_guest_can_create_custom_scenario_without_login(self):
+        self.client.get("/my-scenarios/create/?fresh=1")
+        self.assertRedirects(self.client.post("/my-scenarios/create/", {"name": "شب مهمان"}), "/my-scenarios/create/mafia/")
+        self.assertRedirects(self.client.post("/my-scenarios/create/mafia/", {"count": "1"}), "/my-scenarios/create/mafia/roles/")
+        self.assertRedirects(self.client.post("/my-scenarios/create/mafia/roles/", {"name_0": "پدرخوانده"}), "/my-scenarios/create/citizens/")
+        self.assertRedirects(self.client.post("/my-scenarios/create/citizens/", {"count": "1"}), "/my-scenarios/create/citizens/roles/")
+        self.assertRedirects(self.client.post("/my-scenarios/create/citizens/roles/", {"name_0": "شهروند"}), "/my-scenarios/create/extras/")
+        self.assertRedirects(self.client.post("/my-scenarios/create/extras/", {}), "/my-scenarios/create/tools/")
+        self.assertRedirects(self.client.post("/my-scenarios/create/tools/", {}), "/")
+        scenario = Scenario.objects.get(name="شب مهمان")
+        self.assertIsNone(scenario.owner_id)
+        self.assertTrue(scenario.guest_key)
+        listed = self.client.get("/")
+        self.assertContains(listed, "شب مهمان")
+        self.assertContains(listed, f'href="/deal/{scenario.id}/"')
+        stranger = Client()
+        self.assertNotContains(stranger.get("/"), "شب مهمان")
+        self.assertEqual(stranger.get(f"/deal/{scenario.id}/").status_code, 404)
 
     def test_mafia_and_citizen_counts_can_be_zero(self):
         owner = get_user_model().objects.create_user("wolf", "wolf@example.com", "pass-word-123")
@@ -437,6 +469,16 @@ class CardLogoTests(TestCase):
         self.assertContains(card, "card-back-logo")
         role = self.client.get("/deal/card/1/")
         self.assertContains(role, "Logo-Win.jpg")
+
+    def test_random_board_uses_card_back_and_opens_the_role(self):
+        scenario = make_complete_scenario()
+        board = self.client.get(f"/deal/{scenario.id}/2/random/?fresh=1")
+        self.assertContains(board, "Card-Background.webp")
+        self.assertContains(board, "mystery-card-back")
+        self.assertNotContains(board, ">؟</a>")
+        card = self.client.get("/deal/card/1/")
+        self.assertContains(card, "is-instant")
+        self.assertContains(card, 'class="card-hint" hidden')
 
     def test_uploaded_logo_is_kept_for_the_logged_in_user(self):
         user = get_user_model().objects.create_user("brand", "brand@example.com", "pass-word-123")

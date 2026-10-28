@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% load i18n static %}
+
+{% block title %}{% trans "پروفایل" %}{% endblock %}
+
+{% block content %}
+  <section class="sheet profile-sheet">
+    {% if not request.user.is_authenticated %}
+      <a class="choice wizard-submit guest-register" href="{% url 'register' %}?next={% url 'profile' %}">{% trans "ثبت نام" %}</a>
+    {% endif %}
+
+    <header class="profile-hero">
+      <img class="profile-avatar-lg" src="{% if club_profile and club_profile.photo %}{{ club_profile.photo.url }}{% else %}{% static 'Icon-profile.png' %}{% endif %}" alt="">
+      <div>
+        <h1>
+          {% if profile_username %}{{ profile_username }}{% else %}{% trans "مهمان" %}{% endif %}
+          {% if club_profile.is_verified %}
+            <img class="blue-tick" src="{% static 'Icon-BlueTick.png' %}" alt="{% trans 'تیک آبی فعال' %}" width="28" height="28">
+          {% else %}
+            <img class="blue-tick" src="{% static 'Icon-BlueTick-Inactive.png' %}" alt="{% trans 'تیک آبی' %}" width="28" height="28">
+          {% endif %}
+        </h1>
+        {% if club_profile %}
+          <p class="profile-id">{% trans "شناسه کاربری" %}: <strong dir="ltr">{{ club_profile.public_id_display }}</strong></p>
+        {% else %}
+          <p>{% trans "با ورود یا اتصال جیمیل، شناسه شش‌رقمی شما ساخته می‌شود." %}</p>
+        {% endif %}
+        {% if club_profile.bio %}
+          <p class="profile-bio">{{ club_profile.bio }}</p>
+        {% endif %}
+      </div>
+    </header>
+
+    {% if messages %}
+      <ul class="form-messages">
+        {% for message in messages %}
+          <li class="{{ message.tags }}">{{ message }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+
+    <form class="wizard-form" action="{% url 'save_username' %}" method="post">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{% url 'profile' %}">
+      <label>{% trans "نام کاربری" %}
+        <input type="text" name="username" value="{{ profile_username }}" maxlength="40" required placeholder="{% trans 'نام کاربری' %}">
+      </label>
+      <button class="choice wizard-submit" type="submit">{% trans "ذخیره نام" %}</button>
+    </form>
+
+    <section class="gmail-box" aria-labelledby="gmail-title">
+      <h2 id="gmail-title">
+        <img src="{% static 'Icon-Gmail.png' %}" alt="" width="52" height="52">
+        {% trans "ثبت نام سریع با اتصال اکانت جیمیل" %}
+      </h2>
+      {% if club_profile.google_email %}
+        <p>{% trans "جیمیل متصل" %}: <strong dir="ltr">{{ club_profile.google_email }}</strong></p>
+      {% else %}
+        <p>{% trans "با یک کلیک اکانت جیمیل خود را به پروفایل وصل کنید." %}</p>
+        <a class="choice gmail-button" href="{% url 'google_start' %}?next={% url 'profile' %}">
+          <img src="{% static 'Icon-Gmail.png' %}" alt="" width="40" height="40">
+          <span>{% trans "اتصال اکانت جیمیل" %}</span>
+        </a>
+      {% endif %}
+    </section>
+
+    {% if club_profile.is_verified %}
+      <section class="verified-tools">
+        <h2>{% trans "امکانات تیک آبی" %}</h2>
+        <form class="wizard-form" action="{% url 'profile_details' %}" method="post" enctype="multipart/form-data">
+          {% csrf_token %}
+          <label>{% trans "عکس پروفایل" %}
+            <input type="file" name="photo" accept="image/*">
+          </label>
+          <label>{% trans "بیوگرافی" %}
+            <textarea name="bio" rows="4" maxlength="280" placeholder="{% trans 'چند خط درباره خودتان' %}">{{ club_profile.bio }}</textarea>
+          </label>
+          <button class="choice wizard-submit" type="submit">{% trans "ذخیره پروفایل" %}</button>
+        </form>
+      </section>
+    {% endif %}
+
+    {% if request.user.is_authenticated %}
+      <form action="{% url 'logout' %}" method="post">
+        {% csrf_token %}
+        <button class="choice" type="submit">{% trans "خروج" %}</button>
+      </form>
+    {% else %}
+      <p><a class="wizard-link" href="{% url 'login' %}?next={% url 'profile' %}">{% trans "ورود" %}</a></p>
+    {% endif %}
+
+    {% if not club_profile.is_verified %}
+      <section class="blue-tick-request">
+        <p>آیا شما سابقه گردانندگی دارید، نقش یا سناریو مافیا طراحی کرده اید، از افراد شناخته شده در جامعه مافیای ایران هستید ؟ پس برای فعالسازی تیک آبی اکانت خود اقدام نمایید، تا به رایگان بتوانید از بخش آگهی کافه کلاب استفاده نمایید</p>
+        <h2>{% trans "درخواست برای فعال سازی تیک آبی" %}</h2>
+        {% if pending_blue_tick %}
+          <p class="blue-tick-wait">پس از بررسی طی 72 ساعت آینده با شما تماس حاصل خواهد شد</p>
+        {% elif request.user.is_authenticated %}
+          <form class="wizard-form" action="{% url 'request_blue_tick' %}" method="post">
+            {% csrf_token %}
+            <label>{% trans "نام و نام خانوادگی" %}
+              <input type="text" name="full_name" maxlength="80" required>
+            </label>
+            <label>{% trans "شماره تماس" %}
+              <input type="tel" name="phone" maxlength="20" required dir="ltr">
+            </label>
+            <label>لطفا یک بیوگرافی از خود برای ما ارسال کنید تا با شما تماس حاصل شده و تیک آبی اکانت شما فعال شود
+              <textarea name="biography" rows="5" maxlength="2000" required></textarea>
+            </label>
+            <button class="choice wizard-submit" type="submit">{% trans "ارسال درخواست تیک آبی" %}</button>
+          </form>
+        {% else %}
+          <p><a class="wizard-link" href="{% url 'register' %}?next={% url 'profile' %}">{% trans "برای ارسال درخواست ابتدا ثبت نام کنید." %}</a></p>
+        {% endif %}
+      </section>
+    {% endif %}
+  </section>
+{% endblock %}

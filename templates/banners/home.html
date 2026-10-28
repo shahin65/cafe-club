@@ -4,12 +4,20 @@
 {% block title %}{% trans "کافه کلاب" %}{% endblock %}
 
 {% block content %}
+  <a class="app-install-btn" href="{% url 'install_app' %}" data-hide-when-installed>
+    <span class="app-install-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" width="22" height="22">
+        <rect x="6" y="3" width="12" height="18" rx="2.2" fill="none" stroke="currentColor" stroke-width="1.8"/>
+        <path d="M9 9.2h6M9 12h6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+        <text x="12" y="18.2" text-anchor="middle" font-size="5.4" font-weight="700" fill="currentColor">APK</text>
+      </svg>
+    </span>
+    {% trans "نصب اپلیکیشن" %}
+  </a>
   <section class="quick-roles" aria-labelledby="quick-roles-title">
     <header class="quick-roles-bar">
       <button class="quick-roles-gear" type="button" data-open-settings aria-label="{% trans 'تنظیمات' %}">
-        <svg viewBox="0 0 24 24" width="22" height="22">
-          <path fill="currentColor" d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.2 7.2 0 0 0-1.63-.94l-.36-2.54a.5.5 0 0 0-.5-.42h-3.84a.5.5 0 0 0-.5.42l-.36 2.54c-.58.23-1.12.54-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.71 8.84a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32c.13.22.39.31.6.22l2.39-.96c.5.4 1.05.72 1.63.94l.36 2.54c.05.24.26.42.5.42h3.84c.24 0 .45-.18.5-.42l.36-2.54c.58-.23 1.12-.54 1.63-.94l2.39.96c.22.09.47 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58ZM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7Z"/>
-        </svg>
+        <img src="{% static 'Icon-Settings2.png' %}" alt="" width="32" height="32">
       </button>
       <div class="quick-roles-title">
         <img src="{% static 'Icon-Fast.png' %}" alt="" width="40" height="40">
@@ -91,7 +99,7 @@
         {% endfor %}
       </ul>
     {% else %}
-      <a class="favorite-create" href="{% if request.user.is_authenticated %}{% url 'custom_name' %}?fresh=1{% else %}{% url 'login' %}?next={% url 'custom_name' %}{% endif %}">
+      <a class="favorite-create" href="{% url 'custom_name' %}?fresh=1">
         <span class="favorite-plus" aria-hidden="true">+</span>
         <span>{% trans "سناریو دلخواهتو بساز" %}</span>
       </a>

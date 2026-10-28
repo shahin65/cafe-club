@@ -24,7 +24,9 @@
             {% if box.done %}
               <span class="mystery-card is-done" aria-hidden="true">✓</span>
             {% else %}
-              <a class="mystery-card deal-safe" href="{% url 'deal_card' box.number %}">؟</a>
+              <a class="mystery-card mystery-card-back deal-safe" href="{% url 'deal_card' box.number %}" aria-label="{% trans 'کارت' %}">
+                <img src="{% static 'Card-Background.webp' %}" alt="">
+              </a>
             {% endif %}
           </li>
         {% endfor %}

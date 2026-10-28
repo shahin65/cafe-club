@@ -1,6 +1,6 @@
 {% load i18n static %}
 <nav class="tab-bar" aria-label="{% trans 'نوار پایین' %}">
-  <a class="tab{% if request.resolver_match.url_name == 'ads' %} is-active{% endif %}" href="{% url 'ads' %}" {% if request.resolver_match.url_name == 'ads' %}aria-current="page"{% endif %}>
+  <a class="tab{% if request.resolver_match.url_name == 'ads' or request.resolver_match.url_name == 'ad_create' %} is-active{% endif %}" href="{% url 'ads' %}" {% if request.resolver_match.url_name == 'ads' or request.resolver_match.url_name == 'ad_create' %}aria-current="page"{% endif %}>
     <img src="{% static 'Icon-Advertisement.png' %}" alt="" width="36" height="36">
     <span>{% trans "آگهی" %}</span>
   </a>
@@ -8,8 +8,8 @@
     <img src="{% static 'Icon-Home.png' %}" alt="" width="44" height="44">
     <span>{% trans "خانه" %}</span>
   </a>
-  <a class="tab{% if request.resolver_match.url_name == 'location' %} is-active{% endif %}" href="{% url 'location' %}" {% if request.resolver_match.url_name == 'location' %}aria-current="page"{% endif %}>
+  <a class="tab{% if request.resolver_match.url_name == 'location' or request.resolver_match.url_name == 'venue_detail' or request.resolver_match.url_name == 'venue_submit' %} is-active{% endif %}" href="{% url 'location' %}" {% if request.resolver_match.url_name == 'location' or request.resolver_match.url_name == 'venue_detail' or request.resolver_match.url_name == 'venue_submit' %}aria-current="page"{% endif %}>
     <img src="{% static 'Icon-Location.png' %}" alt="" width="36" height="36">
-    <span>{% trans "مکان" %}</span>
+    <span>{% trans "کجا برم؟" %}</span>
   </a>
 </nav>

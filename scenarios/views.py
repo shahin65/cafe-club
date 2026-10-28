@@ -23,18 +23,21 @@ from scenarios.dealing import (
     latest_lottery,
     same_deal,
 )
+from scenarios.html_safe import plain_page_text
 from scenarios.models import FinalMoveCard, Role, Scenario, ScenarioComment, ScenarioSize
 
 
 def _visible_scenario(request, scenario_id):
     scenario = get_object_or_404(Scenario, pk=scenario_id)
-    if scenario.is_custom() and (not request.user.is_authenticated or scenario.owner_id != request.user.id):
+    if scenario.is_custom() and not scenario.can_be_managed_by(request):
         raise Http404
     return scenario
 
 
 def _public_scenario_page(request, slug):
-    scenario = get_object_or_404(Scenario, slug=slug, owner__isnull=True)
+    scenario = get_object_or_404(Scenario, slug=slug)
+    if scenario.is_custom() and not scenario.can_be_managed_by(request):
+        raise Http404
     return scenario
 
 
@@ -137,6 +140,7 @@ def card(request, slot):
             "slot": slot,
             "mode": mode,
             "already": deal["revealed"][slot - 1],
+            "auto_reveal": mode == MODE_RANDOM,
             "continue_label": continue_label,
             "board_url": _board_url(deal).url,
         },
@@ -370,10 +374,12 @@ def _page_seo(request, scenario, kind):
     image = ""
     if scenario.icon:
         image = request.build_absolute_uri(scenario.icon.url)
+    body_html = scenario.page_body_html(kind)
     return {
         "kind": kind,
         "title": scenario.page_title(kind),
-        "body": scenario.page_body_html(kind),
+        "body": body_html,
+        "has_body": bool(plain_page_text(body_html)),
         "meta_title": scenario.page_meta_title(kind),
         "meta_description": scenario.page_meta_description(kind),
         "canonical": canonical,

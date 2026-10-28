@@ -1,8 +1,8 @@
 from django.shortcuts import render
 from django.utils.translation import gettext_lazy as _
 
-from banners.models import Banner
-from scenarios.models import Scenario
+from banners.models import Banner, SiteLink
+from scenarios.models import GUEST_SCENARIO_KEY, Scenario
 
 PAGES = {
     "nights": {
@@ -26,29 +26,22 @@ PAGES = {
             "یک میز انتخاب کنید و ببینید چه کسی حقیقت را می‌گوید."
         ),
     },
-    "ads": {
-        "title": _("آگهی"),
-        "body": _("به زودی"),
-        "coming_soon": True,
-    },
-    "location": {
-        "title": _("مکان"),
-        "body": _("به زودی"),
-        "coming_soon": True,
-    },
 }
 
 
 def home(request):
     banners = Banner.objects.filter(is_active=True)
-    quick_scenarios = Scenario.objects.filter(is_featured=True, owner__isnull=True).prefetch_related("sizes")[:6]
-    mine = []
+    quick_scenarios = Scenario.objects.filter(is_featured=True, owner__isnull=True, guest_key="").prefetch_related("sizes")[:6]
     if request.user.is_authenticated:
-        mine = [
-            scenario
-            for scenario in Scenario.objects.filter(owner=request.user).prefetch_related("sizes__roles", "sizes__final_move_cards")
-            if scenario.is_complete()
-        ]
+        owned = Scenario.objects.filter(owner=request.user)
+    else:
+        guest_key = request.session.get(GUEST_SCENARIO_KEY) or ""
+        owned = Scenario.objects.filter(owner__isnull=True, guest_key=guest_key) if guest_key else Scenario.objects.none()
+    mine = [
+        scenario
+        for scenario in owned.prefetch_related("sizes__roles", "sizes__final_move_cards")
+        if scenario.is_complete()
+    ]
     return render(
         request,
         "banners/home.html",
@@ -58,3 +51,14 @@ def home(request):
 
 def page(request, page):
     return render(request, "banners/page.html", {"page": PAGES[page]})
+
+
+def app_settings(request):
+    links = SiteLink.objects.filter(is_active=True).exclude(url="")
+    downloads = [link for link in links if link.group == SiteLink.GROUP_DOWNLOAD]
+    socials = [link for link in links if link.group == SiteLink.GROUP_SOCIAL]
+    return render(
+        request,
+        "banners/settings.html",
+        {"downloads": downloads, "socials": socials},
+    )

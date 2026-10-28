@@ -10,8 +10,10 @@ def role_deal(request):
 
 def branding(request):
     choice = current_card_logo(request)
+    club_profile = None
     if request.user.is_authenticated:
         profile_username = request.user.get_username()
+        club_profile = getattr(request.user, "club_profile", None)
     else:
         profile_username = (request.session.get("profile_username") or "").strip()
     return {
@@ -22,4 +24,5 @@ def branding(request):
             for key, filename in PRESETS.items()
         ],
         "profile_username": profile_username,
+        "club_profile": club_profile,
     }

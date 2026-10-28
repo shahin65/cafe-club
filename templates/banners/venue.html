@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% load i18n static %}
+
+{% block title %}{{ venue.name }} | {% trans "کجا برم؟" %}{% endblock %}
+
+{% block content %}
+  <article class="sheet venue-sheet">
+    <div class="venue-card">
+      <header class="venue-hero">
+        <p class="doc-kicker"><a href="{% url 'location' %}">{% trans "کجا برم؟" %}</a> / {{ venue.city }}</p>
+        {% if venue.logo %}
+          <img class="venue-logo" src="{{ venue.logo.url }}" alt="">
+        {% endif %}
+        <h1>{{ venue.name }}</h1>
+        {% if nav_links %}
+          <button class="venue-nav-btn" type="button" data-open-nav>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7Zm0 9.5A2.5 2.5 0 1 1 12 6a2.5 2.5 0 0 1 0 5.5Z"/></svg>
+            <span>{% trans "مسیریابی" %}</span>
+          </button>
+        {% endif %}
+      </header>
+      {% if messages %}
+        <ul class="form-messages">
+          {% for message in messages %}
+            <li class="{{ message.tags }}">{{ message }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+      {% if venue.gallery %}
+        <ul class="venue-gallery">
+          {% for image in venue.gallery %}
+            <li><img src="{{ image.url }}" alt=""></li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+      <dl class="venue-meta">
+        {% if venue.manager_name %}
+          <div><dt>{% trans "مدیر یا سوپروایزر" %}</dt><dd>{{ venue.manager_name }}</dd></div>
+        {% endif %}
+        {% if venue.hours %}
+          <div><dt>{% trans "روزها و ساعات کاری" %}</dt><dd>{{ venue.hours }}</dd></div>
+        {% endif %}
+        <div><dt>{% trans "آدرس" %}</dt><dd>{{ venue.address }}</dd></div>
+        {% if venue.phone %}
+          <div><dt>{% trans "تلفن تماس" %}</dt><dd dir="ltr"><a href="tel:{{ venue.phone }}">{{ venue.phone }}</a></dd></div>
+        {% endif %}
+        {% if venue.avg_display %}
+          <div><dt>{% trans "امتیاز" %}</dt><dd>★ {{ venue.avg_display }} ({{ venue.rating_count }})</dd></div>
+        {% endif %}
+        {% if venue.distance_label %}
+          <div><dt>{% trans "فاصله" %}</dt><dd>{{ venue.distance_label }}</dd></div>
+        {% endif %}
+      </dl>
+
+      <section class="venue-rate">
+        <h2>{% trans "امتیاز شما" %}</h2>
+        <form action="{% url 'venue_rate' venue.id %}" method="post">
+          {% csrf_token %}
+          <div class="star-row">
+            {% for star in "12345" %}
+              <button class="star-btn{% if my_stars and my_stars >= forloop.counter %} is-on{% endif %}" name="stars" value="{{ forloop.counter }}" type="submit" aria-label="{{ forloop.counter }}">★</button>
+            {% endfor %}
+          </div>
+        </form>
+      </section>
+
+      <section class="comments-sheet">
+        <h2>{% trans "نظر کاربران" %}</h2>
+        {% if comments %}
+          <ol class="comment-thread">
+            {% for comment in comments %}
+              <li class="comment">
+                <p class="comment-meta"><strong>{{ comment.author_name }}</strong></p>
+                <p>{{ comment.body }}</p>
+              </li>
+            {% endfor %}
+          </ol>
+        {% else %}
+          <p>{% trans "هنوز نظر تأییدشده‌ای برای این کافه نیست." %}</p>
+        {% endif %}
+        <form class="comment-form" action="{% url 'venue_comment' venue.id %}" method="post">
+          {% csrf_token %}
+          <h2>{% trans "ارسال نظر" %}</h2>
+          <p class="music-note">{% trans "نظر پس از تأیید مدیریت روی سایت دیده می‌شود." %}</p>
+          <label>{% trans "نام" %}<input name="author_name" maxlength="40" required value="{% if profile_username %}{{ profile_username }}{% endif %}"></label>
+          <label>{% trans "نظر شما" %}<textarea name="body" rows="4" maxlength="1000" required></textarea></label>
+          <label>{% trans "جمع این دو عدد را بنویسید" %} ({{ captcha_left }} + {{ captcha_right }})
+            <input name="captcha" inputmode="numeric" maxlength="2" required dir="ltr">
+          </label>
+          <input class="hp" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+          <button type="submit">{% trans "ارسال نظر" %}</button>
+        </form>
+      </section>
+    </div>
+
+    <dialog class="nav-sheet" data-nav-sheet>
+      <form method="dialog">
+        <h2>{% trans "مسیریابی با" %}</h2>
+        <p>{% trans "یکی از برنامه‌های نقشه را انتخاب کنید." %}</p>
+        <div class="nav-apps">
+          {% for link in nav_links %}
+            <a class="choice" href="{{ link.url }}" target="_blank" rel="noopener">{{ link.label }}</a>
+          {% endfor %}
+        </div>
+        <button type="submit">{% trans "بستن" %}</button>
+      </form>
+    </dialog>
+  </article>
+{% endblock %}
+
+{% block extra_js %}
+  <script src="{% static 'js/places.js' %}?v=2"></script>
+{% endblock %}

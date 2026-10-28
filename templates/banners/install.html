@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% load i18n static %}
+
+{% block title %}{% trans "نصب اپلیکیشن" %} | {% trans "کافه کلاب" %}{% endblock %}
+
+{% block content %}
+  <section class="sheet venue-sheet">
+    <div class="venue-card install-card">
+      <p class="doc-kicker"><a href="{% url 'home' %}">{% trans "خانه" %}</a></p>
+      <h1>{% trans "نصب اپلیکیشن" %}</h1>
+      <p class="install-lead">{% trans "کافه کلاب را مثل یک اپ روی گوشی خودتان نصب کنید." %}</p>
+
+      <a class="install-choice" href="https://cafeclub.amytisapp.ir/downloads/cafeclub.apk">
+        <span class="install-choice-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="28" height="28">
+            <rect x="6" y="3" width="12" height="18" rx="2.2" fill="none" stroke="currentColor" stroke-width="1.8"/>
+            <path d="M12 8v7M9.2 12.8 12 15.6 14.8 12.8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </span>
+        <span>{% trans "دانلود مستقیم نسخه اندروید" %}</span>
+      </a>
+
+      <button class="install-choice" type="button" data-open-ios-guide>
+        <span class="install-choice-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="28" height="28">
+            <rect x="7" y="2.5" width="10" height="19" rx="2.2" fill="none" stroke="currentColor" stroke-width="1.8"/>
+            <circle cx="12" cy="18.2" r="0.9" fill="currentColor"/>
+          </svg>
+        </span>
+        <span>{% trans "دانلود مستقیم نسخه آیفون" %}</span>
+      </button>
+
+      <div class="ios-guide" data-ios-guide hidden>
+        <p class="install-lead">{% trans "روی آیفون، اپ را از سافاری به صفحه اصلی اضافه کنید." %}</p>
+        <ol class="install-guide">
+          <li>
+            <span class="ios-step-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="22" height="22">
+                <path d="M12 4v10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                <path d="M8.5 7.5 12 4l3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M7 11v6.5A1.5 1.5 0 0 0 8.5 19h7a1.5 1.5 0 0 0 1.5-1.5V11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+              </svg>
+            </span>
+            {% trans "دکمه Share پایین سافاری را بزنید." %}
+          </li>
+          <li>
+            <span class="ios-step-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="22" height="22">
+                <rect x="5" y="5" width="14" height="14" rx="2.2" fill="none" stroke="currentColor" stroke-width="1.8"/>
+                <path d="M12 8v8M8 12h8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+              </svg>
+            </span>
+            {% trans "Add to Home Screen را انتخاب کنید." %}
+          </li>
+          <li>
+            <span class="ios-step-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="22" height="22">
+                <path d="M5 13.2 10 18l9-10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </span>
+            {% trans "Add را بزنید تا کافه کلاب مثل اپ روی صفحه اصلی نصب شود." %}
+          </li>
+        </ol>
+      </div>
+    </div>
+  </section>
+{% endblock %}

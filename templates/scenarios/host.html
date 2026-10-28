@@ -68,7 +68,15 @@
       <div class="music-controls">
         <button class="music-add" type="button">{% trans "افزودن به لیست" %}</button>
         <input class="music-file" type="file" accept="audio/*,.mp3,.m4a,.aac,.ogg,.wav,.flac" multiple hidden>
-        <button class="music-play" type="button" data-play="{% trans 'پخش' %}" data-pause="{% trans 'توقف' %}" disabled>{% trans "پخش" %}</button>
+        <button class="music-play" type="button" data-play="{% trans 'پخش' %}" data-pause="{% trans 'توقف' %}" disabled>
+          <svg class="music-icon music-icon-play" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+            <path fill="currentColor" d="M8 5.2v13.6c0 .7.8 1.1 1.4.7l10.4-6.8c.6-.4.6-1.2 0-1.6L9.4 4.5c-.6-.4-1.4 0-1.4.7Z"/>
+          </svg>
+          <svg class="music-icon music-icon-pause" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+            <path fill="currentColor" d="M7 5h3.2v14H7zm6.8 0H17v14h-3.2z"/>
+          </svg>
+          <span class="music-play-label">{% trans "پخش" %}</span>
+        </button>
       </div>
       <p class="music-now">{% trans "آهنگی انتخاب نشده" %}</p>
       <ul class="music-list" data-remove="{% trans 'حذف آهنگ' %}"></ul>
@@ -96,13 +104,9 @@
     </div>
   </section>
   <script src="{% static 'js/turn-timers.js' %}?v=3"></script>
-  <script src="{% static 'js/music-player.js' %}?v=3"></script>
+  <script src="{% static 'js/music-player.js' %}?v=5"></script>
 {% endblock %}
 
 {% block tab_bar %}
-  {% if is_custom %}
-    {% include "_default_tabs.html" %}
-  {% else %}
-    {% include "scenarios/_host_tabs.html" %}
-  {% endif %}
+  {% include "scenarios/_host_tabs.html" %}
 {% endblock %}

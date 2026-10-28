@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% load i18n static %}
+
+{% block title %}{% trans "کجا برم؟" %} | {% trans "کافه کلاب" %}{% endblock %}
+
+{% block content %}
+  <section class="sheet places-sheet" data-places data-ask-geo{% if nearest_nav and user_lat %} data-open-nav-on-load{% endif %}>
+    <h1 class="places-title">{% trans "کجا برم؟" %}</h1>
+    <a class="places-add-btn" href="{% url 'venue_submit' %}">
+      <span aria-hidden="true">+</span>
+      {% trans "ثبت کافه یا کلاب من" %}
+    </a>
+    <p class="places-geo-status" data-geo-status hidden></p>
+
+    <nav class="places-bar" aria-label="{% trans 'فیلتر مکان‌ها' %}">
+      <button type="button" class="places-bar-btn" data-toggle-panel="city" aria-expanded="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7Zm0 9.5A2.5 2.5 0 1 1 12 6a2.5 2.5 0 0 1 0 5.5Z"/></svg>
+        <span>{% trans "شهر شما" %}</span>
+      </button>
+      <button type="button" class="places-bar-btn" data-open-nearest {% if not nearest %}disabled{% endif %}>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 3 4 21l8-3 8 3-8-18Z"/></svg>
+        <span>{% trans "نزدیک‌ترین" %}</span>
+      </button>
+      <button type="button" class="places-bar-btn" data-toggle-panel="sort" aria-expanded="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M8 4h2v12h3l-4 4-4-4h3V4Zm6 16h2V8h3l-4-4-4 4h3v12Z"/></svg>
+        <span>{% trans "مرتب‌سازی" %}</span>
+      </button>
+      <button type="button" class="places-bar-btn" data-toggle-panel="search" aria-expanded="false">
+        <img src="{% static 'Icon-Search.png' %}" alt="" width="18" height="18">
+        <span>{% trans "جستجو" %}</span>
+      </button>
+    </nav>
+
+    <form class="places-panel" data-panel="city" method="get" hidden>
+      {% if user_lat %}<input type="hidden" name="lat" value="{{ user_lat }}">{% endif %}
+      {% if user_lng %}<input type="hidden" name="lng" value="{{ user_lng }}">{% endif %}
+      {% if query %}<input type="hidden" name="q" value="{{ query }}">{% endif %}
+      <input type="hidden" name="sort" value="{{ sort }}">
+      <label>
+        {% trans "شهر شما" %}
+        <select name="city">
+          <option value=""{% if not selected_city %} selected{% endif %}>{% trans "همه شهرها" %}</option>
+          {% for city in cities %}
+            <option value="{{ city }}"{% if city == selected_city %} selected{% endif %}>{{ city }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <button class="choice wizard-submit" type="submit">{% trans "اعمال" %}</button>
+    </form>
+
+    <form class="places-panel" data-panel="sort" method="get" hidden>
+      {% if user_lat %}<input type="hidden" name="lat" value="{{ user_lat }}">{% endif %}
+      {% if user_lng %}<input type="hidden" name="lng" value="{{ user_lng }}">{% endif %}
+      {% if selected_city %}<input type="hidden" name="city" value="{{ selected_city }}">{% endif %}
+      {% if query %}<input type="hidden" name="q" value="{{ query }}">{% endif %}
+      <label>
+        {% trans "مرتب‌سازی" %}
+        <select name="sort">
+          <option value="name"{% if sort == "name" %} selected{% endif %}>{% trans "بر اساس نام" %}</option>
+          <option value="distance"{% if sort == "distance" %} selected{% endif %}>{% trans "بر اساس فاصله" %}</option>
+          <option value="rating"{% if sort == "rating" %} selected{% endif %}>{% trans "بر اساس امتیاز" %}</option>
+        </select>
+      </label>
+      <button class="choice wizard-submit" type="submit">{% trans "اعمال" %}</button>
+    </form>
+
+    <form class="places-panel" data-panel="search" method="get" hidden>
+      {% if user_lat %}<input type="hidden" name="lat" value="{{ user_lat }}">{% endif %}
+      {% if user_lng %}<input type="hidden" name="lng" value="{{ user_lng }}">{% endif %}
+      {% if selected_city %}<input type="hidden" name="city" value="{{ selected_city }}">{% endif %}
+      <input type="hidden" name="sort" value="{{ sort }}">
+      <label>
+        {% trans "جستجوی نام کافه یا کلاب" %}
+        <input type="search" name="q" value="{{ query }}" placeholder="{% trans 'اسم کافه را بنویسید' %}">
+      </label>
+      <button class="choice wizard-submit" type="submit">{% trans "اعمال" %}</button>
+    </form>
+
+    {% if venues %}
+      <ul class="place-list">
+        {% for venue in venues %}
+          <li>
+            <a class="place-card" href="{% url 'venue_detail' venue.id %}{% if user_lat %}?lat={{ user_lat }}&lng={{ user_lng }}{% endif %}" data-lat="{{ venue.latitude|default_if_none:'' }}" data-lng="{{ venue.longitude|default_if_none:'' }}" data-name="{{ venue.name }}">
+              {% if venue.logo %}
+                <img src="{{ venue.logo.url }}" alt="">
+              {% else %}
+                <span class="place-card-fallback" aria-hidden="true">{{ venue.name|make_list|first }}</span>
+              {% endif %}
+              <div>
+                <strong>{{ venue.name }}</strong>
+                <span>{{ venue.city }}{% if venue.address %} — {{ venue.address }}{% endif %}</span>
+                <span class="place-stats">
+                  {% if venue.avg_display %}★ {{ venue.avg_display }}{% else %}{% trans "بدون امتیاز" %}{% endif %}
+                  · {{ venue.comment_count }} {% trans "نظر" %}
+                  {% if venue.distance_label %} · {{ venue.distance_label }}{% endif %}
+                </span>
+              </div>
+            </a>
+          </li>
+        {% endfor %}
+      </ul>
+      {% if has_more %}
+        <a class="choice places-more" href="{% url 'location' %}?{{ more_query }}">{% trans "نمایش بیشتر" %}</a>
+      {% endif %}
+    {% else %}
+      <p>{% trans "هنوز شعبه‌ای برای نمایش نیست." %}</p>
+    {% endif %}
+
+    <dialog class="nav-sheet" data-nav-sheet>
+      <form method="dialog">
+        <h2>{% trans "مسیریابی با" %}</h2>
+        <p>{% trans "یکی از برنامه‌های نقشه را انتخاب کنید." %}</p>
+        <div class="nav-apps" data-nav-apps>
+          {% for link in nearest_nav %}
+            <a class="choice" href="{{ link.url }}" target="_blank" rel="noopener" data-nav-id="{{ link.id }}">{{ link.label }}</a>
+          {% endfor %}
+        </div>
+        <button type="submit">{% trans "بستن" %}</button>
+      </form>
+    </dialog>
+  </section>
+{% endblock %}
+
+{% block extra_js %}
+  <script src="{% static 'js/places.js' %}?v=2"></script>
+{% endblock %}

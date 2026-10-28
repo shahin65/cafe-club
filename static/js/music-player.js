@@ -102,7 +102,12 @@
 
   function paintPlayButton() {
     var playing = night && !audio.paused && !audio.ended;
-    playButton.textContent = playing ? playButton.dataset.pause : playButton.dataset.play;
+    var label = playButton.querySelector(".music-play-label");
+    var playIcon = playButton.querySelector(".music-icon-play");
+    var pauseIcon = playButton.querySelector(".music-icon-pause");
+    if (label) label.textContent = playing ? playButton.dataset.pause : playButton.dataset.play;
+    if (playIcon) playIcon.hidden = playing;
+    if (pauseIcon) pauseIcon.hidden = !playing;
     playButton.classList.toggle("is-playing", playing);
     playButton.disabled = !canPlay();
   }

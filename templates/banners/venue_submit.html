@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "ثبت کافه یا کلاب من" %} | {% trans "کجا برم؟" %}{% endblock %}
+
+{% block content %}
+  <section class="sheet venue-sheet">
+    <div class="venue-card">
+      <p class="doc-kicker"><a href="{% url 'location' %}">{% trans "کجا برم؟" %}</a></p>
+      <h1>{% trans "ثبت کافه یا کلاب من" %}</h1>
+      <p class="venue-submit-intro">{{ intro }}</p>
+      {% if submitted %}
+        <p class="blue-tick-wait">{{ thanks }}</p>
+      {% else %}
+        {% if error %}<p class="wizard-error">{{ error }}</p>{% endif %}
+        <form class="wizard-form" method="post" enctype="multipart/form-data">
+          {% csrf_token %}
+          <label>{% trans "نام کلاب" %}
+            <input type="text" name="name" maxlength="120" required value="{{ values.name }}">
+          </label>
+          <label>{% trans "لوگو" %}
+            <input type="file" name="logo" accept="image/*" required>
+          </label>
+          <label>{% trans "تصویر ۱" %}
+            <input type="file" name="photo_1" accept="image/*">
+          </label>
+          <label>{% trans "تصویر ۲" %}
+            <input type="file" name="photo_2" accept="image/*">
+          </label>
+          <label>{% trans "تصویر ۳" %}
+            <input type="file" name="photo_3" accept="image/*">
+          </label>
+          <p class="music-note">{% trans "حداکثر سه تصویر می‌توانید آپلود کنید." %}</p>
+          <label>{% trans "نام مدیر یا سوپروایزر مجموعه" %}
+            <input type="text" name="manager_name" maxlength="80" required value="{{ values.manager_name }}">
+          </label>
+          <label>{% trans "آدرس" %}
+            <input type="text" name="address" maxlength="300" required value="{{ values.address }}">
+          </label>
+          <label>{% trans "تلفن" %}
+            <input type="tel" name="phone" maxlength="30" required dir="ltr" value="{{ values.phone }}">
+          </label>
+          <label>{% trans "روزها و ساعات کاری" %}
+            <input type="text" name="hours" maxlength="200" required value="{{ values.hours }}" placeholder="{% trans 'شنبه تا پنجشنبه ۱۸ تا ۲۴' %}">
+          </label>
+          <button class="choice wizard-submit" type="submit">{% trans "ارسال برای بررسی" %}</button>
+        </form>
+      {% endif %}
+    </div>
+  </section>
+{% endblock %}

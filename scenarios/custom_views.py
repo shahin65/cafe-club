@@ -1,20 +1,52 @@
 from pathlib import Path
 from uuid import uuid4
 
-from django.contrib.auth.decorators import login_required
 from django.core.files.storage import default_storage
+from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.translation import gettext as _
 from django.views.decorators.http import require_http_methods
 from PIL import Image
 
-from scenarios.models import FinalMoveCard, Role, Scenario, ScenarioSize, SIDE_CITIZEN, SIDE_INDEPENDENT, SIDE_MAFIA, SIDE_WEREWOLF
+from scenarios.models import (
+    GUEST_SCENARIO_KEY,
+    FinalMoveCard,
+    Role,
+    Scenario,
+    ScenarioSize,
+    SIDE_CITIZEN,
+    SIDE_INDEPENDENT,
+    SIDE_MAFIA,
+    SIDE_WEREWOLF,
+)
 
 WIZARD_KEY = "custom_scenario_wizard"
 MIN_COUNT = 1
 MAX_COUNT = 20
 ICON_MAX = 2 * 1024 * 1024
 ICON_TYPES = {".jpg": ".jpg", ".jpeg": ".jpg", ".png": ".png", ".webp": ".webp", ".gif": ".gif"}
+
+
+def _ensure_guest_key(request):
+    key = request.session.get(GUEST_SCENARIO_KEY)
+    if not key:
+        key = uuid4().hex
+        request.session[GUEST_SCENARIO_KEY] = key
+        request.session.modified = True
+    return key
+
+
+def _icon_owner(request):
+    if request.user.is_authenticated:
+        return str(request.user.id)
+    return _ensure_guest_key(request)
+
+
+def _owned_scenario(request, scenario_id):
+    scenario = get_object_or_404(Scenario, pk=scenario_id)
+    if not scenario.can_be_managed_by(request):
+        raise Http404
+    return scenario
 
 
 def _draft(request):
@@ -125,7 +157,7 @@ def _finish(request, draft):
     player_count = mafia + citizen + independent + werewolf
     edit_id = draft.get("edit_id")
     if edit_id:
-        scenario = get_object_or_404(Scenario, pk=edit_id, owner=request.user)
+        scenario = _owned_scenario(request, edit_id)
         scenario.name = draft["name"]
         scenario.has_final_move = bool(draft.get("has_final_move"))
         scenario.has_death_lottery = bool(draft.get("has_death_lottery"))
@@ -134,9 +166,11 @@ def _finish(request, draft):
         scenario.save()
         scenario.sizes.all().delete()
     else:
+        owner = request.user if request.user.is_authenticated else None
         scenario = Scenario(
             name=draft["name"],
-            owner=request.user,
+            owner=owner,
+            guest_key="" if owner else _ensure_guest_key(request),
             has_final_move=bool(draft.get("has_final_move")),
             has_death_lottery=bool(draft.get("has_death_lottery")),
         )
@@ -230,7 +264,6 @@ def _names_page(request, count_key, names_key, title, hint, step_name):
     )
 
 
-@login_required
 @require_http_methods(["GET", "POST"])
 def custom_name(request):
     if request.GET.get("fresh") == "1":
@@ -247,7 +280,7 @@ def custom_name(request):
         icon_path = draft.get("icon_path") or ""
         uploaded = request.FILES.get("icon")
         if uploaded:
-            stored = _store_icon(request.user.id, uploaded)
+            stored = _store_icon(_icon_owner(request), uploaded)
             if stored is None:
                 return render(
                     request,
@@ -263,13 +296,12 @@ def custom_name(request):
     return render(
         request,
         "scenarios/wizard.html",
-        {"title": _("اسم سناریو"), "hint": _("این سناریو فقط برای حساب شما ذخیره می‌شود. عکس آیکون از روی همین دستگاه خوانده می‌شود."), "mode": "name", "value": draft.get("name") or ""},
+        {"title": _("اسم سناریو"), "hint": _("این سناریو روی همین دستگاه می‌ماند. عکس آیکون از روی همین دستگاه خوانده می‌شود."), "mode": "name", "value": draft.get("name") or ""},
     )
 
 
-@login_required
 def custom_edit(request, scenario_id):
-    scenario = get_object_or_404(Scenario, pk=scenario_id, owner=request.user)
+    scenario = _owned_scenario(request, scenario_id)
     size = scenario.sizes.first()
     if not size:
         return redirect("custom_name")
@@ -301,7 +333,6 @@ def custom_edit(request, scenario_id):
     return redirect("custom_name")
 
 
-@login_required
 @require_http_methods(["GET", "POST"])
 def custom_mafia_count(request):
     bounce = _ensure_step(request, "custom_mafia_count")
@@ -310,13 +341,11 @@ def custom_mafia_count(request):
     return _count_page(request, "mafia_count", _("تعداد مافیا"), _("بازی شما چند تا مافیا دارد؟"), min_count=0, names_key="mafia_names")
 
 
-@login_required
 @require_http_methods(["GET", "POST"])
 def custom_mafia_names(request):
     return _names_page(request, "mafia_count", "mafia_names", _("نقش‌های مافیا"), _("به تعداد مافیا، اسم نقش‌ها را وارد کنید."), "custom_mafia_names")
 
 
-@login_required
 @require_http_methods(["GET", "POST"])
 def custom_citizen_count(request):
     bounce = _ensure_step(request, "custom_citizen_count")
@@ -325,13 +354,11 @@ def custom_citizen_count(request):
     return _count_page(request, "citizen_count", _("تعداد شهروند"), _("بازی شما چند شهروند دارد؟"), min_count=0, names_key="citizen_names")
 
 
-@login_required
 @require_http_methods(["GET", "POST"])
 def custom_citizen_names(request):
     return _names_page(request, "citizen_count", "citizen_names", _("نقش‌های شهروند"), _("به تعداد شهروند، اسم نقش‌ها را وارد کنید."), "custom_citizen_names")
 
 
-@login_required
 @require_http_methods(["GET", "POST"])
 def custom_extras(request):
     bounce = _ensure_step(request, "custom_extras")
@@ -376,7 +403,6 @@ def custom_extras(request):
     )
 
 
-@login_required
 @require_http_methods(["GET", "POST"])
 def custom_independent_count(request):
     bounce = _ensure_step(request, "custom_independent_count")
@@ -385,13 +411,11 @@ def custom_independent_count(request):
     return _count_page(request, "independent_count", _("تعداد مستقل"), _("چند نقش مستقل در بازی هست؟"))
 
 
-@login_required
 @require_http_methods(["GET", "POST"])
 def custom_independent_names(request):
     return _names_page(request, "independent_count", "independent_names", _("نقش‌های مستقل"), _("اسم نقش‌های مستقل را وارد کنید."), "custom_independent_names")
 
 
-@login_required
 @require_http_methods(["GET", "POST"])
 def custom_werewolf_count(request):
     bounce = _ensure_step(request, "custom_werewolf_count")
@@ -400,13 +424,11 @@ def custom_werewolf_count(request):
     return _count_page(request, "werewolf_count", _("تعداد گرگینه"), _("چند نقش گرگینه در بازی هست؟"))
 
 
-@login_required
 @require_http_methods(["GET", "POST"])
 def custom_werewolf_names(request):
     return _names_page(request, "werewolf_count", "werewolf_names", _("نقش‌های گرگینه"), _("اسم نقش‌های گرگینه را وارد کنید."), "custom_werewolf_names")
 
 
-@login_required
 @require_http_methods(["GET", "POST"])
 def custom_tools(request):
     bounce = _ensure_step(request, "custom_tools")
@@ -435,7 +457,6 @@ def custom_tools(request):
     )
 
 
-@login_required
 @require_http_methods(["GET", "POST"])
 def custom_final_count(request):
     bounce = _ensure_step(request, "custom_final_count")
@@ -444,7 +465,6 @@ def custom_final_count(request):
     return _count_page(request, "final_count", _("تعداد حرکت آخر"), _("چند کارت حرکت آخر در بازی هست؟"))
 
 
-@login_required
 @require_http_methods(["GET", "POST"])
 def custom_final_names(request):
     return _names_page(request, "final_count", "final_names", _("کارت‌های حرکت آخر"), _("اسم کارت‌های حرکت آخر را وارد کنید."), "custom_final_names")

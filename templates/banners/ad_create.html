@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "درج آگهی رایگان" %} | {% trans "کافه کلاب" %}{% endblock %}
+
+{% block content %}
+  <section class="sheet venue-sheet">
+    <div class="venue-card">
+      <p class="doc-kicker"><a href="{% url 'ads' %}">{% trans "آگهی" %}</a></p>
+      <h1>{% trans "درج آگهی رایگان" %}</h1>
+      {% if messages %}
+        <ul class="form-messages">
+          {% for message in messages %}
+            <li>{{ message }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+      {% if needs_blue_tick %}
+        <p class="wizard-error">{% trans "برای درج آگهی رایگان باید تیک آبی اکانتتان را فعال کنید." %}</p>
+        <section class="blue-tick-request">
+          <h2>{% trans "درخواست برای فعال سازی تیک آبی" %}</h2>
+          {% if pending_blue_tick %}
+            <p class="blue-tick-wait">پس از بررسی طی 72 ساعت آینده با شما تماس حاصل خواهد شد</p>
+          {% elif request.user.is_authenticated %}
+            <form class="wizard-form" action="{% url 'request_blue_tick' %}" method="post">
+              {% csrf_token %}
+              <input type="hidden" name="next" value="{% url 'ad_create' %}">
+              <label>{% trans "نام و نام خانوادگی" %}
+                <input type="text" name="full_name" maxlength="80" required>
+              </label>
+              <label>{% trans "شماره تماس" %}
+                <input type="tel" name="phone" maxlength="20" required dir="ltr">
+              </label>
+              <label>لطفا یک بیوگرافی از خود برای ما ارسال کنید تا با شما تماس حاصل شده و تیک آبی اکانت شما فعال شود
+                <textarea name="biography" rows="5" maxlength="2000" required></textarea>
+              </label>
+              <button class="choice wizard-submit" type="submit">{% trans "ارسال درخواست تیک آبی" %}</button>
+            </form>
+          {% else %}
+            <p><a class="wizard-link" href="{% url 'login' %}?next={% url 'ad_create' %}">{% trans "برای ارسال فرم درخواست تیک آبی ابتدا وارد شوید." %}</a></p>
+          {% endif %}
+        </section>
+      {% else %}
+        <p class="venue-submit-intro">{% trans "هر آگهی سه روز رایگان نمایش داده می‌شود. در هر ماه حداکثر سه آگهی رایگان می‌توانید ثبت کنید." %}</p>
+        <p class="ad-note">{% trans "آگهی‌های باقی‌مانده این ماه" %}: {{ remaining }}</p>
+        {% if error %}<p class="wizard-error">{{ error }}</p>{% endif %}
+        {% if remaining %}
+          <form class="wizard-form" method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <label>{% trans "نام ایونت" %}
+              <input type="text" name="event_name" maxlength="120" required value="{{ values.event_name }}">
+            </label>
+            <label>{% trans "نام ایونت‌گذار" %}
+              <input type="text" name="organizer_name" maxlength="80" required value="{{ values.organizer_name }}">
+            </label>
+            <label>{% trans "تصویر ایونت" %}
+              <input type="file" name="image" accept="image/*" required>
+            </label>
+            <p class="music-note">{% trans "حداکثر حجم تصویر ۲ مگابایت است." %}</p>
+            <label>{% trans "آدرس ایونت" %}
+              <input type="text" name="address" maxlength="300" required value="{{ values.address }}">
+            </label>
+            <label>{% trans "ساعت برگزاری ایونت" %}
+              <input type="text" name="starts_at" maxlength="80" required value="{{ values.starts_at }}" placeholder="{% trans 'جمعه ۲۲:۰۰' %}">
+            </label>
+            <label>{% trans "تلفن تماس ایونت‌گذار" %}
+              <input type="tel" name="phone" maxlength="30" required dir="ltr" value="{{ values.phone }}">
+            </label>
+            <label>{% trans "قیمت ورودی" %}
+              <input type="text" name="ticket_price" maxlength="80" required value="{{ values.ticket_price }}">
+            </label>
+            <label>{% trans "بانک کافه" %}
+              <input type="text" name="cafe_bank" maxlength="120" required value="{{ values.cafe_bank }}">
+            </label>
+            <button class="choice wizard-submit" type="submit">{% trans "ثبت آگهی برای نمایش" %}</button>
+          </form>
+        {% endif %}
+      {% endif %}
+    </div>
+  </section>
+{% endblock %}

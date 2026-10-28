@@ -40,17 +40,17 @@
 {% endblock %}
 
 {% block content %}
-  <a class="doc-back" href="{% url 'deal_host' %}">
+  <a class="doc-back deal-safe" href="{% url 'deal_host' %}">
     <img src="{% static 'Icon-Opreator.png' %}" alt="" width="28" height="28">
     <span>{% trans "بازگشت به مدیریت بازی" %}</span>
   </a>
   <article class="sheet scenario-doc">
     <p class="doc-kicker">{{ scenario.display_name }}</p>
     <h1>{{ page.title }}</h1>
-    {% if page.body %}
+    {% if page.has_body %}
       <div class="scenario-html">{{ page.body|safe }}</div>
     {% else %}
-      <p>{% trans "متن این صفحه هنوز از پنل مدیریت وارد نشده است." %}</p>
+      <p class="doc-empty">{% trans "این سناریو فاقد توضیحات میباشد" %}</p>
     {% endif %}
   </article>
 {% endblock %}

@@ -7,6 +7,7 @@ from django.http import HttpResponse
 from django.urls import include, path
 from django.views.decorators.http import require_GET
 
+from banners import auth_views, profile_views, pwa_views
 from scenarios.sitemaps import SITEMAPS
 from scenarios.uploads import upload_page_image
 
@@ -32,7 +33,12 @@ def robots_txt(request):
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    path("i18n/", include("django.conf.urls.i18n")),
+    path("i18n/setlang/", auth_views.set_language, name="set_language"),
+    path("account/google/start/", profile_views.google_start, name="google_start"),
+    path("account/google/callback/", profile_views.google_callback, name="google_callback"),
+    path("favicon.ico", pwa_views.favicon, name="favicon"),
+    path("manifest.webmanifest", pwa_views.web_manifest, name="web_manifest"),
+    path("sw.js", pwa_views.service_worker, name="service_worker"),
     path("robots.txt", robots_txt),
     path("sitemap.xml", sitemap, {"sitemaps": SITEMAPS}, name="sitemap"),
     path("staff/scenario-page-image/", upload_page_image, name="scenario_page_image"),

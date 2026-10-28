@@ -1,14 +1,14 @@
 {% load i18n static %}
 <nav class="tab-bar" aria-label="{% trans 'نوار پایین' %}">
-  <a class="tab{% if tab_active == 'rules' %} is-active{% endif %}" href="{{ scenario.get_rules_url }}" {% if tab_active == 'rules' %}aria-current="page"{% endif %}>
+  <a class="tab deal-safe{% if tab_active == 'rules' %} is-active{% endif %}" href="{{ scenario.get_rules_url }}" {% if tab_active == 'rules' %}aria-current="page"{% endif %}>
     <img src="{% static 'Icon-Search.png' %}" alt="" width="36" height="36">
     <span>{% trans "قوانین" %}</span>
   </a>
-  <a class="tab{% if tab_active == 'home' %} is-active{% endif %}" href="{% url 'home' %}">
+  <a class="tab deal-safe{% if tab_active == 'home' %} is-active{% endif %}" href="{% url 'home' %}">
     <img src="{% static 'Icon-Home.png' %}" alt="" width="44" height="44">
     <span>{% trans "خانه" %}</span>
   </a>
-  <a class="tab{% if tab_active == 'rulebook' %} is-active{% endif %}" href="{{ scenario.get_rulebook_url }}" {% if tab_active == 'rulebook' %}aria-current="page"{% endif %}>
+  <a class="tab deal-safe{% if tab_active == 'rulebook' %} is-active{% endif %}" href="{{ scenario.get_rulebook_url }}" {% if tab_active == 'rulebook' %}aria-current="page"{% endif %}>
     <img src="{% static 'Icon-Rules.png' %}" alt="" width="36" height="36">
     <span>{% trans "رول بوک" %}</span>
   </a>

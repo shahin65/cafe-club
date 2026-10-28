@@ -17,7 +17,7 @@
         {% endif %}
       </p>
     {% endif %}
-    <div class="card-scene{% if already %} is-known{% endif %}" data-reveal="{% url 'deal_reveal' slot %}">
+    <div class="card-scene{% if already %} is-known{% endif %}{% if auto_reveal %} is-instant{% endif %}" data-reveal="{% url 'deal_reveal' slot %}">
       <div class="card-inner">
         <div class="card-face card-back" style="background-image: url('{% static 'Card-Background.webp' %}')">
           <img class="card-back-logo" src="{{ card_back_logo }}" alt="">
@@ -39,7 +39,7 @@
         <button type="submit">{% trans "بستن" %}</button>
       </form>
     </dialog>
-    <p class="card-hint">{% trans "برای دیدن نقش، کارت را لمس کنید." %}</p>
+    <p class="card-hint"{% if auto_reveal %} hidden{% endif %}>{% trans "برای دیدن نقش، کارت را لمس کنید." %}</p>
     <a class="choice deal-safe deal-next" href="{{ board_url }}" hidden>{{ continue_label }}</a>
     <a class="choice deal-safe deal-host" href="{% url 'deal_host' %}" hidden>
       <img src="{% static 'Icon-Opreator.png' %}" alt="" width="40" height="40">
@@ -108,7 +108,7 @@
         event.stopPropagation();
         note.showModal();
       });
-      if (scene.classList.contains("is-known")) reveal();
+      if (scene.classList.contains("is-known") || scene.classList.contains("is-instant")) reveal();
     })();
   </script>
 {% endblock %}

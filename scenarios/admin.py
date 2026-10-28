@@ -226,7 +226,7 @@ class ScenarioAdmin(admin.ModelAdmin):
     inlines = (ScenarioSizeInline,)
     readonly_fields = ("icon_preview",)
     fieldsets = (
-        ("سناریو", {"fields": ("name", "name_en", "slug", "owner", "icon", "icon_preview", "has_final_move", "has_death_lottery")}),
+        ("سناریو", {"fields": ("name", "name_en", "slug", "owner", "guest_key", "icon", "icon_preview", "has_final_move", "has_death_lottery")}),
         (
             "صفحه اول",
             {

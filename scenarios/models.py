@@ -10,6 +10,8 @@ SIDE_CITIZEN = "citizen"
 SIDE_INDEPENDENT = "independent"
 SIDE_WEREWOLF = "werewolf"
 
+GUEST_SCENARIO_KEY = "custom_guest_key"
+
 SIDE_CHOICES = [
     (SIDE_MAFIA, "مافیا"),
     (SIDE_CITIZEN, "شهروند"),
@@ -92,6 +94,13 @@ class Scenario(models.Model):
         blank=True,
         help_text="خالی یعنی سناریوی رسمی کافه. اگر پر باشد فقط همان کاربر آن را می‌بیند.",
     )
+    guest_key = models.CharField(
+        "کلید مهمان",
+        max_length=64,
+        blank=True,
+        db_index=True,
+        help_text="برای سناریوی دلخواه بدون حساب، به نشست مرورگر گره می‌خورد.",
+    )
     rulebook_title_fa = models.CharField("عنوان رول‌بوک فارسی", max_length=160, blank=True)
     rulebook_title_en = models.CharField("عنوان رول‌بوک انگلیسی", max_length=160, blank=True)
     rulebook_body_fa = models.TextField(
@@ -133,11 +142,11 @@ class Scenario(models.Model):
 
     def clean(self):
         super().clean()
-        if self.owner_id and self.is_featured:
+        if (self.owner_id or self.guest_key) and self.is_featured:
             raise ValidationError({"is_featured": "سناریوی شخصی کاربر را نمی‌توان برای صفحه اول تأیید کرد."})
         if not self.is_featured:
             return
-        others = Scenario.objects.filter(is_featured=True, owner__isnull=True)
+        others = Scenario.objects.filter(is_featured=True, owner__isnull=True, guest_key="")
         if self.pk:
             others = others.exclude(pk=self.pk)
         if others.count() >= 6:
@@ -154,12 +163,19 @@ class Scenario(models.Model):
             )
 
     def is_custom(self):
-        return bool(self.owner_id)
+        return bool(self.owner_id or self.guest_key)
+
+    def can_be_managed_by(self, request):
+        if not self.is_custom():
+            return False
+        if self.owner_id:
+            return bool(request.user.is_authenticated and self.owner_id == request.user.id)
+        return request.session.get(GUEST_SCENARIO_KEY) == self.guest_key
 
     def save(self, *args, **kwargs):
         from scenarios.html_safe import sanitize_page_html
 
-        if self.owner_id:
+        if self.owner_id or self.guest_key:
             self.is_featured = False
         self.slug = unique_scenario_slug(self.name, self.pk, self.slug)
         for field in (

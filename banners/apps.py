@@ -9,6 +9,8 @@ class BannersConfig(AppConfig):
     def ready(self):
         from django.contrib import admin
 
+        from . import signals  # noqa: F401
+
         admin.site.site_header = "پنل مدیریت کافه کلاب"
         admin.site.site_title = "مدیریت کافه کلاب"
         admin.site.index_title = "داشبورد مدیریت کافه کلاب"
