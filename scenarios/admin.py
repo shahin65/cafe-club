@@ -3,8 +3,8 @@ from collections import Counter
 from django import forms
 from django.contrib import admin, messages
 from django.core.exceptions import ValidationError
-from django.forms.models import BaseInlineFormSet
-from django.utils.html import format_html
+from django.forms.models import BaseInlineFormSet, inlineformset_factory
+from django.utils.html import format_html, format_html_join
 
 from .models import SIDE_FIELDS, CardBranding, FinalMoveCard, Role, Scenario, ScenarioComment, ScenarioSize
 from .widgets import PageHtmlWidget
@@ -22,6 +22,28 @@ def _filled_forms(formset):
             continue
         forms.append(cleaned)
     return forms
+
+
+def _parent_prefix(prefix):
+    prefix = prefix or ""
+    if prefix in {"roles", "finals"}:
+        return ""
+    for suffix in ("-roles", "-finals"):
+        if prefix.endswith(suffix):
+            return prefix[: -len(suffix)]
+    return ""
+
+
+def _posted_count(formset, field):
+    parent = _parent_prefix(formset.prefix)
+    key = f"{parent}-{field}" if parent else field
+    raw = (formset.data or {}).get(key)
+    if raw not in (None, ""):
+        try:
+            return int(raw)
+        except (TypeError, ValueError):
+            return 0
+    return int(getattr(formset.instance, field, 0) or 0)
 
 
 class ScenarioSizeFormSet(BaseInlineFormSet):
@@ -56,23 +78,15 @@ class ScenarioSizeFormSet(BaseInlineFormSet):
         if errors:
             raise ValidationError(errors)
 
+    def save_new(self, form, commit=True):
+        instance = super().save_new(form, commit=commit)
+        form.save_nested(instance)
+        return instance
 
-class ScenarioSizeInline(admin.StackedInline):
-    model = ScenarioSize
-    formset = ScenarioSizeFormSet
-    extra = 1
-    max_num = 5
-    show_change_link = True
-    fields = (
-        "player_count",
-        "mafia_count",
-        "citizen_count",
-        "independent_count",
-        "werewolf_count",
-        "final_move_count",
-    )
-    verbose_name = "حالت تعداد نفرات"
-    verbose_name_plural = "حالت‌های اجرا (حداکثر ۵)"
+    def save_existing(self, form, instance, commit=True):
+        instance = super().save_existing(form, instance, commit=commit)
+        form.save_nested(instance)
+        return instance
 
 
 class RoleFormSet(BaseInlineFormSet):
@@ -80,12 +94,14 @@ class RoleFormSet(BaseInlineFormSet):
         super().clean()
         if any(form.errors for form in self.forms):
             return
+        if not _posted_count(self, "player_count"):
+            return
         actual = Counter()
         for cleaned in _filled_forms(self):
             actual[cleaned["side"]] += 1
         errors = []
         for side, field in SIDE_FIELDS.items():
-            expected = int(self.data.get(field) or 0)
+            expected = _posted_count(self, field)
             if actual[side] != expected:
                 errors.append(
                     f"برای ساید {SIDE_LABELS[side]} باید {expected} نقش وارد شود؛ الان {actual[side]} نقش ثبت شده است."
@@ -99,12 +115,138 @@ class FinalMoveFormSet(BaseInlineFormSet):
         super().clean()
         if any(form.errors for form in self.forms):
             return
-        expected = int(self.data.get("final_move_count") or 0)
+        if "has_final_move" not in (self.data or {}) and not getattr(getattr(self.instance, "scenario", None), "has_final_move", False):
+            return
+        if not _posted_count(self, "player_count"):
+            return
+        expected = _posted_count(self, "final_move_count")
         actual = len(_filled_forms(self))
         if actual != expected:
             raise ValidationError(
                 f"باید {expected} کارت حرکت آخر وارد شود؛ الان {actual} کارت ثبت شده است."
             )
+
+
+class RoleEditForm(forms.ModelForm):
+    class Meta:
+        model = Role
+        fields = ("side", "name", "description", "icon")
+        widgets = {"description": forms.Textarea(attrs={"rows": 2, "cols": 40})}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["side"].required = False
+        self.fields["name"].required = False
+        self.fields["description"].required = False
+
+
+class FinalMoveEditForm(forms.ModelForm):
+    class Meta:
+        model = FinalMoveCard
+        fields = ("name", "description")
+        widgets = {"description": forms.Textarea(attrs={"rows": 2, "cols": 40})}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["name"].required = False
+        self.fields["description"].required = False
+
+
+ROLE_SLOT_COUNT = 20
+FINAL_SLOT_COUNT = 12
+
+
+def _nested_role_formset(instance, data, files, prefix):
+    existing = instance.roles.count() if instance and instance.pk else 0
+    factory = inlineformset_factory(
+        ScenarioSize,
+        Role,
+        form=RoleEditForm,
+        formset=RoleFormSet,
+        extra=max(ROLE_SLOT_COUNT - existing, 0),
+        max_num=ROLE_SLOT_COUNT,
+        can_delete=False,
+    )
+    return factory(data=data, files=files, instance=instance, prefix=prefix)
+
+
+def _nested_final_formset(instance, data, files, prefix):
+    existing = instance.final_move_cards.count() if instance and instance.pk else 0
+    factory = inlineformset_factory(
+        ScenarioSize,
+        FinalMoveCard,
+        form=FinalMoveEditForm,
+        formset=FinalMoveFormSet,
+        extra=max(FINAL_SLOT_COUNT - existing, 0),
+        max_num=FINAL_SLOT_COUNT,
+        can_delete=False,
+    )
+    return factory(data=data, files=files, instance=instance, prefix=prefix)
+
+
+class ScenarioSizeForm(forms.ModelForm):
+    class Meta:
+        model = ScenarioSize
+        fields = (
+            "player_count",
+            "mafia_count",
+            "citizen_count",
+            "independent_count",
+            "werewolf_count",
+            "final_move_count",
+        )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        prefix = self.prefix
+        data = self.data if self.is_bound else None
+        files = self.files if self.is_bound else None
+        instance = self.instance if self.instance.pk else ScenarioSize()
+        self.nested_roles = _nested_role_formset(instance, data, files, f"{prefix}-roles")
+        self.nested_finals = _nested_final_formset(instance, data, files, f"{prefix}-finals")
+
+    def is_valid(self):
+        valid = super().is_valid()
+        if self.cleaned_data.get("DELETE") or not self.cleaned_data.get("player_count"):
+            return valid
+        return valid and self.nested_roles.is_valid() and self.nested_finals.is_valid()
+
+    def save_nested(self, instance):
+        if self.cleaned_data.get("DELETE"):
+            return
+        self._save_named(self.nested_roles, instance, instance.roles)
+        self._save_named(self.nested_finals, instance, instance.final_move_cards)
+
+    def _save_named(self, formset, instance, queryset):
+        formset.instance = instance
+        kept = []
+        for form in formset.forms:
+            cleaned = getattr(form, "cleaned_data", None)
+            if not cleaned or not cleaned.get("name"):
+                continue
+            form.instance.size = instance
+            kept.append(form.save())
+        queryset.exclude(pk__in=[item.pk for item in kept]).delete()
+
+
+class ScenarioSizeInline(admin.StackedInline):
+    model = ScenarioSize
+    form = ScenarioSizeForm
+    formset = ScenarioSizeFormSet
+    extra = 1
+    max_num = 5
+    show_change_link = False
+    template = "admin/scenarios/size_stacked.html"
+    fields = (
+        "player_count",
+        "mafia_count",
+        "citizen_count",
+        "independent_count",
+        "werewolf_count",
+        "final_move_count",
+    )
+    verbose_name = "حالت تعداد نفرات"
+    verbose_name_plural = "حالت‌های اجرا (حداکثر ۵)"
 
 
 class RoleInline(admin.TabularInline):
@@ -130,7 +272,7 @@ class FinalMoveCardInline(admin.TabularInline):
     model = FinalMoveCard
     formset = FinalMoveFormSet
     extra = 0
-    fields = ("sort_order", "name", "description")
+    fields = ("name", "description")
 
     def get_extra(self, request, obj=None, **kwargs):
         if obj is None or not obj.final_move_count:
@@ -163,40 +305,66 @@ class ScenarioSizeAdmin(admin.ModelAdmin):
 
 class ScenarioCommentAdminForm(forms.ModelForm):
     admin_reply = forms.CharField(
-        label="پاسخ مدیریت",
+        label="متن پاسخ مدیریت",
         required=False,
-        widget=forms.Textarea(attrs={"rows": 4}),
-        help_text="پس از ذخیره، این متن به‌عنوان پاسخ تأییدشدهٔ مدیریت ثبت می‌شود.",
+        widget=forms.Textarea(attrs={"rows": 5, "cols": 80}),
+        help_text="با ذخیره، این متن به‌عنوان پاسخ تأییدشدهٔ مدیریت زیر همین نظر ثبت می‌شود.",
     )
 
     class Meta:
         model = ScenarioComment
-        fields = "__all__"
+        fields = ("scenario", "parent", "author_name", "body", "is_approved", "is_admin")
 
 
 class ScenarioCommentAdmin(admin.ModelAdmin):
     form = ScenarioCommentAdminForm
-    list_display = ("short_body", "scenario", "author_name", "is_approved", "is_admin", "parent", "created_at")
+    list_display = ("short_body", "scenario", "author_name", "is_approved", "is_admin", "has_admin_reply", "created_at")
     list_filter = ("is_approved", "is_admin", "scenario")
     search_fields = ("author_name", "body", "scenario__name")
     list_select_related = ("scenario", "parent")
     ordering = ("-created_at",)
     actions = ("approve_comments",)
-    fields = (
-        "scenario",
-        "parent",
-        "author_name",
-        "body",
-        "is_approved",
-        "is_admin",
-        "created_at",
-        "admin_reply",
-    )
-    readonly_fields = ("created_at",)
+    readonly_fields = ("created_at", "existing_replies")
+
+    def get_fieldsets(self, request, obj=None):
+        main = (
+            "نظر کاربر",
+            {"fields": ("scenario", "author_name", "body", "is_approved", "created_at")},
+        )
+        if obj and not obj.is_admin:
+            return (
+                main,
+                (
+                    "پاسخ مدیریت",
+                    {
+                        "fields": ("existing_replies", "admin_reply"),
+                        "description": "پاسخ را بنویسید و ذخیره کنید. نظر کاربر هم در صورت نیاز تأیید می‌شود.",
+                    },
+                ),
+            )
+        return (main,)
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).prefetch_related("replies")
 
     @admin.display(description="متن")
     def short_body(self, obj):
         return obj.body[:60]
+
+    @admin.display(description="پاسخ مدیریت", boolean=True)
+    def has_admin_reply(self, obj):
+        if obj.is_admin:
+            return False
+        return any(reply.is_admin for reply in obj.replies.all())
+
+    @admin.display(description="پاسخ‌های ثبت‌شده")
+    def existing_replies(self, obj):
+        if not getattr(obj, "pk", None):
+            return "—"
+        items = [reply.body for reply in obj.replies.all() if reply.is_admin]
+        if not items:
+            return "هنوز پاسخ مدیریت ثبت نشده است."
+        return format_html("<ul class='admin-comment-replies'>{}</ul>", format_html_join("", "<li>{}</li>", ((item,) for item in items)))
 
     @admin.action(description="تأیید نظرهای انتخاب‌شده")
     def approve_comments(self, request, queryset):
@@ -206,16 +374,20 @@ class ScenarioCommentAdmin(admin.ModelAdmin):
     def save_model(self, request, obj, form, change):
         super().save_model(request, obj, form, change)
         reply = (form.cleaned_data.get("admin_reply") or "").strip()
-        if not reply:
+        if not reply or obj.is_admin:
             return
+        if not obj.is_approved:
+            obj.is_approved = True
+            obj.save(update_fields=["is_approved"])
         ScenarioComment.objects.create(
             scenario=obj.scenario,
             parent=obj,
-            author_name=request.user.get_username() or "مدیریت",
+            author_name="مدیریت",
             body=reply,
             is_approved=True,
             is_admin=True,
         )
+        self.message_user(request, "پاسخ مدیریت ثبت شد و زیر نظر کاربر نمایش داده می‌شود.")
 
 
 class ScenarioAdmin(admin.ModelAdmin):
@@ -231,29 +403,18 @@ class ScenarioAdmin(admin.ModelAdmin):
             "صفحه اول",
             {
                 "fields": ("is_featured", "home_order"),
-                "description": "بعد از ذخیره، برای هر حالت روی «تغییر» بزنید و نقش‌ها را کامل کنید. سپس تا ۶ سناریوی کامل را تأیید کنید. ترتیب صفحه اول هر عددی می‌تواند باشد و سقف آن سه نیست.",
+                "description": "تعداد ردیف اسم و توضیح نقش برابر تعداد نفرات همان حالت است. کارت‌های حرکت آخر هم به همان تعداد وارد می‌شوند.",
             },
         ),
-        (
-            "رول‌بوک فارسی",
-            {
-                "fields": ("rulebook_title_fa", "rulebook_body_fa", "rulebook_meta_title_fa", "rulebook_meta_description_fa"),
-                "description": "صفحه معرفی سناریو و رول‌بوک. عنوان و توضیح سئو برای نمایش در گوگل است.",
-            },
-        ),
-        (
-            "رول‌بوک انگلیسی",
-            {"fields": ("rulebook_title_en", "rulebook_body_en", "rulebook_meta_title_en", "rulebook_meta_description_en")},
-        ),
-        (
-            "قوانین فارسی",
-            {"fields": ("rules_title_fa", "rules_body_fa", "rules_meta_title_fa", "rules_meta_description_fa")},
-        ),
-        (
-            "قوانین انگلیسی",
-            {"fields": ("rules_title_en", "rules_body_en", "rules_meta_title_en", "rules_meta_description_en")},
-        ),
+        ("رول‌بوک فارسی", {"fields": ("rulebook_title_fa", "rulebook_body_fa")}),
+        ("رول‌بوک انگلیسی", {"fields": ("rulebook_title_en", "rulebook_body_en")}),
+        ("قوانین فارسی", {"fields": ("rules_title_fa", "rules_body_fa")}),
+        ("قوانین انگلیسی", {"fields": ("rules_title_en", "rules_body_en")}),
     )
+
+    class Media:
+        js = ("admin/js/scenario-size-slots.js",)
+        css = {"all": ("admin/css/scenario-size-slots.css",)}
 
     def formfield_for_dbfield(self, db_field, request, **kwargs):
         if db_field.name in {"rulebook_body_fa", "rules_body_fa"}:

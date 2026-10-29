@@ -1,5 +1,5 @@
 {% extends "admin/base.html" %}
-{% load i18n static %}
+{% load i18n static admin_notices %}
 
 {% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
 
@@ -25,4 +25,8 @@
 <link rel="stylesheet" href="{% static 'admin/css/cafe_club_admin.css' %}">
 {% endblock %}
 
-{% block nav-global %}{% endblock %}
+{% block nav-global %}
+{% if user.is_staff %}
+  {% pending_admin_alarms %}
+{% endif %}
+{% endblock %}

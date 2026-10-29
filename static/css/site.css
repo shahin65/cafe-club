@@ -15,6 +15,7 @@
 html {
     min-height: 100%;
     background-color: #05060c;
+    overflow-x: hidden;
 }
 
 body {
@@ -22,6 +23,8 @@ body {
     z-index: 0;
     margin: 0;
     min-height: 100dvh;
+    max-width: 100%;
+    overflow-x: hidden;
     color: var(--ink);
     background: transparent;
     font-family: "Vazirmatn", Tahoma, "Segoe UI", sans-serif;
@@ -227,6 +230,9 @@ a {
 
 main {
     padding: 16px 16px calc(92px + env(safe-area-inset-bottom));
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: hidden;
 }
 
 .tab-bar {
@@ -323,6 +329,10 @@ a.tab {
 
 .app-install-btn:active {
     background: #178a48;
+}
+
+.app-install-btn[hidden] {
+    display: none !important;
 }
 
 .install-card h1 {
@@ -468,7 +478,7 @@ html[dir="rtl"] .quick-roles-title {
     align-items: center;
     justify-content: center;
     gap: 8px;
-    min-height: clamp(96px, 24vw, 168px);
+    min-height: clamp(112px, 26vw, 176px);
     padding: clamp(8px, 2vw, 14px);
     border-radius: 14px;
     background: rgba(0, 0, 0, 0.55);
@@ -478,10 +488,22 @@ html[dir="rtl"] .quick-roles-title {
     text-decoration: none;
 }
 
-.quick-role-icon {
-    width: clamp(36px, 9vw, 64px);
-    height: clamp(36px, 9vw, 64px);
+.scenario-icon-frame {
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    width: clamp(56px, 14vw, 88px);
+    height: clamp(56px, 14vw, 88px);
+}
+
+.quick-role-icon,
+.scenario-icon {
+    width: 100%;
+    height: 100%;
+    max-width: 88px;
+    max-height: 88px;
     object-fit: contain;
+    object-position: center;
     display: block;
 }
 
@@ -1072,6 +1094,8 @@ h1, h2 {
 }
 
 .card-scene {
+    position: relative;
+    z-index: 1;
     display: flex;
     flex: 1 1 auto;
     align-items: center;
@@ -1212,10 +1236,28 @@ h1, h2 {
 }
 
 .card-sheet .choice {
+    position: relative;
+    z-index: 8;
     flex: none;
     justify-content: center;
     min-width: min(78vw, 240px);
     padding: 8px 14px;
+}
+
+.card-sheet .deal-host,
+.card-sheet .deal-restart {
+    z-index: 12;
+    background: rgba(12, 12, 16, 0.94);
+}
+
+.card-sheet.is-finished {
+    --deal-meta: 12.5rem;
+    overflow: visible;
+}
+
+.card-sheet.is-finished .card-scene {
+    flex: 0 1 auto;
+    width: min(72vw, 280px, calc((100dvh - var(--deal-chrome) - var(--deal-meta)) * 2 / 3));
 }
 
 .host-back {
@@ -1462,16 +1504,19 @@ button.choice {
     align-items: center;
     justify-content: center;
     gap: 8px;
-    min-height: 72px;
-    margin: 18px auto 4px;
-    max-width: 280px;
-    padding: 12px 18px;
-    border-radius: 16px;
+    height: 46px;
+    min-height: 46px;
+    margin: 14px 0 4px;
+    width: 100%;
+    max-width: none;
+    padding: 0 18px;
+    border-radius: 12px;
     background: rgba(0, 0, 0, 0.55);
     border: 1px solid rgba(230, 194, 122, 0.55);
     color: var(--gold);
     font-weight: 700;
     text-decoration: none;
+    box-sizing: border-box;
 }
 
 .favorite-plus {
@@ -1491,13 +1536,27 @@ button.choice {
     position: relative;
 }
 
+dialog.settings-dialog:not([open]) {
+    display: none !important;
+}
+
 .settings-dialog {
     width: min(92vw, 380px);
-    padding: 18px;
-    border: 1px solid rgba(230, 194, 122, 0.35);
-    border-radius: 16px;
-    background: #141414;
+    padding: 0;
+    border: 0;
+    background: transparent;
     color: inherit;
+}
+
+.settings-panel {
+    padding: 18px;
+    border: 1px solid rgba(230, 194, 122, 0.4);
+    border-radius: 16px;
+    background: rgba(10, 12, 18, 0.82);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    color: #f4f0e8;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
 }
 
 .settings-dialog::backdrop {
@@ -1561,6 +1620,16 @@ button.choice {
     cursor: pointer;
 }
 
+.settings-page {
+    background: rgba(10, 12, 18, 0.78);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    padding: 16px 14px 20px;
+    color: #f4f0e8;
+}
+
 .settings-page h1 {
     margin: 0 0 16px;
 }
@@ -1569,8 +1638,8 @@ button.choice {
     margin: 0 0 22px;
     padding: 14px;
     border-radius: 16px;
-    background: rgba(0, 0, 0, 0.5);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(0, 0, 0, 0.42);
+    border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .settings-block h2 {
@@ -1636,6 +1705,36 @@ button.choice {
 
 .settings-language {
     margin-bottom: 8px;
+}
+
+.settings-legal {
+    display: grid;
+    gap: 10px;
+    margin: 8px 0 0;
+    padding: 14px;
+    border-radius: 16px;
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.settings-legal a {
+    color: #e6c27a;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.legal-card h1 {
+    margin-bottom: 12px;
+}
+
+.legal-body {
+    color: #f4f0e8;
+    line-height: 1.9;
+}
+
+.legal-body p {
+    margin: 0 0 12px;
+    color: #f4f0e8;
 }
 
 .language-form button[aria-pressed="true"] {
@@ -1754,6 +1853,14 @@ button.choice {
 .profile-sheet {
     display: grid;
     gap: 18px;
+    padding: 16px 14px 20px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 20px;
+    background: rgba(10, 12, 18, 0.82);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+    color: #f4f0e8;
 }
 
 .profile-hero {
@@ -1890,6 +1997,39 @@ button.choice {
         padding: 6px 12px;
         min-height: 0;
     }
+
+    .card-sheet.is-finished {
+        --deal-meta: 11.5rem;
+        height: auto;
+        max-height: none;
+    }
+
+    .ad-banner-row {
+        grid-template-columns: 1fr;
+        direction: rtl;
+        text-align: right;
+    }
+
+    .ad-banner-left {
+        align-items: flex-start;
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .venue-hero h1 {
+        font-size: 1.2rem;
+        word-break: break-word;
+    }
+
+    .venue-logo {
+        width: 72px;
+        height: 72px;
+    }
+
+    .venue-meta {
+        word-break: break-word;
+    }
 }
 
 .places-title {
@@ -1935,6 +2075,10 @@ button.choice {
     margin: 0 0 10px;
 }
 
+.places-bar-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .places-bar-btn {
     display: flex;
     flex-direction: column;
@@ -1955,9 +2099,11 @@ button.choice {
 
 .places-bar-btn svg,
 .places-bar-btn img {
-    width: 18px;
-    height: 18px;
+    width: 26px;
+    height: 26px;
     object-fit: contain;
+    color: #fff;
+    fill: currentColor;
 }
 
 .places-bar-btn.is-open,
@@ -2065,12 +2211,27 @@ button.choice {
     color: #e6c27a !important;
 }
 
+.venue-sheet,
+.places-sheet {
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: hidden;
+}
+
 .venue-card {
     background: rgba(0, 0, 0, 0.58);
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 20px;
     padding: 16px 14px 18px;
     backdrop-filter: blur(8px);
+    max-width: 100%;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.venue-card img,
+.venue-card svg {
+    max-width: 100%;
 }
 
 .venue-hero {
@@ -2126,9 +2287,8 @@ button.choice {
 }
 
 .venue-gallery {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 8px;
     margin: 0 0 16px;
     padding: 0;
@@ -2136,8 +2296,7 @@ button.choice {
 }
 
 .venue-gallery li {
-    width: calc((100% - 16px) / 3);
-    min-width: 88px;
+    min-width: 0;
 }
 
 .venue-gallery img {
@@ -2180,8 +2339,13 @@ button.choice {
     color: #e6c27a;
 }
 
+dialog.nav-sheet:not([open]) {
+    display: none !important;
+}
+
 .nav-sheet {
     width: min(92vw, 420px);
+    max-width: calc(100vw - 24px);
     border: 1px solid var(--line);
     border-radius: 18px;
     background: #111;
@@ -2271,6 +2435,115 @@ button.choice {
     font-size: 0.88rem;
 }
 
+.ad-banner {
+    position: relative;
+    border-radius: 16px;
+    overflow: hidden;
+    background: rgba(8, 8, 12, 0.55);
+    border: 1px solid var(--line);
+}
+
+.ad-banner-link {
+    display: grid;
+    text-decoration: none;
+    color: inherit;
+}
+
+.ad-banner-photo,
+.ad-detail-photo {
+    width: 100%;
+    max-width: 100%;
+    height: 150px;
+    object-fit: cover;
+    display: block;
+}
+
+.ad-detail-photo {
+    height: auto;
+    max-height: min(42vw, 220px);
+    aspect-ratio: 16 / 9;
+    border-radius: 14px;
+    margin-bottom: 12px;
+}
+
+.ad-banner-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+    gap: 10px;
+    align-items: center;
+    padding: 10px 12px 12px;
+    direction: ltr;
+    min-width: 0;
+}
+
+.ad-banner-left {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    color: #f4f0e8;
+    font-size: 0.82rem;
+}
+
+.ad-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.ad-banner-center {
+    margin: 0;
+    text-align: center;
+    font-weight: 700;
+    color: #fff;
+}
+
+.ad-like {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+}
+
+.ad-like-detail {
+    position: static;
+    margin: 0 0 12px;
+}
+
+.ad-like button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 34px;
+    padding: 0 10px;
+    border: 0;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.62);
+    color: #fff;
+    font: inherit;
+    cursor: pointer;
+}
+
+.ad-like button.is-liked {
+    color: #ff6b81;
+}
+
+.venue-map-public {
+    margin: 8px 0 14px;
+}
+
+.venue-map-public p {
+    margin: 0 0 8px;
+    color: #f4f0e8;
+}
+
+.venue-map-public #venue-map {
+    height: 240px;
+    width: 100%;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
 @media (min-width: 720px) {
     .mystery-grid {
         grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -2296,4 +2569,141 @@ button.choice {
     .turn-timer.is-expired .timer-face {
         animation: none;
     }
+}
+
+.pin-home {
+    margin: 0 0 12px;
+}
+
+.pin-home button {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.45);
+    color: #fff;
+    font: inherit;
+    font-size: 0.9rem;
+    cursor: pointer;
+}
+
+.pin-home button svg {
+    color: #fff;
+}
+
+.pin-home button.is-pinned {
+    border-color: rgba(255, 107, 129, 0.7);
+    color: #ffdce2;
+}
+
+.pin-home button.is-pinned svg {
+    color: #ff4d6d;
+}
+
+.quick-more {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 12px 0 0;
+    width: 100%;
+    height: 46px;
+    padding: 0 18px;
+    border-radius: 12px;
+    border: 1px solid rgba(230, 194, 122, 0.45);
+    background: rgba(0, 0, 0, 0.45);
+    color: #e6c27a;
+    text-align: center;
+    text-decoration: none;
+    font-weight: 600;
+    box-sizing: border-box;
+}
+
+.catalog-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 10px;
+}
+
+.catalog-list li {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: center;
+}
+
+.catalog-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+    padding: 10px 12px;
+    border-radius: 14px;
+    background: rgba(0, 0, 0, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    text-decoration: none;
+}
+
+.catalog-icon-frame {
+    width: 48px;
+    height: 48px;
+}
+
+.catalog-card .scenario-icon {
+    width: 48px;
+    height: 48px;
+    max-width: 48px;
+    max-height: 48px;
+}
+
+.catalog-card-name {
+    min-width: 0;
+    font-weight: 700;
+}
+
+.catalog-pin {
+    margin: 0;
+}
+
+.catalog-pin button {
+    width: 44px;
+    height: 44px;
+    min-height: 44px;
+    padding: 0;
+    border-radius: 12px;
+    display: grid;
+    place-items: center;
+}
+
+.catalog-pin button img {
+    width: 28px;
+    height: 28px;
+    object-fit: contain;
+    display: block;
+}
+
+.maintenance-sheet {
+    max-width: 520px;
+    margin: 16vh auto 0;
+    padding: 32px 24px;
+    text-align: center;
+}
+
+.maintenance-sheet img {
+    width: 72px;
+    height: 72px;
+    object-fit: contain;
+    margin-bottom: 16px;
+}
+
+.maintenance-sheet h1 {
+    margin: 0 0 10px;
+}
+
+.maintenance-sheet p {
+    margin: 0;
+    color: var(--muted);
 }

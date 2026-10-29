@@ -13,7 +13,7 @@
       <img class="profile-avatar-lg" src="{% if club_profile and club_profile.photo %}{{ club_profile.photo.url }}{% else %}{% static 'Icon-profile.png' %}{% endif %}" alt="">
       <div>
         <h1>
-          {% if profile_username %}{{ profile_username }}{% else %}{% trans "مهمان" %}{% endif %}
+          {% if profile_shown_name %}{{ profile_shown_name }}{% else %}{% trans "مهمان" %}{% endif %}
           {% if club_profile.is_verified %}
             <img class="blue-tick" src="{% static 'Icon-BlueTick.png' %}" alt="{% trans 'تیک آبی فعال' %}" width="28" height="28">
           {% else %}
@@ -22,6 +22,9 @@
         </h1>
         {% if club_profile %}
           <p class="profile-id">{% trans "شناسه کاربری" %}: <strong dir="ltr">{{ club_profile.public_id_display }}</strong></p>
+          {% if club_profile.app_source %}
+            <p class="profile-id">{% trans "منبع ورود" %}: <strong>{{ club_profile.get_app_source_display }}</strong></p>
+          {% endif %}
         {% else %}
           <p>{% trans "با ورود یا اتصال جیمیل، شناسه شش‌رقمی شما ساخته می‌شود." %}</p>
         {% endif %}
@@ -44,6 +47,9 @@
       <input type="hidden" name="next" value="{% url 'profile' %}">
       <label>{% trans "نام کاربری" %}
         <input type="text" name="username" value="{{ profile_username }}" maxlength="40" required placeholder="{% trans 'نام کاربری' %}">
+      </label>
+      <label>{% trans "نام نمایشی" %}
+        <input type="text" name="display_name" value="{{ profile_display_name }}" maxlength="40" placeholder="{% trans 'اگر خالی باشد نام کاربری دیده می‌شود' %}">
       </label>
       <button class="choice wizard-submit" type="submit">{% trans "ذخیره نام" %}</button>
     </form>

@@ -1,10 +1,15 @@
+from urllib.parse import unquote
+
 from django.contrib import messages
-from django.db.models import Prefetch
+from django.db.models import F, Prefetch, Q
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils.translation import get_language, gettext as _, override
 from django.views.decorators.http import require_POST
+
+from banners.geo import captcha_is_valid, captcha_prompt, consume_captcha, issue_sum_captcha
 
 from scenarios.dealing import (
     FATE_WORDS,
@@ -25,6 +30,7 @@ from scenarios.dealing import (
 )
 from scenarios.html_safe import plain_page_text
 from scenarios.models import FinalMoveCard, Role, Scenario, ScenarioComment, ScenarioSize
+from scenarios.pins import get_pin_ids, listed_official, official_queryset, toggle_pin as toggle_home_pin
 
 
 def _visible_scenario(request, scenario_id):
@@ -34,11 +40,21 @@ def _visible_scenario(request, scenario_id):
     return scenario
 
 
-def _public_scenario_page(request, slug):
-    scenario = get_object_or_404(Scenario, slug=slug)
+def _public_scenario_page(request, scenario_id):
+    scenario = get_object_or_404(Scenario, pk=scenario_id)
     if scenario.is_custom() and not scenario.can_be_managed_by(request):
         raise Http404
     return scenario
+
+
+def _redirect_legacy_slug(request, slug, viewname):
+    decoded = unquote(slug or "")
+    scenario = Scenario.objects.filter(slug__in={slug, decoded}).first()
+    if not scenario:
+        raise Http404
+    if scenario.is_custom() and not scenario.can_be_managed_by(request):
+        raise Http404
+    return redirect(viewname, scenario_id=scenario.pk)
 
 
 def _playable_sizes(scenario):
@@ -65,26 +81,29 @@ def _board_url(deal):
     )
 
 
+def _pin_state(request, scenario):
+    return {
+        "scenario_pinned": scenario.id in get_pin_ids(request) and not scenario.is_custom(),
+        "can_pin_scenario": not scenario.is_custom(),
+    }
+
+
 def start(request, scenario_id):
     scenario = _visible_scenario(request, scenario_id)
     sizes = _playable_sizes(scenario)
     if len(sizes) == 1:
         return redirect("deal_mode", scenario_id=scenario.id, player_count=sizes[0].player_count)
-    return render(
-        request,
-        "scenarios/player_count.html",
-        {"scenario": scenario, "sizes": sizes},
-    )
+    context = {"scenario": scenario, "sizes": sizes}
+    context.update(_pin_state(request, scenario))
+    return render(request, "scenarios/player_count.html", context)
 
 
 def choose_mode(request, scenario_id, player_count):
     scenario = _visible_scenario(request, scenario_id)
     size = _size_or_404(scenario, player_count)
-    return render(
-        request,
-        "scenarios/mode.html",
-        {"scenario": scenario, "size": size},
-    )
+    context = {"scenario": scenario, "size": size}
+    context.update(_pin_state(request, scenario))
+    return render(request, "scenarios/mode.html", context)
 
 
 def board(request, scenario_id, player_count, mode):
@@ -97,6 +116,8 @@ def board(request, scenario_id, player_count, mode):
     if fresh or not same_deal(deal, scenario.id, size.player_count, mode):
         deal = create_deal(size, mode)
         request.session[SESSION_KEY] = deal
+        if not scenario.is_custom():
+            Scenario.objects.filter(pk=scenario.pk).update(play_count=F("play_count") + 1)
     if mode in (MODE_ORDER, MODE_CHAIR) and not all(deal["revealed"]):
         return redirect("deal_card", slot=current_number(deal))
     boxes = []
@@ -128,6 +149,8 @@ def card(request, slot):
     mode = deal["mode"]
     if mode in (MODE_ORDER, MODE_CHAIR):
         current = current_number(deal)
+        if deal["revealed"][slot - 1] and current is not None and slot != current:
+            return redirect("deal_card", slot=current)
         if slot != current and not deal["revealed"][slot - 1]:
             return _board_url(deal)
         if current is None and not deal["revealed"][slot - 1]:
@@ -361,16 +384,16 @@ def lottery_reveal(request, index):
     )
 
 
-def _localized_absolute(request, viewname, slug, language):
+def _localized_absolute(request, viewname, scenario_id, language):
     with override(language):
-        path = reverse(viewname, kwargs={"slug": slug})
+        path = reverse(viewname, kwargs={"scenario_id": scenario_id})
     return request.build_absolute_uri(path)
 
 
 def _page_seo(request, scenario, kind):
     viewname = "scenario_rulebook" if kind == "rulebook" else "scenario_rules"
     language = (get_language() or "fa").split("-")[0]
-    canonical = _localized_absolute(request, viewname, scenario.slug, language)
+    canonical = _localized_absolute(request, viewname, scenario.pk, language)
     image = ""
     if scenario.icon:
         image = request.build_absolute_uri(scenario.icon.url)
@@ -383,15 +406,15 @@ def _page_seo(request, scenario, kind):
         "meta_title": scenario.page_meta_title(kind),
         "meta_description": scenario.page_meta_description(kind),
         "canonical": canonical,
-        "hreflang_fa": _localized_absolute(request, viewname, scenario.slug, "fa"),
-        "hreflang_en": _localized_absolute(request, viewname, scenario.slug, "en"),
+        "hreflang_fa": _localized_absolute(request, viewname, scenario.pk, "fa"),
+        "hreflang_en": _localized_absolute(request, viewname, scenario.pk, "en"),
         "og_image": image,
         "in_language": "en" if language == "en" else "fa",
     }
 
 
-def scenario_rulebook(request, slug):
-    scenario = _public_scenario_page(request, slug)
+def scenario_rulebook(request, scenario_id):
+    scenario = _public_scenario_page(request, scenario_id)
     return render(
         request,
         "scenarios/scenario_page.html",
@@ -399,8 +422,8 @@ def scenario_rulebook(request, slug):
     )
 
 
-def scenario_rules(request, slug):
-    scenario = _public_scenario_page(request, slug)
+def scenario_rules(request, scenario_id):
+    scenario = _public_scenario_page(request, scenario_id)
     return render(
         request,
         "scenarios/scenario_page.html",
@@ -408,13 +431,14 @@ def scenario_rules(request, slug):
     )
 
 
-def scenario_comments(request, slug):
-    scenario = _public_scenario_page(request, slug)
+def scenario_comments(request, scenario_id):
+    scenario = _public_scenario_page(request, scenario_id)
     if request.method == "POST":
         if request.POST.get("website"):
             return redirect(scenario.get_comments_url())
         name = (request.POST.get("author_name") or "").strip()[:40]
         body = (request.POST.get("body") or "").strip()[:1000]
+        answer = request.POST.get("captcha") or ""
         parent = None
         parent_id = request.POST.get("parent")
         if parent_id:
@@ -423,16 +447,22 @@ def scenario_comments(request, slug):
                 scenario=scenario,
                 is_approved=True,
             ).first()
-        if name and body:
-            ScenarioComment.objects.create(
-                scenario=scenario,
-                parent=parent,
-                author_name=name,
-                body=body,
-            )
-            messages.success(request, _("نظر شما ثبت شد و پس از تأیید مدیریت نمایش داده می‌شود."))
-        else:
+        if not name or not body:
             messages.error(request, _("نام و متن نظر را وارد کنید."))
+            issue_sum_captcha(request)
+            return redirect(scenario.get_comments_url())
+        if not captcha_is_valid(request, answer):
+            messages.error(request, _("جمع دو عدد را درست وارد کنید."))
+            issue_sum_captcha(request)
+            return redirect(scenario.get_comments_url())
+        ScenarioComment.objects.create(
+            scenario=scenario,
+            parent=parent,
+            author_name=name,
+            body=body,
+        )
+        consume_captcha(request)
+        messages.success(request, _("نظر شما ثبت شد و پس از تأیید مدیریت نمایش داده می‌شود."))
         return redirect(scenario.get_comments_url())
     roots = scenario.comments.filter(is_approved=True, parent__isnull=True).prefetch_related(
         Prefetch(
@@ -440,8 +470,75 @@ def scenario_comments(request, slug):
             queryset=ScenarioComment.objects.filter(is_approved=True).order_by("created_at", "id"),
         )
     )
+    left, right = captcha_prompt(request)
     return render(
         request,
         "scenarios/comments.html",
-        {"scenario": scenario, "comments": roots, "tab_active": "comments"},
+        {
+            "scenario": scenario,
+            "comments": roots,
+            "tab_active": "comments",
+            "captcha_left": left,
+            "captcha_right": right,
+        },
     )
+
+
+def scenario_catalog(request):
+    query = (request.GET.get("q") or "").strip()
+    sort = (request.GET.get("sort") or "name").strip()
+    queryset = official_queryset()
+    if query:
+        queryset = queryset.filter(Q(name__icontains=query) | Q(name_en__icontains=query))
+    scenarios = listed_official(queryset)
+    if sort == "newest":
+        scenarios.sort(key=lambda item: item.pk, reverse=True)
+    elif sort == "popular":
+        scenarios.sort(key=lambda item: (item.play_count, item.pk), reverse=True)
+    else:
+        sort = "name"
+        scenarios.sort(key=lambda item: (item.display_name() or "").casefold())
+    pinned = set(get_pin_ids(request))
+    return render(
+        request,
+        "scenarios/catalog.html",
+        {
+            "scenarios": scenarios,
+            "query": query,
+            "sort": sort,
+            "pinned_ids": pinned,
+        },
+    )
+
+
+@require_POST
+def pin_scenario(request, scenario_id):
+    scenario = _visible_scenario(request, scenario_id)
+    next_url = request.POST.get("next") or request.META.get("HTTP_REFERER") or "/"
+    if not next_url.startswith("/") or not url_has_allowed_host_and_scheme(
+        next_url, allowed_hosts={request.get_host()}, require_https=request.is_secure()
+    ):
+        next_url = "/"
+    if scenario.is_custom():
+        messages.error(request, _("سناریوی شخصی را نمی‌توان به صفحه اصلی اضافه کرد."))
+        return redirect(next_url)
+    pinned, ok = toggle_home_pin(request, scenario.id)
+    if not ok:
+        messages.error(request, _("حداکثر ۶ سناریو در تقسیم نقش سریع صفحه اصلی جای می‌گیرد."))
+    elif pinned:
+        messages.success(request, _("سناریو به صفحه اصلی اضافه شد."))
+    else:
+        messages.success(request, _("سناریو از صفحه اصلی برداشته شد."))
+    return redirect(next_url)
+
+
+def scenario_rulebook_by_slug(request, slug):
+    return _redirect_legacy_slug(request, slug, "scenario_rulebook")
+
+
+def scenario_rules_by_slug(request, slug):
+    return _redirect_legacy_slug(request, slug, "scenario_rules")
+
+
+def scenario_comments_by_slug(request, slug):
+    return _redirect_legacy_slug(request, slug, "scenario_comments")

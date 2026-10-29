@@ -14,8 +14,17 @@
 {% block content %}
 <div class="cafe-dashboard-intro">
   <h2>خوش آمدید به داشبورد کافه کلاب</h2>
-  <p>بنرهای صفحه اصلی را از اینجا مدیریت کنید. لینک دانلود اپ و شبکه‌های اجتماعی صفحه تنظیمات را از بخش «تنظیمات» وارد کنید. کافه و کلاب‌ها، درخواست ثبت کافه، نظرها، آگهی‌ها و تیک آبی هم از همین داشبورد مدیریت می‌شوند.</p>
+  <p>بنرهای صفحه اصلی را از اینجا مدیریت کنید. لینک دانلود اپ و شبکه‌های اجتماعی صفحه تنظیمات را از بخش «تنظیمات» وارد کنید. متن حریم خصوصی و شرایط استفاده از بخش «صفحات حقوقی» ویرایش می‌شود. کافه و کلاب‌ها، درخواست ثبت کافه، نظرها، آگهی‌ها و تیک آبی هم از همین داشبورد مدیریت می‌شوند.</p>
 </div>
+<form class="module cafe-maintenance{% if maintenance_mode %} is-on{% endif %}" method="post" action="{% url 'admin:site_maintenance' %}">
+  {% csrf_token %}
+  <h2>وضعیت سایت</h2>
+  <label>
+    <input type="checkbox" name="maintenance_mode" value="1"{% if maintenance_mode %} checked{% endif %} onchange="this.form.submit()">
+    اپلیکیشن در دست تعمیر است
+  </label>
+  <p>با زدن این تیک، سایت برای کاربران عادی بسته می‌شود تا زمان آپدیت. پنل ادمین باز می‌ماند.</p>
+</form>
 {% new_ads_notice %}
 <div id="content-main">
   {% include "admin/app_list.html" with app_list=app_list show_changelinks=True %}

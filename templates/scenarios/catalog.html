@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% load i18n static %}
+
+{% block title %}{% trans "همه سناریوها" %} | {% trans "کافه کلاب" %}{% endblock %}
+
+{% block content %}
+  <section class="sheet catalog-sheet" data-filter-bar>
+    <h1>{% trans "همه سناریوها" %}</h1>
+    <nav class="places-bar places-bar-2" aria-label="{% trans 'جستجو و مرتب‌سازی' %}">
+      <button type="button" class="places-bar-btn" data-toggle-panel="sort" aria-expanded="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M8 4h2v12h3l-4 4-4-4h3V4Zm6 16h2V8h3l-4-4-4 4h3v12Z"/></svg>
+        <span>{% trans "مرتب‌سازی" %}</span>
+      </button>
+      <button type="button" class="places-bar-btn" data-toggle-panel="search" aria-expanded="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M10.5 4a6.5 6.5 0 1 1 0 13 6.5 6.5 0 0 1 0-13Zm0 2a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9Zm7.1 9.6 3.2 3.2-1.4 1.4-3.2-3.2 1.4-1.4Z"/></svg>
+        <span>{% trans "جستجو" %}</span>
+      </button>
+    </nav>
+    <form class="places-panel" data-panel="sort" method="get" hidden>
+      {% if query %}<input type="hidden" name="q" value="{{ query }}">{% endif %}
+      <label>
+        {% trans "مرتب‌سازی" %}
+        <select name="sort">
+          <option value="name"{% if sort == "name" %} selected{% endif %}>{% trans "نام" %}</option>
+          <option value="newest"{% if sort == "newest" %} selected{% endif %}>{% trans "جدیدترین‌ها" %}</option>
+          <option value="popular"{% if sort == "popular" %} selected{% endif %}>{% trans "محبوب‌ترین‌ها" %}</option>
+        </select>
+      </label>
+      <button class="choice wizard-submit" type="submit">{% trans "اعمال" %}</button>
+    </form>
+    <form class="places-panel" data-panel="search" method="get" hidden>
+      <input type="hidden" name="sort" value="{{ sort }}">
+      <label>
+        {% trans "جستجو" %}
+        <input type="search" name="q" value="{{ query }}" placeholder="{% trans 'اسم سناریو را بنویسید' %}">
+      </label>
+      <button class="choice wizard-submit" type="submit">{% trans "اعمال" %}</button>
+    </form>
+    {% if messages %}
+      <ul class="form-messages">
+        {% for message in messages %}
+          <li>{{ message }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+    {% if scenarios %}
+      <ul class="catalog-list">
+        {% for scenario in scenarios %}
+          <li>
+            <a class="catalog-card" href="{% url 'deal_start' scenario.id %}">
+              {% if scenario.icon %}
+                <span class="scenario-icon-frame catalog-icon-frame">
+                  <img class="scenario-icon" src="{{ scenario.icon.url }}" alt="">
+                </span>
+              {% endif %}
+              <span class="catalog-card-name">{{ scenario.display_name }}</span>
+            </a>
+            <form class="pin-home catalog-pin" method="post" action="{% url 'scenario_pin' scenario.id %}">
+              {% csrf_token %}
+              <input type="hidden" name="next" value="{{ request.get_full_path }}">
+              <button type="submit" class="{% if scenario.id in pinned_ids %}is-pinned{% endif %}" aria-label="{% trans 'اضافه به صفحه اصلی' %}">
+                <img src="{% static 'Icon-Favorite.png' %}" alt="" width="28" height="28">
+              </button>
+            </form>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p>{% trans "سناریویی با این نام پیدا نشد." %}</p>
+    {% endif %}
+  </section>
+{% endblock %}
+
+{% block extra_js %}
+  <script src="{% static 'js/places.js' %}?v=4"></script>
+{% endblock %}

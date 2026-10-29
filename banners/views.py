@@ -1,8 +1,10 @@
-from django.shortcuts import render
+from django.shortcuts import get_object_or_404, render
 from django.utils.translation import gettext_lazy as _
 
-from banners.models import Banner, SiteLink
+from banners.app_source import filter_downloads
+from banners.models import Banner, LegalPage, SiteLink
 from scenarios.models import GUEST_SCENARIO_KEY, Scenario
+from scenarios.pins import home_quick_scenarios
 
 PAGES = {
     "nights": {
@@ -31,7 +33,7 @@ PAGES = {
 
 def home(request):
     banners = Banner.objects.filter(is_active=True)
-    quick_scenarios = Scenario.objects.filter(is_featured=True, owner__isnull=True, guest_key="").prefetch_related("sizes")[:6]
+    quick_scenarios, show_more_scenarios = home_quick_scenarios(request)
     if request.user.is_authenticated:
         owned = Scenario.objects.filter(owner=request.user)
     else:
@@ -45,7 +47,12 @@ def home(request):
     return render(
         request,
         "banners/home.html",
-        {"banners": banners, "quick_scenarios": quick_scenarios, "my_scenarios": mine},
+        {
+            "banners": banners,
+            "quick_scenarios": quick_scenarios,
+            "show_more_scenarios": show_more_scenarios,
+            "my_scenarios": mine,
+        },
     )
 
 
@@ -56,9 +63,15 @@ def page(request, page):
 def app_settings(request):
     links = SiteLink.objects.filter(is_active=True).exclude(url="")
     downloads = [link for link in links if link.group == SiteLink.GROUP_DOWNLOAD]
+    downloads = filter_downloads(downloads, getattr(request, "app_source", ""))
     socials = [link for link in links if link.group == SiteLink.GROUP_SOCIAL]
     return render(
         request,
         "banners/settings.html",
         {"downloads": downloads, "socials": socials},
     )
+
+
+def legal_page(request, key):
+    page = get_object_or_404(LegalPage, key=key)
+    return render(request, "banners/legal.html", {"legal": page})

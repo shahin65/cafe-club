@@ -68,7 +68,7 @@ class ScenarioRulesTests(TestCase):
 
     def test_home_shows_only_featured_scenarios_above_the_slider(self):
         shown = make_complete_scenario(name="سناریو بازپرس", featured=True)
-        hidden = make_complete_scenario(name="سناریو پنهان", featured=False)
+        filler = make_complete_scenario(name="سناریو پنهان", featured=False)
         response = self.client.get("/")
         content = response.content.decode()
         self.assertLess(content.find("نصب اپلیکیشن"), content.find("quick-roles"))
@@ -89,9 +89,83 @@ class ScenarioRulesTests(TestCase):
         self.assertContains(response, "Logo-Legendary.jpg")
         self.assertContains(response, "Logo-Win.jpg")
         self.assertContains(response, shown.name)
-        self.assertNotContains(response, hidden.name)
+        self.assertContains(response, filler.name)
         self.assertNotContains(response, "2 نفره")
         self.assertContains(response, f'href="/deal/{shown.id}/"')
+        self.assertContains(response, "مشاهده سایر سناریوها")
+        self.assertContains(response, 'href="/scenarios/"')
+
+    def test_home_more_lists_and_pins_scenarios(self):
+        for index in range(6):
+            make_complete_scenario(name=f"سناریو {index}", featured=True)
+        extra = make_complete_scenario(name="سناریو هفتم", featured=False)
+        home = self.client.get("/")
+        self.assertContains(home, "مشاهده سایر سناریوها")
+        self.assertContains(home, 'href="/scenarios/"')
+        self.assertNotContains(home, "سناریو هفتم")
+        catalog = self.client.get("/scenarios/", {"q": "هفتم"})
+        self.assertContains(catalog, "سناریو هفتم")
+        self.assertContains(catalog, "جستجو")
+        self.assertContains(catalog, "مرتب‌سازی")
+        self.assertContains(catalog, "places-bar-btn")
+        self.assertContains(catalog, 'data-toggle-panel="search"')
+        self.assertContains(catalog, 'data-toggle-panel="sort"')
+        alpha = make_complete_scenario(name="آلفا")
+        beta = make_complete_scenario(name="بتا")
+        beta.play_count = 9
+        beta.save(update_fields=["play_count"])
+        newest = self.client.get("/scenarios/", {"sort": "newest"})
+        self.assertLess(newest.content.decode().find("بتا"), newest.content.decode().find("آلفا"))
+        popular = self.client.get("/scenarios/", {"sort": "popular"})
+        self.assertLess(popular.content.decode().find("بتا"), popular.content.decode().find("آلفا"))
+        named = self.client.get("/scenarios/", {"sort": "name"})
+        self.assertLess(named.content.decode().find("آلفا"), named.content.decode().find("بتا"))
+        mode = self.client.get(f"/deal/{extra.id}/", follow=True)
+        self.assertContains(mode, "اضافه به صفحه اصلی")
+        pinned = self.client.post(f"/scenarios/{extra.id}/pin/", {"next": "/"})
+        self.assertRedirects(pinned, "/")
+        listed = self.client.get("/")
+        self.assertContains(listed, "سناریو هفتم")
+
+    def test_home_lists_official_admin_scenarios_even_if_roles_are_incomplete(self):
+        make_complete_scenario(name="سناریو کامل", featured=True)
+        incomplete = Scenario.objects.create(name="سناریو مذاکره", is_featured=True, home_order=2)
+        ScenarioSize.objects.create(
+            scenario=incomplete,
+            player_count=10,
+            mafia_count=3,
+            citizen_count=7,
+        )
+        home = self.client.get("/")
+        self.assertContains(home, "سناریو مذاکره")
+        catalog = self.client.get("/scenarios/")
+        self.assertContains(catalog, "سناریو مذاکره")
+        self.assertContains(catalog, "Icon-Favorite.png")
+
+    def test_scenario_icons_render_on_home_and_catalog(self):
+        buffer = BytesIO()
+        Image.new("RGB", (64, 64), (180, 40, 50)).save(buffer, format="PNG")
+        scenario = make_complete_scenario(name="سناریو نشان‌دار", featured=True)
+        scenario.icon.save(
+            "badge.png",
+            SimpleUploadedFile("badge.png", buffer.getvalue(), content_type="image/png"),
+            save=True,
+        )
+        home = self.client.get("/")
+        self.assertContains(home, scenario.icon.url)
+        self.assertContains(home, "quick-role-icon")
+        catalog = self.client.get("/scenarios/")
+        self.assertContains(catalog, scenario.icon.url)
+        self.assertContains(catalog, "scenario-icon")
+
+    def test_pinning_more_than_six_is_blocked(self):
+        extras = [make_complete_scenario(name=f"پین {index}") for index in range(7)]
+        for scenario in extras[:6]:
+            self.client.post(f"/scenarios/{scenario.id}/pin/", {"next": "/"})
+        blocked = self.client.post(f"/scenarios/{extras[6].id}/pin/", {"next": "/"})
+        self.assertRedirects(blocked, "/")
+        home = self.client.get("/")
+        self.assertNotContains(home, extras[6].name)
 
 
 class RoleDealTests(TestCase):
@@ -117,6 +191,15 @@ class RoleDealTests(TestCase):
         scenario = make_complete_scenario()
         response = self.client.get(f"/deal/{scenario.id}/")
         self.assertRedirects(response, f"/deal/{scenario.id}/2/")
+
+    def test_fresh_deal_counts_as_a_play(self):
+        scenario = make_complete_scenario()
+        self.client.get(f"/deal/{scenario.id}/2/random/?fresh=1")
+        scenario.refresh_from_db()
+        self.assertEqual(scenario.play_count, 1)
+        self.client.get(f"/deal/{scenario.id}/2/random/")
+        scenario.refresh_from_db()
+        self.assertEqual(scenario.play_count, 1)
 
     def test_several_player_counts_are_offered(self):
         scenario = make_complete_scenario()
@@ -155,6 +238,8 @@ class RoleDealTests(TestCase):
         kept = self.client.session["role_deal"]
         self.assertEqual(kept["slots"], slots)
         self.assertTrue(kept["revealed"][0])
+        skipped = self.client.get("/deal/card/1/")
+        self.assertRedirects(skipped, "/deal/card/2/")
 
     def test_chair_order_is_a_permutation_of_the_seats(self):
         scenario = make_complete_scenario()
@@ -208,7 +293,7 @@ class HostToolsTests(TestCase):
         self.assertContains(response, f'href="{iri_to_uri(scenario.get_rules_url())}"')
         self.assertNotContains(response, "Icon-Advertisement.png")
         self.assertNotContains(response, "Icon-Location.png")
-        empty_rules = self.client.get(f"/scenario/{scenario.slug}/rules/")
+        empty_rules = self.client.get(scenario.get_rules_url())
         self.assertContains(empty_rules, "این سناریو فاقد توضیحات میباشد")
 
     def test_host_hides_tools_the_scenario_does_not_have(self):
@@ -272,7 +357,7 @@ class ScenarioPagesAndCommentsTests(TestCase):
         scenario.rulebook_title_en = "Inspector rulebook"
         scenario.rulebook_body_en = "The full inspector scenario guide for the host."
         scenario.save()
-        rulebook = self.client.get(f"/scenario/{scenario.slug}/rulebook/")
+        rulebook = self.client.get(scenario.get_rulebook_url())
         self.assertContains(rulebook, "رول‌بوک بازپرس")
         self.assertContains(rulebook, "بازگشت به مدیریت بازی")
         self.assertContains(rulebook, "doc-back")
@@ -282,17 +367,24 @@ class ScenarioPagesAndCommentsTests(TestCase):
         self.assertContains(rulebook, "application/ld+json")
         self.assertContains(rulebook, "Icon-Rules.png")
         self.assertContains(rulebook, "Icon-Search.png")
-        english = self.client.get(f"/en/scenario/{scenario.slug}/rulebook/")
+        english = self.client.get(f"/en/scenario/{scenario.pk}/rulebook/")
         self.assertContains(english, "Inspector rulebook")
-        rules = self.client.get(f"/scenario/{scenario.slug}/rules/")
+        rules = self.client.get(scenario.get_rules_url())
         self.assertContains(rules, "قوانین بازپرس")
         sitemap = self.client.get("/sitemap.xml")
+        self.assertContains(sitemap, f"/scenario/{scenario.pk}/rulebook/")
         self.assertContains(sitemap, "/rulebook/")
         self.assertContains(sitemap, "/rules/")
         self.assertContains(sitemap, "/en/scenario/")
         robots = self.client.get("/robots.txt")
         self.assertContains(robots, "Sitemap:")
         self.assertContains(robots, "Disallow: /admin/")
+        self.assertTrue(scenario.slug.isascii())
+        self.assertEqual(scenario.get_rulebook_url(), f"/scenario/{scenario.pk}/rulebook/")
+        self.assertEqual(scenario.get_rules_url(), f"/scenario/{scenario.pk}/rules/")
+        self.assertEqual(scenario.get_comments_url(), f"/scenario/{scenario.pk}/comments/")
+        legacy = self.client.get(f"/scenario/{scenario.slug}/rulebook/")
+        self.assertRedirects(legacy, scenario.get_rulebook_url())
 
     def test_comments_need_approval_and_can_be_replied_to(self):
         scenario = make_complete_scenario()
@@ -301,11 +393,13 @@ class ScenarioPagesAndCommentsTests(TestCase):
             author_name="علی",
             body="این نظر هنوز نباید دیده شود.",
         )
-        page = self.client.get(f"/scenario/{scenario.slug}/comments/")
+        page = self.client.get(scenario.get_comments_url())
         self.assertNotContains(page, "این نظر هنوز نباید دیده شود.")
+        self.assertContains(page, "جمع این دو عدد را بنویسید")
+        captcha = self.client.session["venue_comment_captcha"]
         self.client.post(
-            f"/scenario/{scenario.slug}/comments/",
-            {"author_name": "سارا", "body": "نظر جدید برای تأیید"},
+            scenario.get_comments_url(),
+            {"author_name": "سارا", "body": "نظر جدید برای تأیید", "captcha": str(captcha["left"] + captcha["right"])},
         )
         self.assertFalse(ScenarioComment.objects.get(body="نظر جدید برای تأیید").is_approved)
         hidden.is_approved = True
@@ -318,13 +412,19 @@ class ScenarioPagesAndCommentsTests(TestCase):
             is_approved=True,
             is_admin=True,
         )
-        approved = self.client.get(f"/scenario/{scenario.slug}/comments/")
+        approved = self.client.get(scenario.get_comments_url())
         self.assertContains(approved, "این نظر هنوز نباید دیده شود.")
         self.assertContains(approved, "پاسخ رسمی میز")
         self.assertNotContains(approved, "نظر جدید برای تأیید")
+        captcha = self.client.session["venue_comment_captcha"]
         self.client.post(
-            f"/scenario/{scenario.slug}/comments/",
-            {"author_name": "نرگس", "body": "پاسخ بازیکن", "parent": hidden.id},
+            scenario.get_comments_url(),
+            {
+                "author_name": "نرگس",
+                "body": "پاسخ بازیکن",
+                "parent": hidden.id,
+                "captcha": str(captcha["left"] + captcha["right"]),
+            },
         )
         reply = ScenarioComment.objects.get(body="پاسخ بازیکن")
         self.assertEqual(reply.parent_id, hidden.id)
@@ -338,7 +438,7 @@ class ScenarioPagesAndCommentsTests(TestCase):
         )
         scenario.save()
         scenario.refresh_from_db()
-        page = self.client.get(f"/scenario/{scenario.slug}/rulebook/")
+        page = self.client.get(scenario.get_rulebook_url())
         self.assertContains(page, "<strong>متن وسط</strong>")
         self.assertContains(page, "text-align:center")
         self.assertNotContains(page, "javascript:alert")
@@ -396,7 +496,7 @@ class CustomScenarioTests(TestCase):
         hidden = self.client.get("/")
         self.assertNotContains(hidden, "شب خصوصی")
         self.assertEqual(self.client.get(f"/deal/{scenario.id}/").status_code, 404)
-        self.assertEqual(self.client.get(f"/scenario/{scenario.slug}/rulebook/").status_code, 404)
+        self.assertEqual(self.client.get(scenario.get_rulebook_url()).status_code, 404)
         self.client.force_login(stranger)
         self.assertEqual(self.client.get(f"/deal/{scenario.id}/").status_code, 404)
         self.assertNotContains(self.client.get("/"), "شب خصوصی")
@@ -413,7 +513,7 @@ class CustomScenarioTests(TestCase):
         self.assertContains(host, f'href="{iri_to_uri(scenario.get_rulebook_url())}"')
         self.assertContains(host, f'href="{iri_to_uri(scenario.get_rules_url())}"')
         self.assertNotContains(host, "نظر کاربران")
-        empty = self.client.get(f"/scenario/{scenario.slug}/rulebook/")
+        empty = self.client.get(scenario.get_rulebook_url())
         self.assertContains(empty, "این سناریو فاقد توضیحات میباشد")
 
     def test_guest_can_create_custom_scenario_without_login(self):
@@ -482,6 +582,8 @@ class CardLogoTests(TestCase):
 
     def test_uploaded_logo_is_kept_for_the_logged_in_user(self):
         user = get_user_model().objects.create_user("brand", "brand@example.com", "pass-word-123")
+        user.club_profile.is_verified = True
+        user.club_profile.save(update_fields=["is_verified"])
         self.client.force_login(user)
         buffer = BytesIO()
         Image.new("RGB", (8, 8), (10, 20, 30)).save(buffer, format="PNG")
@@ -495,3 +597,102 @@ class CardLogoTests(TestCase):
         finish_two_player_deal(self.client, scenario)
         card = self.client.get("/deal/final/1/")
         self.assertContains(card, "/media/card_logos/")
+
+    def test_unverified_user_cannot_upload_cafe_logo(self):
+        user = get_user_model().objects.create_user("plain", "plain@example.com", "pass-word-123")
+        self.client.force_login(user)
+        buffer = BytesIO()
+        Image.new("RGB", (8, 8), (10, 20, 30)).save(buffer, format="PNG")
+        self.client.post(
+            "/settings/logo/",
+            {"logo": SimpleUploadedFile("cafe.png", buffer.getvalue(), content_type="image/png")},
+        )
+        self.assertFalse(CardBranding.objects.filter(user=user).exists())
+
+
+class ScenarioAdminTests(TestCase):
+    def test_role_names_and_descriptions_are_on_the_scenario_form(self):
+        user = get_user_model().objects.create_superuser("host", "host@example.com", "pass-word-123")
+        self.client.force_login(user)
+        add = self.client.get("/admin/scenarios/scenario/add/")
+        self.assertContains(add, "اسم نقش")
+        self.assertContains(add, "توضیح نقش")
+        self.assertContains(add, "sizes-0-roles-0-name")
+        self.assertContains(add, "sizes-0-roles-0-description")
+        self.assertContains(add, "sizes-0-roles-19-name")
+        self.assertContains(add, "sizes-0-finals-11-name")
+        self.assertContains(add, "اسم کارت")
+        self.assertNotContains(add, "sizes-0-finals-0-sort_order")
+        self.assertNotContains(add, "عنوان سئو")
+        self.assertNotContains(add, "توضیح سئو")
+        posted = self.client.post(
+            "/admin/scenarios/scenario/add/",
+            {
+                "name": "سناریو میز ادمین",
+                "home_order": "0",
+                "sizes-TOTAL_FORMS": "1",
+                "sizes-INITIAL_FORMS": "0",
+                "sizes-MIN_NUM_FORMS": "0",
+                "sizes-MAX_NUM_FORMS": "5",
+                "sizes-0-player_count": "2",
+                "sizes-0-mafia_count": "1",
+                "sizes-0-citizen_count": "1",
+                "sizes-0-independent_count": "0",
+                "sizes-0-werewolf_count": "0",
+                "sizes-0-roles-TOTAL_FORMS": "2",
+                "sizes-0-roles-INITIAL_FORMS": "0",
+                "sizes-0-roles-MIN_NUM_FORMS": "0",
+                "sizes-0-roles-MAX_NUM_FORMS": "20",
+                "sizes-0-roles-0-side": "mafia",
+                "sizes-0-roles-0-name": "پدرخوانده",
+                "sizes-0-roles-0-description": "رئیس میز شب",
+                "sizes-0-roles-1-side": "citizen",
+                "sizes-0-roles-1-name": "دکتر",
+                "sizes-0-roles-1-description": "یک نفر را نجات می‌دهد",
+                "sizes-0-finals-TOTAL_FORMS": "0",
+                "sizes-0-finals-INITIAL_FORMS": "0",
+                "sizes-0-finals-MIN_NUM_FORMS": "0",
+                "sizes-0-finals-MAX_NUM_FORMS": "12",
+            },
+        )
+        self.assertEqual(posted.status_code, 302)
+        scenario = Scenario.objects.get(name="سناریو میز ادمین")
+        roles = list(scenario.sizes.get().roles.order_by("id"))
+        self.assertEqual([role.name for role in roles], ["پدرخوانده", "دکتر"])
+        self.assertEqual(roles[0].description, "رئیس میز شب")
+        change = self.client.get(f"/admin/scenarios/scenario/{scenario.pk}/change/")
+        self.assertContains(change, "پدرخوانده")
+        self.assertContains(change, "رئیس میز شب")
+
+    def test_admin_can_reply_to_a_user_comment(self):
+        user = get_user_model().objects.create_superuser("mod", "mod@example.com", "pass-word-123")
+        self.client.force_login(user)
+        scenario = make_complete_scenario()
+        comment = ScenarioComment.objects.create(
+            scenario=scenario,
+            author_name="شاهین",
+            body="این سناریو بالانس است؟",
+        )
+        form = self.client.get(f"/admin/scenarios/scenariocomment/{comment.pk}/change/")
+        self.assertContains(form, "پاسخ مدیریت")
+        self.assertContains(form, "متن پاسخ مدیریت")
+        saved = self.client.post(
+            f"/admin/scenarios/scenariocomment/{comment.pk}/change/",
+            {
+                "scenario": str(scenario.pk),
+                "author_name": "شاهین",
+                "body": "این سناریو بالانس است؟",
+                "admin_reply": "بله، این نسخه برای میز ده‌نفره بالانس شده است.",
+                "_save": "ذخیره",
+            },
+        )
+        self.assertEqual(saved.status_code, 302)
+        comment.refresh_from_db()
+        self.assertTrue(comment.is_approved)
+        reply = comment.replies.get()
+        self.assertTrue(reply.is_admin)
+        self.assertTrue(reply.is_approved)
+        self.assertEqual(reply.author_name, "مدیریت")
+        page = self.client.get(scenario.get_comments_url())
+        self.assertContains(page, "این سناریو بالانس است؟")
+        self.assertContains(page, "بله، این نسخه برای میز ده‌نفره بالانس شده است.")

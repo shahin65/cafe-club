@@ -148,11 +148,40 @@ class UserProfile(models.Model):
         verbose_name="کاربر",
     )
     public_id = models.PositiveIntegerField("شناسه شش‌رقمی", unique=True)
+    display_name = models.CharField(
+        "نام نمایشی",
+        max_length=40,
+        blank=True,
+        help_text="اگر پر شود، این نام به‌جای نام کاربری به خود کاربر و دیگران نشان داده می‌شود.",
+    )
     is_verified = models.BooleanField("تیک آبی", default=False)
     bio = models.CharField("بیوگرافی", max_length=280, blank=True)
     photo = models.ImageField("عکس پروفایل", upload_to="profiles", blank=True)
     google_email = models.EmailField("جیمیل متصل", blank=True, null=True, unique=True)
     google_sub = models.CharField("شناسه گوگل", max_length=64, blank=True, null=True, unique=True)
+    home_scenario_ids = models.JSONField(
+        "سناریوهای صفحه اصلی",
+        default=list,
+        blank=True,
+        help_text="حداکثر ۶ سناریوی پین‌شده برای بخش تقسیم نقش سریع.",
+    )
+    APP_DIRECT = "direct"
+    APP_BAZAAR = "bazaar"
+    APP_MYKET = "myket"
+    APP_SOURCE_CHOICES = [
+        ("", "وب / نامشخص"),
+        (APP_DIRECT, "نسخه دایرکت"),
+        (APP_BAZAAR, "کافه بازار"),
+        (APP_MYKET, "مایکت"),
+    ]
+    app_source = models.CharField(
+        "منبع اپلیکیشن",
+        max_length=12,
+        choices=APP_SOURCE_CHOICES,
+        blank=True,
+        default="",
+        help_text="اگر کاربر از لینک رفرال نسخه دایرکت، بازار یا مایکت وارد شده باشد اینجا ثبت می‌شود.",
+    )
 
     class Meta:
         verbose_name = "تیک آبی"
@@ -166,6 +195,12 @@ class UserProfile(models.Model):
         return f"{self.public_id:06d}"
 
     public_id_display.short_description = "شناسه"
+
+    def shown_name(self):
+        name = (self.display_name or "").strip()
+        if name:
+            return name
+        return self.user.get_username()
 
     def save(self, *args, **kwargs):
         if not self.public_id:
@@ -212,6 +247,9 @@ class EventAd(models.Model):
     phone = models.CharField("تلفن تماس ایونت‌گذار", max_length=30)
     ticket_price = models.CharField("قیمت ورودی", max_length=80)
     cafe_bank = models.CharField("بانک کافه", max_length=120)
+    city = models.CharField("شهر", max_length=80, default="")
+    district = models.CharField("محدوده", max_length=120, default="")
+    scenario = models.CharField("سناریو", max_length=120, default="")
     created_at = models.DateTimeField("زمان ثبت", auto_now_add=True)
     expires_at = models.DateTimeField("پایان نمایش رایگان")
     is_published = models.BooleanField("منتشر شده", default=True)
@@ -229,6 +267,27 @@ class EventAd(models.Model):
         from django.utils import timezone
 
         return self.is_published and self.expires_at > timezone.now()
+
+
+class EventAdLike(models.Model):
+    ad = models.ForeignKey(EventAd, on_delete=models.CASCADE, related_name="likes", verbose_name="آگهی")
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="event_ad_likes",
+        null=True,
+        blank=True,
+        verbose_name="کاربر",
+    )
+    guest_key = models.CharField("کلید مهمان", max_length=64, blank=True)
+    created_at = models.DateTimeField("زمان", auto_now_add=True)
+
+    class Meta:
+        verbose_name = "لایک آگهی"
+        verbose_name_plural = "لایک‌های آگهی"
+
+    def __str__(self):
+        return str(self.ad_id)
 
 
 class Venue(models.Model):
@@ -347,6 +406,8 @@ class VenueSubmission(models.Model):
     phone = models.CharField("تلفن", max_length=30)
     hours = models.CharField("روزها و ساعات کاری", max_length=200)
     city = models.CharField("شهر", max_length=80, blank=True, help_text="برای ثبت نهایی در لیست، شهر را اینجا وارد کنید.")
+    latitude = models.DecimalField("عرض جغرافیایی", max_digits=9, decimal_places=6, null=True, blank=True)
+    longitude = models.DecimalField("طول جغرافیایی", max_digits=9, decimal_places=6, null=True, blank=True)
     is_reviewed = models.BooleanField("بررسی شده", default=False)
     created_at = models.DateTimeField("زمان ارسال", auto_now_add=True)
 
@@ -405,3 +466,59 @@ class SiteLink(models.Model):
         if (get_language() or "fa").startswith("en"):
             return self.title_en or self.title
         return self.title or self.title_en
+
+
+class SiteSettings(models.Model):
+    maintenance_mode = models.BooleanField(
+        "اپلیکیشن در دست تعمیر است",
+        default=False,
+        help_text="اگر فعال باشد سایت برای کاربران عادی بسته می‌شود تا زمان به‌روزرسانی.",
+    )
+
+    class Meta:
+        verbose_name = "وضعیت سایت"
+        verbose_name_plural = "وضعیت سایت"
+
+    def __str__(self):
+        return "در دست تعمیر" if self.maintenance_mode else "فعال"
+
+    def save(self, *args, **kwargs):
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def load(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
+
+
+class LegalPage(models.Model):
+    KEY_PRIVACY = "privacy"
+    KEY_TERMS = "terms"
+    KEY_CHOICES = [
+        (KEY_PRIVACY, "سیاست حفظ حریم خصوصی"),
+        (KEY_TERMS, "شرایط استفاده از خدمات"),
+    ]
+    key = models.CharField("شناسه", max_length=20, unique=True, choices=KEY_CHOICES)
+    title = models.CharField("عنوان فارسی", max_length=120)
+    title_en = models.CharField("عنوان انگلیسی", max_length=120, blank=True)
+    body = models.TextField("متن فارسی", blank=True)
+    body_en = models.TextField("متن انگلیسی", blank=True)
+
+    class Meta:
+        verbose_name = "صفحه حقوقی"
+        verbose_name_plural = "صفحات حقوقی"
+        ordering = ["key"]
+
+    def __str__(self):
+        return self.title
+
+    def display_title(self):
+        if (get_language() or "fa").startswith("en"):
+            return self.title_en or self.title
+        return self.title or self.title_en
+
+    def display_body(self):
+        if (get_language() or "fa").startswith("en"):
+            return self.body_en or self.body
+        return self.body or self.body_en

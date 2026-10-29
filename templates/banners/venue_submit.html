@@ -1,7 +1,11 @@
 {% extends "base.html" %}
-{% load i18n %}
+{% load i18n static %}
 
 {% block title %}{% trans "ثبت کافه یا کلاب من" %} | {% trans "کجا برم؟" %}{% endblock %}
+
+{% block extrahead %}
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+{% endblock %}
 
 {% block content %}
   <section class="sheet venue-sheet">
@@ -43,9 +47,20 @@
           <label>{% trans "روزها و ساعات کاری" %}
             <input type="text" name="hours" maxlength="200" required value="{{ values.hours }}" placeholder="{% trans 'شنبه تا پنجشنبه ۱۸ تا ۲۴' %}">
           </label>
+          <div class="venue-map-public">
+            <p>{% trans "روی نقشه محل کافه یا کلاب را انتخاب کنید." %}</p>
+            <div id="venue-map" data-default-lat="35.6892" data-default-lng="51.3890"></div>
+            <input type="hidden" name="latitude" id="id_latitude" value="{{ values.latitude }}" required>
+            <input type="hidden" name="longitude" id="id_longitude" value="{{ values.longitude }}" required>
+          </div>
           <button class="choice wizard-submit" type="submit">{% trans "ارسال برای بررسی" %}</button>
         </form>
       {% endif %}
     </div>
   </section>
+{% endblock %}
+
+{% block extra_js %}
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="{% static 'admin/js/venue-map.js' %}?v=1"></script>
 {% endblock %}

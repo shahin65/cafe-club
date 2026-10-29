@@ -65,5 +65,10 @@
         </form>
       </div>
     </section>
+
+    <nav class="settings-legal" aria-label="{% trans 'صفحات حقوقی' %}">
+      <a href="{% url 'privacy' %}">{% trans "سیاست حفظ حریم خصوصی" %}</a>
+      <a href="{% url 'terms' %}">{% trans "شرایط استفاده از خدمات" %}</a>
+    </nav>
   </section>
 {% endblock %}

@@ -4,6 +4,7 @@
 {% block title %}{% trans "کافه کلاب" %}{% endblock %}
 
 {% block content %}
+  {% if not from_installed_app %}
   <a class="app-install-btn" href="{% url 'install_app' %}" data-hide-when-installed>
     <span class="app-install-icon" aria-hidden="true">
       <svg viewBox="0 0 24 24" width="22" height="22">
@@ -14,6 +15,7 @@
     </span>
     {% trans "نصب اپلیکیشن" %}
   </a>
+  {% endif %}
   <section class="quick-roles" aria-labelledby="quick-roles-title">
     <header class="quick-roles-bar">
       <button class="quick-roles-gear" type="button" data-open-settings aria-label="{% trans 'تنظیمات' %}">
@@ -30,14 +32,17 @@
           <li>
             <a href="{% url 'deal_start' scenario.id %}">
               {% if scenario.icon %}
-                <img class="quick-role-icon" src="{{ scenario.icon.url }}" alt="">
+                <span class="scenario-icon-frame">
+                  <img class="quick-role-icon" src="{{ scenario.icon.url }}" alt="">
+                </span>
               {% endif %}
-              <p class="quick-role-name">{{ scenario.name }}</p>
+              <p class="quick-role-name">{{ scenario.display_name }}</p>
             </a>
           </li>
         {% endfor %}
       </ul>
     {% endif %}
+    <a class="quick-more" href="{% url 'scenario_catalog' %}">{% trans "مشاهده سایر سناریوها" %}</a>
   </section>
 
   <section class="ad-rotator" aria-label="{% trans 'بنرهای کافه' %}" data-interval="3000">
@@ -91,9 +96,11 @@
             </a>
             <a href="{% url 'deal_start' scenario.id %}">
               {% if scenario.icon %}
-                <img class="quick-role-icon" src="{{ scenario.icon.url }}" alt="">
+                <span class="scenario-icon-frame">
+                  <img class="quick-role-icon" src="{{ scenario.icon.url }}" alt="">
+                </span>
               {% endif %}
-              <p class="quick-role-name">{{ scenario.name }}</p>
+              <p class="quick-role-name">{{ scenario.display_name }}</p>
             </a>
           </li>
         {% endfor %}
@@ -114,7 +121,7 @@
     <div class="settings-panel" data-panel="logo" hidden>
       <button class="settings-back" type="button" data-panel-target="menu">{% trans "بازگشت" %}</button>
       <h2>{% trans "تغییر لوگو" %}</h2>
-      <p>{% trans "یک لوگوی آماده انتخاب کنید یا لوگوی کافه یا کلاب خودتان را از گوشی بگذارید." %}</p>
+      <p>{% trans "یک لوگوی آماده انتخاب کنید." %}</p>
       <form class="logo-presets" method="post" action="{% url 'card_logo' %}">
         {% csrf_token %}
         {% for preset in card_logo_presets %}
@@ -124,13 +131,18 @@
           </button>
         {% endfor %}
       </form>
-      <form class="logo-upload" method="post" action="{% url 'card_logo' %}" enctype="multipart/form-data">
-        {% csrf_token %}
-        <label>
-          {% trans "لوگوی کافه یا کلاب از روی دستگاه" %}
-          <input type="file" name="logo" accept="image/*" onchange="this.form.submit()">
-        </label>
-      </form>
+      {% if club_profile.is_verified %}
+        <p>{% trans "یک تصویر لوگوی کافه یا کلاب می‌توانید آپلود کنید. تصویر جدید جایگزین تصویر قبلی می‌شود." %}</p>
+        <form class="logo-upload" method="post" action="{% url 'card_logo' %}" enctype="multipart/form-data">
+          {% csrf_token %}
+          <label>
+            {% trans "لوگوی کافه یا کلاب از روی دستگاه" %}
+            <input type="file" name="logo" accept="image/*" onchange="this.form.submit()">
+          </label>
+        </form>
+      {% else %}
+        <p>{% trans "آپلود لوگوی کافه یا کلاب فقط برای حساب‌های دارای تیک آبی فعال است." %}</p>
+      {% endif %}
     </div>
   </dialog>
   <script src="{% static 'js/quick-settings.js' %}?v=1"></script>

@@ -57,6 +57,20 @@
               <input type="file" name="image" accept="image/*" required>
             </label>
             <p class="music-note">{% trans "حداکثر حجم تصویر ۲ مگابایت است." %}</p>
+            <label>{% trans "شهر" %}
+              <select name="city" required>
+                <option value="">{% trans "شهر را انتخاب کنید" %}</option>
+                {% for city in cities %}
+                  <option value="{{ city }}"{% if values.city == city %} selected{% endif %}>{{ city }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label>{% trans "محدوده" %}
+              <input type="text" name="district" maxlength="120" required value="{{ values.district }}" placeholder="{% trans 'مثلاً ونک' %}">
+            </label>
+            <label>{% trans "سناریو" %}
+              <input type="text" name="scenario" maxlength="120" required value="{{ values.scenario }}">
+            </label>
             <label>{% trans "آدرس ایونت" %}
               <input type="text" name="address" maxlength="300" required value="{{ values.address }}">
             </label>

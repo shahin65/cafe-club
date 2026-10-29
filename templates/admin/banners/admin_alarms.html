@@ -1,0 +1,12 @@
+{% if alarms %}
+<nav class="admin-alarms" aria-label="موارد نیازمند بررسی">
+  {% for item in alarms %}
+    {% if item.count %}
+    <a class="admin-alarm" href="{{ item.url }}">
+      <span class="admin-alarm-label">{{ item.label }}</span>
+      <span class="admin-alarm-count">{{ item.count }}</span>
+    </a>
+    {% endif %}
+  {% endfor %}
+</nav>
+{% endif %}

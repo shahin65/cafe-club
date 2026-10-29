@@ -10,7 +10,7 @@ from django.utils import timezone, translation
 from PIL import Image
 
 from banners.geo import haversine_km
-from banners.models import Banner, BlueTickRequest, EventAd, SiteLink, UserProfile, Venue, VenueComment, VenueRating, VenueSubmission
+from banners.models import Banner, BlueTickRequest, EventAd, SiteLink, SiteSettings, UserProfile, Venue, VenueComment, VenueRating, VenueSubmission
 
 
 class BannerSeedTests(TestCase):
@@ -100,6 +100,7 @@ class BannerSeedTests(TestCase):
         self.assertContains(location, "کجا برم؟")
         self.assertContains(location, "ثبت کافه یا کلاب من")
         self.assertContains(location, "شهر شما")
+        self.assertNotContains(location, "Icon-Search.png")
         self.assertNotContains(location, "نمایش شعب")
         self.assertNotContains(location, "به زودی")
         self.assertNotContains(persian, "جزئیات")
@@ -126,6 +127,12 @@ class BannerSeedTests(TestCase):
         persian_again = self.client.get("/")
         self.assertContains(persian_again, 'dir="rtl"')
         self.assertContains(persian_again, "شب‌های مرموز کافه کلاب")
+        self.client.post("/i18n/setlang/", {"language": "en", "next": "/"})
+        bounced = self.client.get("/")
+        self.assertRedirects(bounced, "/en/")
+        stayed = self.client.get("/", follow=True)
+        self.assertContains(stayed, 'dir="ltr"')
+        self.assertContains(stayed, "Mysterious Nights at Cafe Club")
 
     def test_admin_stays_persian_and_rtl_even_with_english_cookie(self):
         user = User.objects.create_superuser("admin", "admin@example.com", "pass-word-123")
@@ -178,6 +185,27 @@ class BannerSeedTests(TestCase):
         named = self.client.get("/")
         self.assertContains(named, "میزبان")
         self.assertNotContains(named, "مهمان")
+
+    def test_display_name_is_shown_instead_of_username(self):
+        user = User.objects.create_user("hostuser", "host@example.com", "pass-word-123")
+        self.client.force_login(user)
+        page = self.client.get("/account/profile/")
+        self.assertContains(page, "نام نمایشی")
+        self.assertContains(page, "hostuser")
+        saved = self.client.post(
+            "/account/username/",
+            {"username": "hostuser", "display_name": "میزبان شب", "next": "/account/profile/"},
+        )
+        self.assertRedirects(saved, "/account/profile/")
+        user.club_profile.refresh_from_db()
+        self.assertEqual(user.club_profile.display_name, "میزبان شب")
+        shown = self.client.get("/")
+        self.assertContains(shown, "میزبان شب")
+        self.assertNotContains(shown, "hostuser")
+        profile = self.client.get("/account/profile/")
+        self.assertContains(profile, "میزبان شب")
+        self.assertContains(profile, 'name="username"')
+        self.assertContains(profile, "hostuser")
 
     def test_profile_redirect_rejects_external_and_backslash_urls(self):
         for target in ("https://example.com/", "//example.com/", "/\\example.com/"):
@@ -303,6 +331,36 @@ class ProfileAndBlueTickTests(TestCase):
         page = self.client.get("/account/profile/")
         self.assertContains(page, "پس از بررسی طی 72 ساعت آینده با شما تماس حاصل خواهد شد")
         self.assertTrue(BlueTickRequest.objects.filter(user=user, full_name="علی میزبان").exists())
+
+    def test_admin_dashboard_shows_red_counts_for_pending_items(self):
+        user = User.objects.create_user("host", "host@example.com", "pass-word-123")
+        BlueTickRequest.objects.create(user=user, full_name="علی", phone="09120000000", biography="میزبان")
+        buffer = BytesIO()
+        Image.new("RGB", (8, 8), (20, 20, 20)).save(buffer, format="PNG")
+        VenueSubmission.objects.create(
+            name="کلاب نو",
+            manager_name="مدیر",
+            address="تهران",
+            phone="021000",
+            hours="۱۸ تا ۲۴",
+            logo=SimpleUploadedFile("logo.png", buffer.getvalue(), content_type="image/png"),
+        )
+        VenueComment.objects.create(venue=make_venue(), author_name="میهمان", body="نظر کافه")
+        from scenarios.models import Scenario, ScenarioComment
+
+        scenario = Scenario.objects.create(name="سناریو بازپرس")
+        ScenarioComment.objects.create(scenario=scenario, author_name="شاهین", body="یک پیام جدید")
+        admin_user = User.objects.create_superuser("alarms", "alarms@example.com", "pass-word-123")
+        self.client.force_login(admin_user)
+        dashboard = self.client.get("/admin/")
+        self.assertContains(dashboard, "ثبت کافه یا کلاب")
+        self.assertContains(dashboard, "نظرات کافه")
+        self.assertContains(dashboard, "پیام جدید")
+        self.assertContains(dashboard, "/admin/scenarios/scenariocomment/?is_approved__exact=0")
+        self.assertContains(dashboard, "تیک آبی")
+        self.assertContains(dashboard, "admin-alarm-count")
+        messages = self.client.get("/admin/scenarios/scenariocomment/?is_approved__exact=0")
+        self.assertContains(messages, "یک پیام جدید")
 
 
 def make_venue(name="کافه شب", city="تهران", lat=35.6892, lng=51.3890, **extra):
@@ -438,6 +496,8 @@ class PlacesTests(TestCase):
         comment.save(update_fields=["is_approved"])
         shown = self.client.get(f"/location/{near.id}/")
         self.assertContains(shown, "فضای بازی خوب است")
+        self.assertContains(shown, "venue-sheet")
+        self.assertContains(shown, "nav-sheet")
 
         rated = self.client.post(f"/location/{near.id}/rate/", {"stars": "4"})
         self.assertRedirects(rated, f"/location/{near.id}/")
@@ -461,6 +521,8 @@ class PlacesTests(TestCase):
         self.assertContains(form, "اگر شما مالک یک کافه یا کلاب مافیا هستید")
         self.assertContains(form, "نام کلاب")
         self.assertContains(form, "نام مدیر یا سوپروایزر مجموعه")
+        self.assertContains(form, "id=\"venue-map\"")
+        self.assertContains(form, "id_latitude")
         buffer = BytesIO()
         Image.new("RGB", (40, 40), (10, 80, 20)).save(buffer, format="PNG")
         sent = self.client.post(
@@ -471,6 +533,8 @@ class PlacesTests(TestCase):
                 "address": "انقلاب",
                 "phone": "021111",
                 "hours": "چهارشنبه و پنجشنبه ۲۰ تا ۲",
+                "latitude": "35.689200",
+                "longitude": "51.389000",
                 "logo": SimpleUploadedFile("logo.png", buffer.getvalue(), content_type="image/png"),
             },
         )
@@ -479,6 +543,7 @@ class PlacesTests(TestCase):
         item = VenueSubmission.objects.get(name="کلاب شبانه")
         self.assertFalse(item.is_reviewed)
         self.assertEqual(item.manager_name, "نیما")
+        self.assertEqual(str(item.latitude), "35.689200")
         admin_user = User.objects.create_superuser("owner-admin", "owner-admin@example.com", "pass-word-123")
         self.client.force_login(admin_user)
         board = self.client.get("/admin/banners/venuesubmission/")
@@ -503,12 +568,23 @@ class AppSettingsPageTests(TestCase):
         self.assertContains(page, "Icon-Language.png")
         self.assertLess(html.find("دانلود اپلیکیشن"), html.find("شبکه‌های اجتماعی"))
         self.assertLess(html.find("ما را در شبکه‌های اجتماعی"), html.rfind("زبان برنامه"))
+        self.assertLess(html.rfind("زبان برنامه"), html.find("سیاست حفظ حریم خصوصی"))
+        self.assertContains(page, 'href="/privacy/"')
+        self.assertContains(page, 'href="/terms/"')
+        self.assertContains(page, "شرایط استفاده از خدمات")
+        privacy = self.client.get("/privacy/")
+        self.assertContains(privacy, "سیاست حفظ حریم خصوصی")
+        terms = self.client.get("/terms/")
+        self.assertContains(terms, "شرایط استفاده از خدمات")
         admin_user = User.objects.create_superuser("setadmin", "setadmin@example.com", "pass-word-123")
         self.client.force_login(admin_user)
         admin_page = self.client.get("/admin/banners/sitelink/")
         self.assertContains(admin_page, "تنظیمات")
         self.assertContains(admin_page, "دانلود مستقیم اپلیکیشن اندروید")
         self.assertContains(admin_page, "اینستاگرام")
+        legal_admin = self.client.get("/admin/banners/legalpage/")
+        self.assertContains(legal_admin, "صفحات حقوقی")
+        self.assertContains(legal_admin, "سیاست حفظ حریم خصوصی")
 
 
 def _png_upload(name="event.png"):
@@ -561,13 +637,28 @@ class EventAdTests(TestCase):
                 "phone": "09121234567",
                 "ticket_price": "۲۰۰ هزار تومان",
                 "cafe_bank": "کافه شب",
+                "city": "تهران",
+                "district": "ونک",
+                "scenario": "بازپرس",
                 "image": _png_upload(),
             },
         )
         self.assertRedirects(created, "/ads/")
         listing = self.client.get("/ads/")
-        self.assertContains(listing, "شب مافیا")
-        self.assertContains(listing, "کافه شب")
+        self.assertContains(listing, "سناریو")
+        self.assertContains(listing, "بازپرس")
+        self.assertContains(listing, "ونک")
+        self.assertContains(listing, "ad-avatar")
+        self.assertNotContains(listing, "کافه شب")
+        self.assertNotContains(listing, "09121234567")
+        ad = EventAd.objects.get(event_name="شب مافیا")
+        detail = self.client.get(f"/ads/{ad.id}/")
+        self.assertContains(detail, "شب مافیا")
+        self.assertContains(detail, "کافه شب")
+        liked = self.client.post(f"/ads/{ad.id}/like/", {"next": "/ads/"})
+        self.assertRedirects(liked, "/ads/")
+        listing = self.client.get("/ads/")
+        self.assertContains(listing, ">1</span>")
         ad = EventAd.objects.get(event_name="شب مافیا")
         self.assertTrue(ad.is_published)
         self.assertTrue(ad.is_new)
@@ -576,6 +667,7 @@ class EventAdTests(TestCase):
         self.client.force_login(admin_user)
         dashboard = self.client.get("/admin/")
         self.assertContains(dashboard, "آگهی جدید")
+        self.assertContains(dashboard, "admin-alarm-count")
         board = self.client.get("/admin/banners/eventad/")
         self.assertContains(board, "شب مافیا")
         unpublished = self.client.post(
@@ -607,6 +699,9 @@ class EventAdTests(TestCase):
                 phone="09120000000",
                 ticket_price="رایگان",
                 cafe_bank="کافه",
+                city="تهران",
+                district="مرکز",
+                scenario="مافیا",
                 expires_at=now + timedelta(days=3),
             )
         self.client.force_login(user)
@@ -620,10 +715,73 @@ class EventAdTests(TestCase):
                 "phone": "09120000000",
                 "ticket_price": "رایگان",
                 "cafe_bank": "کافه",
+                "city": "تهران",
+                "district": "مرکز",
+                "scenario": "مافیا",
                 "image": _png_upload("fourth.png"),
             },
         )
         self.assertEqual(blocked.status_code, 200)
         self.assertContains(blocked, "سقف سه آگهی رایگان در این ماه پر شده است")
         self.assertEqual(EventAd.objects.filter(user=user).count(), 3)
+
+
+class AppSourceTests(TestCase):
+    def test_referral_links_hide_install_and_bind_the_market_gateway(self):
+        SiteLink.objects.filter(key="android").update(url="https://example.com/app.apk")
+        SiteLink.objects.filter(key="bazaar").update(url="https://cafebazaar.ir/app/ir.cafeclub")
+        SiteLink.objects.filter(key="myket").update(url="https://myket.ir/app/ir.cafeclub")
+        home = self.client.get("/")
+        self.assertContains(home, "نصب اپلیکیشن")
+        self.assertContains(home, 'href="/install/"')
+        bounced = self.client.get("/app/bazaar/")
+        self.assertRedirects(bounced, "/")
+        self.assertEqual(self.client.cookies["cafeclub_app"].value, "bazaar")
+        listed = self.client.get("/")
+        self.assertNotContains(listed, "نصب اپلیکیشن")
+        self.assertRedirects(self.client.get("/install/"), "/")
+        market = self.client.get("/settings/")
+        self.assertContains(market, "https://cafebazaar.ir/app/ir.cafeclub")
+        self.assertNotContains(market, "https://example.com/app.apk")
+        user = User.objects.create_user("market", "market@example.com", "pass-word-123")
+        self.client.force_login(user)
+        self.client.get("/")
+        user.club_profile.refresh_from_db()
+        self.assertEqual(user.club_profile.app_source, "bazaar")
+        profile = self.client.get("/account/profile/")
+        self.assertContains(profile, "کافه بازار")
+        self.assertEqual(self.client.get("/app/unknown/").status_code, 404)
+        self.client.get("/app/direct/")
+        user.club_profile.refresh_from_db()
+        self.assertEqual(user.club_profile.app_source, "direct")
+        direct_settings = self.client.get("/settings/")
+        self.assertContains(direct_settings, "https://example.com/app.apk")
+        self.assertNotContains(direct_settings, "https://cafebazaar.ir/app/ir.cafeclub")
+
+
+class MaintenanceModeTests(TestCase):
+    def test_staff_can_take_the_public_site_offline(self):
+        host = User.objects.create_superuser("host", "host@example.com", "pass-word-123")
+        self.client.force_login(host)
+        dashboard = self.client.get("/admin/")
+        self.assertContains(dashboard, "اپلیکیشن در دست تعمیر است")
+        self.assertContains(dashboard, 'action="/admin/site-maintenance/"')
+        closed = self.client.post("/admin/site-maintenance/", {"maintenance_mode": "1"})
+        self.assertRedirects(closed, "/admin/")
+        self.assertTrue(SiteSettings.load().maintenance_mode)
+        self.assertContains(self.client.get("/"), "تقسیم نقش سریع")
+        self.client.logout()
+        public = self.client.get("/")
+        self.assertEqual(public.status_code, 503)
+        self.assertContains(public, "اپلیکیشن در دست تعمیر است", status_code=503)
+        self.assertContains(public, "Icon-Settings1.png", status_code=503)
+        self.assertNotContains(public, "تقسیم نقش سریع", status_code=503)
+        self.assertNotContains(public, "نوار پایین", status_code=503)
+        self.assertEqual(self.client.get("/admin/login/").status_code, 200)
+        self.client.force_login(host)
+        opened = self.client.post("/admin/site-maintenance/", {})
+        self.assertRedirects(opened, "/admin/")
+        self.assertFalse(SiteSettings.load().maintenance_mode)
+        self.client.logout()
+        self.assertEqual(self.client.get("/").status_code, 200)
 

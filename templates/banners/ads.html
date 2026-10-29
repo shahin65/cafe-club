@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load i18n %}
+{% load i18n static %}
 
 {% block title %}{% trans "آگهی" %} | {% trans "کافه کلاب" %}{% endblock %}
 
@@ -23,17 +23,26 @@
       {% if ads %}
         <ul class="ad-list">
           {% for ad in ads %}
-            <li class="ad-card">
-              <img src="{{ ad.image.url }}" alt="{{ ad.event_name }}">
-              <div>
-                <strong>{{ ad.event_name }}</strong>
-                <span>{{ ad.organizer_name }}</span>
-                <span>{{ ad.starts_at }}</span>
-                <span>{{ ad.address }}</span>
-                <span>{% trans "قیمت ورودی" %}: {{ ad.ticket_price }}</span>
-                <span>{% trans "بانک کافه" %}: {{ ad.cafe_bank }}</span>
-                <span dir="ltr">{{ ad.phone }}</span>
-              </div>
+            <li class="ad-banner">
+              <a class="ad-banner-link" href="{% url 'ad_detail' ad.id %}">
+                <img class="ad-banner-photo" src="{{ ad.image.url }}" alt="{{ ad.event_name }}">
+                <div class="ad-banner-row">
+                  <div class="ad-banner-left">
+                    <img class="ad-avatar" src="{% if ad.user.club_profile.photo %}{{ ad.user.club_profile.photo.url }}{% else %}{% static 'Icon-profile.png' %}{% endif %}" alt="">
+                    <span>{{ ad.city }}</span>
+                    <span>{{ ad.district }}</span>
+                  </div>
+                  <p class="ad-banner-center">{% trans "سناریو" %}: {{ ad.scenario }}</p>
+                </div>
+              </a>
+              <form class="ad-like" method="post" action="{% url 'ad_like' ad.id %}">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{% url 'ads' %}">
+                <button type="submit" class="{% if ad.liked %}is-liked{% endif %}" aria-label="{% trans 'لایک' %}">
+                  <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M12 21s-6.7-4.35-9.33-8.2C.7 9.7 2.2 6 5.6 6c1.9 0 3.1 1.1 3.9 2.2C10.3 7.1 11.5 6 13.4 6c3.4 0 4.9 3.7 2.93 6.8C18.7 16.65 12 21 12 21Z"/></svg>
+                  <span>{{ ad.like_count }}</span>
+                </button>
+              </form>
             </li>
           {% endfor %}
         </ul>

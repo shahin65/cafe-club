@@ -20,7 +20,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Lalezar&family=Vazirmatn:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{% static 'css/site.css' %}?v=40">
+  <link rel="stylesheet" href="{% static 'css/site.css' %}?v=48">
 </head>
 <body{% if role_deal_active %} data-deal-active="1" data-deal-cancel="{% url 'deal_cancel' %}"{% endif %}>
   <header class="app-bar">
@@ -30,7 +30,7 @@
     <a class="app-name" href="{% url 'home' %}">{% trans "کافه کلاب" %}</a>
     <a class="profile-button" href="{% url 'profile' %}">
       <img src="{% if club_profile and club_profile.photo %}{{ club_profile.photo.url }}{% else %}{% static 'Icon-profile.png' %}{% endif %}" alt="" width="36" height="36">
-      <span class="username">{% if profile_username %}{{ profile_username }}{% else %}{% trans "مهمان" %}{% endif %}</span>
+      <span class="username">{% if profile_shown_name %}{{ profile_shown_name }}{% else %}{% trans "مهمان" %}{% endif %}</span>
       {% if club_profile.is_verified %}
         <img class="blue-tick" src="{% static 'Icon-BlueTick.png' %}" alt="" width="22" height="22">
       {% else %}
@@ -48,22 +48,29 @@
   <script src="{% static 'js/pwa.js' %}?v=2"></script>
   <script>
     if (document.body.dataset.dealActive) {
-      var leaveMessage = "آیا از ادامه پخش نقش منصرف شدید؟";
+      var leaveMessage = "با بستن این صفحه تقسیم نقش لغو می‌شود. آیا می‌خواهید به خانه برگردید؟";
       var cancelUrl = document.body.dataset.dealCancel;
+      history.replaceState({dealGuard: 1}, "", location.href);
       history.pushState({dealGuard: 1}, "", location.href);
       window.addEventListener("popstate", function () {
         if (window.confirm(leaveMessage)) {
-          window.location.href = cancelUrl;
+          window.location.replace(cancelUrl);
         } else {
           history.pushState({dealGuard: 1}, "", location.href);
         }
       });
       document.addEventListener("click", function (event) {
         var link = event.target.closest("a");
-        if (!link || link.classList.contains("deal-safe") || link.target === "_blank") return;
+        if (!link || link.target === "_blank") return;
+        if (link.classList.contains("deal-next") || link.classList.contains("deal-host") || link.classList.contains("deal-restart")) {
+          event.preventDefault();
+          window.location.replace(link.href);
+          return;
+        }
+        if (link.classList.contains("deal-safe")) return;
         if (link.origin !== location.origin) return;
         event.preventDefault();
-        if (window.confirm(leaveMessage)) window.location.href = cancelUrl;
+        if (window.confirm(leaveMessage)) window.location.replace(cancelUrl);
       });
     }
   </script>

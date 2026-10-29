@@ -1,0 +1,32 @@
+{% load i18n static %}
+{% get_current_language as LANGUAGE_CODE %}
+{% get_current_language_bidi as LANGUAGE_BIDI %}
+<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% trans "اپلیکیشن در دست تعمیر است" %} | {% trans "کافه کلاب" %}</title>
+  <link rel="icon" type="image/png" href="{% static 'Logo.png' %}">
+  <style>
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background: #07070b;
+    }
+    body {
+      min-height: 100dvh;
+      display: grid;
+      place-items: center;
+    }
+    img {
+      width: min(46vw, 168px);
+      height: auto;
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <img src="{% static 'Icon-Settings1.png' %}" alt="{% trans 'اپلیکیشن در دست تعمیر است' %}">
+</body>
+</html>

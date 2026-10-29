@@ -39,6 +39,7 @@ def register(request):
 @require_POST
 def save_username(request):
     username = (request.POST.get("username") or "").strip()[:40]
+    display_name = (request.POST.get("display_name") or "").strip()[:40]
     next_url = request.POST.get("next") or request.META.get("HTTP_REFERER") or "/"
     if not next_url.startswith("/") or not url_has_allowed_host_and_scheme(
         next_url, allowed_hosts={request.get_host()}, require_https=request.is_secure()
@@ -56,8 +57,13 @@ def save_username(request):
         if not clash.exists():
             request.user.username = username
             request.user.save(update_fields=["username"])
+        profile = getattr(request.user, "club_profile", None)
+        if profile:
+            profile.display_name = display_name
+            profile.save(update_fields=["display_name"])
     else:
         request.session["profile_username"] = username
+        request.session["profile_display_name"] = display_name
         request.session.modified = True
     return redirect(next_url)
 

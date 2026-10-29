@@ -277,6 +277,8 @@ def submit_venue(request):
         "address": "",
         "phone": "",
         "hours": "",
+        "latitude": "",
+        "longitude": "",
     }
     error = ""
     if request.method == "POST":
@@ -285,11 +287,18 @@ def submit_venue(request):
         values["address"] = (request.POST.get("address") or "").strip()[:300]
         values["phone"] = (request.POST.get("phone") or "").strip()[:30]
         values["hours"] = (request.POST.get("hours") or "").strip()[:200]
+        values["latitude"] = (request.POST.get("latitude") or "").strip()
+        values["longitude"] = (request.POST.get("longitude") or "").strip()
+        lat = parse_coord(values["latitude"])
+        lng = parse_coord(values["longitude"])
         logo = request.FILES.get("logo")
         extras = [request.FILES.get("photo_1"), request.FILES.get("photo_2"), request.FILES.get("photo_3")]
         extras = [item for item in extras if item]
-        if not all(values.values()) or not logo:
+        required = {key: values[key] for key in ("name", "manager_name", "address", "phone", "hours")}
+        if not all(required.values()) or not logo:
             error = "نام کلاب، لوگو، نام مدیر، آدرس، تلفن و ساعات کاری را کامل کنید."
+        elif lat is None or lng is None:
+            error = "محل کافه یا کلاب را روی نقشه انتخاب کنید."
         elif len(extras) > 3:
             error = "حداکثر سه تصویر می‌توانید ارسال کنید."
         else:
@@ -301,6 +310,8 @@ def submit_venue(request):
                     address=values["address"],
                     phone=values["phone"],
                     hours=values["hours"],
+                    latitude=lat,
+                    longitude=lng,
                     logo=_save_upload(logo, 512),
                 )
                 photos = [_save_upload(item, 1200) for item in extras]

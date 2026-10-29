@@ -1,5 +1,52 @@
+from django.conf import settings
+from django.http import HttpResponseRedirect
+from django.shortcuts import render
 from django.utils import translation
 from django.utils.deprecation import MiddlewareMixin
+from django.utils.translation import check_for_language
+
+from banners.app_source import normalize_source, persist_source, read_source, set_source_cookie
+from banners.auth_views import language_prefixed_path
+
+_UNPREFIXED_ROOTS = (
+    "/admin",
+    "/i18n/",
+    "/account/google/",
+    "/favicon.ico",
+    "/manifest.webmanifest",
+    "/sw.js",
+    "/robots.txt",
+    "/sitemap.xml",
+    "/staff/",
+    "/static/",
+    "/media/",
+    "/app/",
+)
+
+
+def _is_unprefixed_root(path):
+    if path == "/admin" or path.startswith("/admin/"):
+        return True
+    return any(path == root or path.startswith(root) for root in _UNPREFIXED_ROOTS)
+
+
+class PersistChosenLanguageMiddleware(MiddlewareMixin):
+    """Keep the language chosen in settings even after Back to an unprefixed URL."""
+
+    def process_request(self, request):
+        path = request.path
+        if _is_unprefixed_root(path):
+            return
+        if translation.get_language_from_path(request.path_info):
+            return
+        cookie = request.COOKIES.get(settings.LANGUAGE_COOKIE_NAME)
+        if not cookie or not check_for_language(cookie) or cookie == settings.LANGUAGE_CODE:
+            return
+        prefixed = language_prefixed_path(path, cookie)
+        if prefixed == path:
+            return
+        query = request.META.get("QUERY_STRING")
+        return HttpResponseRedirect(f"{prefixed}?{query}" if query else prefixed)
 
 
 class ForceAdminPersianMiddleware(MiddlewareMixin):
@@ -10,3 +57,63 @@ class ForceAdminPersianMiddleware(MiddlewareMixin):
         if path == "/admin" or path.startswith("/admin/"):
             translation.activate("fa")
             request.LANGUAGE_CODE = "fa"
+
+
+class AttachAppSourceMiddleware(MiddlewareMixin):
+    """Remember whether the visitor opened Cafe Club from direct, Bazaar, or Myket."""
+
+    def process_request(self, request):
+        incoming = normalize_source(request.GET.get("app") or request.GET.get("from"))
+        if incoming:
+            persist_source(request, incoming)
+            return
+        source = read_source(request)
+        request.app_source = source
+        if source and getattr(request, "user", None) and request.user.is_authenticated:
+            profile = getattr(request.user, "club_profile", None)
+            if profile and profile.app_source != source:
+                persist_source(request, source)
+
+    def process_response(self, request, response):
+        source = getattr(request, "_set_app_cookie", None)
+        if source:
+            set_source_cookie(response, source)
+        return response
+
+
+_MAINTENANCE_ALLOWED = (
+    "/admin",
+    "/static/",
+    "/media/",
+    "/favicon.ico",
+    "/manifest.webmanifest",
+    "/sw.js",
+    "/robots.txt",
+    "/sitemap.xml",
+)
+
+
+def _maintenance_path_allowed(path):
+    if path == "/admin" or path.startswith("/admin/"):
+        return True
+    return any(path == root or path.startswith(root) for root in _MAINTENANCE_ALLOWED)
+
+
+class MaintenanceModeMiddleware(MiddlewareMixin):
+    """Close the public site while staff turn on maintenance for an update."""
+
+    def process_request(self, request):
+        if _maintenance_path_allowed(request.path):
+            return
+        user = getattr(request, "user", None)
+        if user is not None and user.is_authenticated and user.is_staff:
+            return
+        try:
+            from banners.models import SiteSettings
+
+            closed = SiteSettings.objects.filter(pk=1, maintenance_mode=True).exists()
+        except Exception:
+            return
+        if not closed:
+            return
+        return render(request, "banners/maintenance.html", status=503)

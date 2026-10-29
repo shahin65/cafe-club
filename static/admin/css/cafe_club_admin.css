@@ -46,6 +46,71 @@ body {
 
 #header {
     padding: 14px 24px;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+}
+
+.admin-alarms {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    margin: 8px 0 0;
+}
+
+#header .admin-alarms {
+    order: 2;
+    flex: 1 1 auto;
+    justify-content: center;
+    margin: 0;
+    min-width: 0;
+}
+
+#header #branding {
+    order: 1;
+}
+
+#header #user-tools {
+    order: 3;
+}
+
+.admin-alarm {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: #7a1f1f;
+    color: #fff !important;
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 0.85rem;
+}
+
+.admin-alarm:hover {
+    background: #9b2626;
+}
+
+.admin-alarm-count {
+    min-width: 1.4em;
+    height: 1.4em;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: #e11d2e;
+    color: #fff;
+    display: inline-grid;
+    place-items: center;
+    line-height: 1.4em;
+}
+
+.admin-alarm-board {
+    background: #fff5f5;
+    border-color: #f0b4b4;
+}
+
+.admin-alarm-board .admin-alarms {
+    margin-top: 10px;
 }
 
 #site-name a {
@@ -74,6 +139,45 @@ body {
 .cafe-dashboard-intro p {
     margin: 0;
     color: var(--body-medium-color);
+}
+
+.cafe-maintenance {
+    margin: 0 0 22px;
+    padding: 16px 20px;
+    border-radius: 14px;
+    border: 1px solid var(--hairline-color);
+}
+
+.cafe-maintenance h2 {
+    margin: 0 0 10px;
+}
+
+.cafe-maintenance label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 700;
+    font-size: 1.05rem;
+}
+
+.cafe-maintenance input[type="checkbox"] {
+    width: 1.15rem;
+    height: 1.15rem;
+}
+
+.cafe-maintenance p {
+    margin: 8px 0 0;
+    color: var(--body-medium-color);
+}
+
+.cafe-maintenance.is-on {
+    background: #fff5f5;
+    border-color: #e2a0a0;
+}
+
+.admin-comment-replies {
+    margin: 0;
+    padding: 0 18px 0 0;
 }
 
 div.breadcrumbs {
@@ -169,6 +273,48 @@ input, textarea, select, .button, input[type="submit"], .submit-row input {
 .cafe-blue-tick input {
     min-width: 140px;
     padding: 8px 10px;
+}
+
+.nested-roles,
+.nested-finals {
+    margin: 12px 0 8px;
+    padding: 12px;
+    border: 1px solid var(--hairline-color);
+    border-radius: 12px;
+    background: var(--darkened-bg);
+    overflow-x: auto;
+}
+
+.nested-roles h4,
+.nested-finals h4 {
+    margin: 0 0 10px;
+    font-size: 1rem;
+}
+
+.nested-roles table,
+.nested-finals table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.nested-roles th,
+.nested-finals th,
+.nested-roles td,
+.nested-finals td {
+    padding: 6px;
+    vertical-align: top;
+}
+
+.nested-roles textarea,
+.nested-finals textarea {
+    width: 100%;
+    min-width: 160px;
+}
+
+.nested-roles input[type="text"],
+.nested-finals input[type="text"] {
+    width: 100%;
+    min-width: 120px;
 }
 
 @media (max-width: 767px) {

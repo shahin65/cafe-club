@@ -1,6 +1,6 @@
 {% load i18n static %}
 <nav class="tab-bar" aria-label="{% trans 'نوار پایین' %}">
-  <a class="tab{% if request.resolver_match.url_name == 'ads' or request.resolver_match.url_name == 'ad_create' %} is-active{% endif %}" href="{% url 'ads' %}" {% if request.resolver_match.url_name == 'ads' or request.resolver_match.url_name == 'ad_create' %}aria-current="page"{% endif %}>
+  <a class="tab{% if request.resolver_match.url_name == 'ads' or request.resolver_match.url_name == 'ad_create' or request.resolver_match.url_name == 'ad_detail' %} is-active{% endif %}" href="{% url 'ads' %}" {% if request.resolver_match.url_name == 'ads' or request.resolver_match.url_name == 'ad_create' or request.resolver_match.url_name == 'ad_detail' %}aria-current="page"{% endif %}>
     <img src="{% static 'Icon-Advertisement.png' %}" alt="" width="36" height="36">
     <span>{% trans "آگهی" %}</span>
   </a>

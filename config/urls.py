@@ -42,6 +42,7 @@ urlpatterns = [
     path("robots.txt", robots_txt),
     path("sitemap.xml", sitemap, {"sitemaps": SITEMAPS}, name="sitemap"),
     path("staff/scenario-page-image/", upload_page_image, name="scenario_page_image"),
+    path("app/<slug:source>/", pwa_views.capture_app_source, name="app_source"),
 ]
 
 urlpatterns += i18n_patterns(

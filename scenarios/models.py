@@ -28,7 +28,12 @@ SIDE_FIELDS = {
 
 
 def unique_scenario_slug(name, pk=None, suggested=""):
-    base = slugify(suggested or name, allow_unicode=True) or "scenario"
+    suggested = (suggested or "").strip()
+    if suggested and not suggested.isascii():
+        suggested = ""
+    base = slugify(suggested, allow_unicode=False) or slugify(name or "", allow_unicode=False)
+    if not base:
+        base = f"scenario-{pk}" if pk else "scenario"
     slug = base[:80]
     index = 2
     while True:
@@ -59,9 +64,9 @@ class Scenario(models.Model):
         "نامک آدرس",
         max_length=80,
         unique=True,
-        allow_unicode=True,
+        allow_unicode=False,
         blank=True,
-        help_text="در نشانی صفحه رول‌بوک و قوانین می‌آید. اگر خالی بماند از اسم سناریو ساخته می‌شود.",
+        help_text="شناسه لاتین داخلی. نشانی صفحات رول‌بوک و قوانین با شماره سناریو است تا روی هاست خطای Not Found ندهد.",
     )
     icon = models.ImageField(
         "آیکون سناریو",
@@ -85,6 +90,7 @@ class Scenario(models.Model):
         default=0,
         help_text="عدد کوچکتر زودتر نشان داده می‌شود.",
     )
+    play_count = models.PositiveIntegerField("تعداد بازی", default=0, editable=False)
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         verbose_name="سازنده",
@@ -250,13 +256,13 @@ class Scenario(models.Model):
         )
 
     def get_rulebook_url(self):
-        return reverse("scenario_rulebook", kwargs={"slug": self.slug})
+        return reverse("scenario_rulebook", kwargs={"scenario_id": self.pk})
 
     def get_rules_url(self):
-        return reverse("scenario_rules", kwargs={"slug": self.slug})
+        return reverse("scenario_rules", kwargs={"scenario_id": self.pk})
 
     def get_comments_url(self):
-        return reverse("scenario_comments", kwargs={"slug": self.slug})
+        return reverse("scenario_comments", kwargs={"scenario_id": self.pk})
 
     def is_complete(self):
         sizes = list(self.sizes.all())

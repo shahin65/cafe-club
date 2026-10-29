@@ -4,10 +4,11 @@ from django.core.files.uploadedfile import UploadedFile
 from django.shortcuts import redirect
 from django.urls import path
 from django.utils.html import format_html
+from django.views.decorators.http import require_POST
 
 from banners.geo import IRAN_CITIES
 from banners.images import optimize_image, optimize_venue_image
-from banners.models import Banner, BlueTickRequest, EventAd, SiteLink, UserProfile, Venue, VenueComment, VenueRating, VenueSubmission
+from banners.models import Banner, BlueTickRequest, EventAd, LegalPage, SiteLink, SiteSettings, UserProfile, Venue, VenueComment, VenueRating, VenueSubmission
 
 
 class BannerAdmin(admin.ModelAdmin):
@@ -110,12 +111,12 @@ admin.site.register(Banner, BannerAdmin)
 
 class UserProfileAdmin(admin.ModelAdmin):
     change_list_template = "admin/banners/userprofile/change_list.html"
-    list_display = ("public_id_display", "user", "google_email", "is_verified")
-    list_filter = ("is_verified",)
-    search_fields = ("public_id", "user__username", "google_email")
+    list_display = ("public_id_display", "user", "google_email", "app_source", "is_verified")
+    list_filter = ("is_verified", "app_source")
+    search_fields = ("public_id", "user__username", "display_name", "google_email")
     search_help_text = "جستجو با شناسه شش‌رقمی، نام کاربری یا جیمیل"
     readonly_fields = ("public_id", "user", "google_email", "google_sub")
-    fields = ("user", "public_id", "is_verified", "google_email", "bio", "photo")
+    fields = ("user", "public_id", "display_name", "is_verified", "app_source", "google_email", "bio", "photo")
 
     def get_urls(self):
         urls = super().get_urls()
@@ -180,7 +181,7 @@ class EventAdAdmin(admin.ModelAdmin):
     list_display_links = ("event_name",)
     list_filter = ("is_published", "is_new")
     list_editable = ("is_published",)
-    search_fields = ("event_name", "organizer_name", "phone", "address", "cafe_bank", "user__username")
+    search_fields = ("event_name", "organizer_name", "phone", "address", "cafe_bank", "city", "district", "scenario", "user__username")
     readonly_fields = ("user", "created_at", "expires_at", "image_preview_large")
     actions = ("unpublish_ads", "publish_ads")
     ordering = ("-created_at",)
@@ -198,6 +199,9 @@ class EventAdAdmin(admin.ModelAdmin):
                     "phone",
                     "ticket_price",
                     "cafe_bank",
+                    "city",
+                    "district",
+                    "scenario",
                 )
             },
         ),
@@ -356,7 +360,7 @@ class VenueSubmissionAdmin(admin.ModelAdmin):
     actions = ("publish_to_list",)
     readonly_fields = ("user", "created_at")
     fieldsets = (
-        ("درخواست", {"fields": ("name", "logo", "manager_name", "address", "phone", "hours", "city")}),
+        ("درخواست", {"fields": ("name", "logo", "manager_name", "address", "phone", "hours", "city", "latitude", "longitude")}),
         ("تصاویر", {"fields": ("photo_1", "photo_2", "photo_3")}),
         ("بررسی", {"fields": ("user", "is_reviewed", "created_at")}),
     )
@@ -376,6 +380,8 @@ class VenueSubmissionAdmin(admin.ModelAdmin):
                 address=item.address,
                 phone=item.phone,
                 hours=item.hours,
+                latitude=item.latitude,
+                longitude=item.longitude,
                 is_active=True,
             )
             if item.logo:
@@ -421,8 +427,65 @@ class SiteLinkAdmin(admin.ModelAdmin):
         super().save_model(request, obj, form, change)
 
 
+class LegalPageAdmin(admin.ModelAdmin):
+    list_display = ("title", "key")
+    search_fields = ("title", "title_en", "body", "body_en")
+    fields = ("key", "title", "title_en", "body", "body_en")
+    readonly_fields = ("key",)
+
+    def get_form(self, request, obj=None, change=False, **kwargs):
+        form = super().get_form(request, obj, change, **kwargs)
+        for name in ("body", "body_en"):
+            field = form.base_fields.get(name)
+            if field is not None:
+                field.widget.attrs["rows"] = 18
+        return form
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
 admin.site.register(Venue, VenueAdmin)
 admin.site.register(VenueComment, VenueCommentAdmin)
 admin.site.register(VenueRating, VenueRatingAdmin)
 admin.site.register(VenueSubmission, VenueSubmissionAdmin)
 admin.site.register(SiteLink, SiteLinkAdmin)
+admin.site.register(LegalPage, LegalPageAdmin)
+
+
+@require_POST
+def toggle_maintenance(request):
+    settings_row = SiteSettings.load()
+    settings_row.maintenance_mode = request.POST.get("maintenance_mode") == "1"
+    settings_row.save(update_fields=["maintenance_mode"])
+    if settings_row.maintenance_mode:
+        messages.warning(request, "سایت برای کاربران در حالت تعمیر قرار گرفت.")
+    else:
+        messages.success(request, "سایت دوباره برای کاربران در دسترس است.")
+    return redirect("admin:index")
+
+
+_original_admin_get_urls = admin.site.get_urls
+_original_admin_index = admin.site.index
+
+
+def _cafe_admin_get_urls():
+    extra = [
+        path("site-maintenance/", admin.site.admin_view(toggle_maintenance), name="site_maintenance"),
+    ]
+    return extra + _original_admin_get_urls()
+
+
+def _cafe_admin_index(request, extra_context=None):
+    extra_context = extra_context or {}
+    extra_context["maintenance_mode"] = SiteSettings.load().maintenance_mode
+    return _original_admin_index(request, extra_context)
+
+
+if not getattr(admin.site, "_cafe_maintenance_patched", False):
+    admin.site.get_urls = _cafe_admin_get_urls
+    admin.site.index = _cafe_admin_index
+    admin.site._cafe_maintenance_patched = True

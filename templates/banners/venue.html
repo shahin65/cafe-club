@@ -82,7 +82,7 @@
           {% csrf_token %}
           <h2>{% trans "ارسال نظر" %}</h2>
           <p class="music-note">{% trans "نظر پس از تأیید مدیریت روی سایت دیده می‌شود." %}</p>
-          <label>{% trans "نام" %}<input name="author_name" maxlength="40" required value="{% if profile_username %}{{ profile_username }}{% endif %}"></label>
+          <label>{% trans "نام" %}<input name="author_name" maxlength="40" required value="{% if profile_shown_name %}{{ profile_shown_name }}{% endif %}"></label>
           <label>{% trans "نظر شما" %}<textarea name="body" rows="4" maxlength="1000" required></textarea></label>
           <label>{% trans "جمع این دو عدد را بنویسید" %} ({{ captcha_left }} + {{ captcha_right }})
             <input name="captcha" inputmode="numeric" maxlength="2" required dir="ltr">
@@ -109,5 +109,5 @@
 {% endblock %}
 
 {% block extra_js %}
-  <script src="{% static 'js/places.js' %}?v=2"></script>
+  <script src="{% static 'js/places.js' %}?v=4"></script>
 {% endblock %}

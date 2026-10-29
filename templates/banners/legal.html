@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{{ legal.display_title }} | {% trans "کافه کلاب" %}{% endblock %}
+
+{% block content %}
+  <section class="sheet venue-sheet">
+    <div class="venue-card legal-card">
+      <p class="doc-kicker"><a href="{% url 'app_settings' %}">{% trans "تنظیمات" %}</a></p>
+      <h1>{{ legal.display_title }}</h1>
+      <div class="legal-body">{{ legal.display_body|linebreaks }}</div>
+    </div>
+  </section>
+{% endblock %}

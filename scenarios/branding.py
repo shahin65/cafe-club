@@ -85,6 +85,24 @@ def _save_session(request, payload):
     request.session.modified = True
 
 
+def _delete_stored(path):
+    if path and default_storage.exists(path):
+        default_storage.delete(path)
+
+
+def _clear_uploaded_logo(request, branding=None):
+    session = request.session.get(CARD_LOGO_SESSION) or {}
+    if session.get("kind") == "upload":
+        _delete_stored(session.get("path"))
+    if branding and branding.image:
+        branding.image.delete(save=False)
+
+
+def _is_verified(request):
+    profile = getattr(request.user, "club_profile", None) if request.user.is_authenticated else None
+    return bool(profile and profile.is_verified)
+
+
 def _save_user(request, preset="", image_path=""):
     if not request.user.is_authenticated:
         return
@@ -101,14 +119,16 @@ def _save_user(request, preset="", image_path=""):
 def save_card_logo(request):
     preset = (request.POST.get("preset") or "").strip()
     if preset in PRESETS:
+        branding = CardBranding.objects.filter(user=request.user).first() if request.user.is_authenticated else None
+        _clear_uploaded_logo(request, branding)
         _save_session(request, {"kind": "preset", "key": preset})
         _save_user(request, preset=preset)
         return redirect("home")
     uploaded = request.FILES.get("logo")
-    if uploaded:
-        if not request.user.is_authenticated:
-            request.session.save()
-        prefix = request.user.id if request.user.is_authenticated else (request.session.session_key or "anon")
+    if uploaded and _is_verified(request):
+        branding = CardBranding.objects.filter(user=request.user).first()
+        _clear_uploaded_logo(request, branding)
+        prefix = request.user.id
         path = _store_upload(prefix, uploaded)
         if path:
             _save_session(request, {"kind": "upload", "path": path})

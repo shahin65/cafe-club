@@ -1,5 +1,5 @@
 (function () {
-  var root = document.querySelector("[data-places], .venue-sheet");
+  var root = document.querySelector("[data-places], [data-filter-bar], .venue-sheet");
   if (!root) return;
 
   var status = root.querySelector("[data-geo-status]");

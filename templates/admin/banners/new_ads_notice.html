@@ -1,9 +1,6 @@
-{% if count %}
-<div class="cafe-dashboard-intro" style="background:#fff3cd;border:1px solid #f0c36d;padding:12px 16px;border-radius:8px;margin:0 0 16px;">
-  <p style="margin:0;">
-    {{ count }} آگهی جدید ثبت شده است.
-    <a href="{{ url }}">مشاهده آگهی‌های جدید</a>
-    — در صورت نیاز آگهی را لغو کنید یا از حالت انتشار خارج سازید.
-  </p>
+{% if alarms %}
+<div class="cafe-dashboard-intro admin-alarm-board">
+  <p>موارد جدید برای بررسی:</p>
+  {% include "admin/banners/admin_alarms.html" %}
 </div>
 {% endif %}
