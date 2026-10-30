@@ -1,5 +1,8 @@
 from assistant.models import (
+    ACTION_APPROVE,
     ACTION_NEEDS_REVIEW,
+    ACTION_REJECT,
+    ACTION_REPLY,
     SCOPE_ADS,
     SCOPE_COMMENTS,
     SCOPE_TICKS,
@@ -15,7 +18,7 @@ DEFAULTS = {
             "اگر تخلف روشن است reject کن. اگر مبهم است needs_review بده. "
             "در صورت تأیید می‌توانی یک پاسخ کوتاه فارسی، محترمانه و تشکرآمیز در فیلد reply بنویسی."
         ),
-        "allowed_actions": [ACTION_NEEDS_REVIEW],
+        "allowed_actions": [ACTION_APPROVE, ACTION_REJECT, ACTION_REPLY, ACTION_NEEDS_REVIEW],
         "auto_reply_enabled": False,
     },
     SCOPE_ADS: {
@@ -24,14 +27,14 @@ DEFAULTS = {
             "صحت مکان، شماره یا زمان را که قابل راستی‌آزمایی نیست فرض نکن. "
             "نقص اطلاعات یا مورد مشکوک را needs_review کن."
         ),
-        "allowed_actions": [ACTION_NEEDS_REVIEW],
+        "allowed_actions": [ACTION_APPROVE, ACTION_REJECT, ACTION_NEEDS_REVIEW],
     },
     SCOPE_VENUES: {
         "instructions": (
             "درخواست ثبت کافه یا کلاب را از نظر کامل بودن نام، آدرس، تلفن و ساعات کاری و نبود محتوای نامناسب بررسی کن. "
             "مدرک یا صحت مکان را تأیید قطعی نکن. مورد ناقص یا مشکوک را needs_review کن."
         ),
-        "allowed_actions": [ACTION_NEEDS_REVIEW],
+        "allowed_actions": [ACTION_APPROVE, ACTION_REJECT, ACTION_NEEDS_REVIEW],
     },
     SCOPE_TICKS: {
         "instructions": (
@@ -45,7 +48,7 @@ DEFAULTS = {
 
 def ensure_policies():
     for scope, data in DEFAULTS.items():
-        ReviewPolicy.objects.get_or_create(
+        policy, created = ReviewPolicy.objects.get_or_create(
             scope=scope,
             defaults={
                 "instructions": data["instructions"],
@@ -55,3 +58,11 @@ def ensure_policies():
                 "confidence_threshold": "0.85",
             },
         )
+        if created:
+            continue
+        wanted = data["allowed_actions"]
+        current = list(policy.allowed_actions or [])
+        merged = list(dict.fromkeys(current + wanted))
+        if merged != current:
+            policy.allowed_actions = merged
+            policy.save(update_fields=["allowed_actions", "updated_at"])

@@ -15,7 +15,13 @@
       </ul>
     {% endif %}
     <p class="venue-submit-intro">آگهی «{{ ad.event_name }}» ثبت شد. یکی از پلن‌ها را انتخاب کنید تا آگهی متمایز دیده شود.</p>
-    <p class="ad-note">اتصال به درگاه پرداخت برای نسخه‌های دایرکت، بازار و مایکت بعداً اضافه می‌شود.</p>
+    {% if gateway == "bazaar" %}
+      <p class="ad-note">{% trans "پرداخت این پلن از درگاه کافه بازار انجام می‌شود." %}</p>
+    {% elif gateway == "myket" %}
+      <p class="ad-note">{% trans "پرداخت این پلن از درگاه مایکت انجام می‌شود." %}</p>
+    {% else %}
+      <p class="ad-note">{% trans "پرداخت این پلن از درگاه بیت‌پی انجام می‌شود." %}</p>
+    {% endif %}
     <div class="ad-plan-grid">
       {% for plan in plans %}
         <form class="ad-plan-card is-{{ plan.key }}" method="post">

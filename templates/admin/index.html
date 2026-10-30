@@ -14,7 +14,7 @@
 {% block content %}
 <div class="cafe-dashboard-intro">
   <h2>خوش آمدید به داشبورد کافه کلاب</h2>
-  <p>بنرهای صفحه اصلی را از اینجا مدیریت کنید. لینک دانلود اپ و شبکه‌های اجتماعی صفحه تنظیمات را از بخش «تنظیمات» وارد کنید. متن حریم خصوصی و شرایط استفاده از بخش «صفحات حقوقی» ویرایش می‌شود. کافه و کلاب‌ها، درخواست ثبت کافه، نظرها، آگهی‌ها و تیک آبی هم از همین داشبورد مدیریت می‌شوند. بررسی هوشمند موارد از بخش <a href="{% url 'assistant_home' %}">دستیار هوش مصنوعی</a> انجام می‌شود.</p>
+  <p>بنرهای صفحه اصلی را از اینجا مدیریت کنید. لینک دانلود اپ و شبکه‌های اجتماعی صفحه تنظیمات را از بخش «تنظیمات» وارد کنید. متن حریم خصوصی و شرایط استفاده از بخش «صفحات حقوقی» ویرایش می‌شود. کافه و کلاب‌ها، درخواست ثبت کافه، نظرها، آگهی‌ها و تیک آبی هم از همین داشبورد مدیریت می‌شوند. فروشگاه، SKU و آخرین خریدها در همین صفحه و بخش «فروشگاه و خریدها» است. موارد نیازمند تصمیم انسان در «بازبینی مدیر» و بررسی هوشمند در <a href="{% url 'assistant_home' %}">دستیار هوش مصنوعی</a> است.</p>
 </div>
 <form class="module cafe-maintenance{% if maintenance_mode %} is-on{% endif %}" method="post" action="{% url 'admin:site_maintenance' %}">
   {% csrf_token %}
@@ -26,6 +26,73 @@
   <p>با زدن این تیک، سایت برای کاربران عادی بسته می‌شود تا زمان آپدیت. پنل ادمین باز می‌ماند.</p>
 </form>
 {% new_ads_notice %}
+<div class="cafe-dashboard-boards">
+  <div class="module">
+    <h2>بازبینی مدیر</h2>
+    <p>مواردی که دستیار برای تصمیم انسان کنار گذاشته است.</p>
+    {% if manager_cases %}
+      <table>
+        <thead>
+          <tr>
+            <th>بخش</th>
+            <th>عنوان</th>
+            <th>پیشنهاد</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for case in manager_cases %}
+            <tr>
+              <td>{{ case.get_scope_display }}</td>
+              <td>{{ case.title }}</td>
+              <td>{{ case.get_ai_decision_display|default:"—" }}</td>
+              <td><a href="{% url 'assistant_case' case.pk %}?next=manager">رسیدگی</a></td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p>موردی برای بازبینی مدیر نیست.</p>
+    {% endif %}
+    <p><a href="{% url 'assistant_manager' %}">مشاهده همه موارد بازبینی</a></p>
+  </div>
+  <div class="module">
+    <h2>فروشگاه و آخرین خریدها</h2>
+    <p>
+      <a href="{% url 'admin:banners_coinpackage_changelist' %}">محصولات و SKU</a>
+      —
+      <a href="{% url 'admin:banners_paymenttransaction_changelist' %}">همه خریدها</a>
+    </p>
+    {% if latest_purchases %}
+      <table>
+        <thead>
+          <tr>
+            <th>خریدار</th>
+            <th>محصول</th>
+            <th>مبلغ</th>
+            <th>درگاه</th>
+            <th>توکن خرید</th>
+            <th>وضعیت</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for buy in latest_purchases %}
+            <tr>
+              <td>{{ buy.user.get_username }}{% if buy.user.email %}<br><span class="mini quiet" dir="ltr">{{ buy.user.email }}</span>{% endif %}</td>
+              <td>{{ buy.package.title }} <span class="mini quiet" dir="ltr">{{ buy.package.sku }}</span></td>
+              <td>{{ buy.amount_toman }}</td>
+              <td>{{ buy.get_gateway_display }}</td>
+              <td dir="ltr">{{ buy.purchase_token|default:"—" }}</td>
+              <td><a href="{% url 'admin:banners_paymenttransaction_change' buy.pk %}">{{ buy.get_status_display }}</a></td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p>هنوز خریدی ثبت نشده است.</p>
+    {% endif %}
+  </div>
+</div>
 <div id="content-main">
   {% include "admin/app_list.html" with app_list=app_list show_changelinks=True %}
 </div>
@@ -60,6 +127,24 @@
             {% endfor %}
             </ul>
             {% endif %}
+    </div>
+    <div class="module">
+        <h2>اقدامات دستیار هوش مصنوعی</h2>
+        {% if assistant_events %}
+            <ul class="actionlist">
+            {% for item in assistant_events %}
+                <li class="changelink">
+                    <a href="{{ item.url }}">{{ item.title }}</a>
+                    <br>
+                    <span class="mini quiet">{{ item.when }} — {{ item.actor }} — {{ item.scope }} — {{ item.action }}{% if item.applied %} (اعمال شد){% endif %}</span>
+                    {% if item.reason %}<br><span class="mini quiet">{{ item.reason }}</span>{% endif %}
+                </li>
+            {% endfor %}
+            </ul>
+        {% else %}
+            <p>هنوز اقدامی از دستیار ثبت نشده است.</p>
+        {% endif %}
+        <p><a href="{% url 'assistant_home' %}">پنل دستیار</a></p>
     </div>
 </div>
 {% endblock %}

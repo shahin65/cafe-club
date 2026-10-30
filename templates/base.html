@@ -20,7 +20,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Lalezar&family=Vazirmatn:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{% static 'css/site.css' %}?v=73">
+  <link rel="stylesheet" href="{% static 'css/site.css' %}?v=79">
 </head>
 <body{% if role_deal_active %} data-deal-active="1" data-deal-cancel="{% url 'deal_cancel' %}"{% endif %}{% if deal_play_chrome %} data-deal-play="1"{% endif %}>
   <header class="app-bar">
@@ -89,8 +89,15 @@
       </div>
     </form>
   </dialog>
+  <div class="offline-screen" data-offline-screen hidden>
+    <div class="offline-card">
+      <h2>{% trans "اتصال اینترنت برقرار نیست" %}</h2>
+      <p>{% trans "اتصال اینترنتتان را بررسی کنید و دوباره تلاش کنید." %}</p>
+      <button type="button" class="choice tournament-btn" data-offline-retry>{% trans "تلاش مجدد" %}</button>
+    </div>
+  </div>
   <script src="{% static 'js/call.js' %}?v=1"></script>
-  <script src="{% static 'js/pwa.js' %}?v=2"></script>
+  <script src="{% static 'js/pwa.js' %}?v=3"></script>
   <script>
     (function () {
       var pendingDealHref = "";

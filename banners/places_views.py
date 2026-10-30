@@ -1,4 +1,3 @@
-from datetime import timedelta
 from urllib.parse import urlencode
 
 from django.conf import settings
@@ -8,7 +7,6 @@ from django.core.exceptions import ValidationError
 from django.db.models import Avg, Count, Q
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
-from django.utils import timezone
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
 from banners.geo import (
@@ -24,8 +22,11 @@ from banners.geo import (
     parse_coord,
 )
 from banners.accounts import COMMENT_RECEIVED, comment_author_name
+from banners.catalog import package_for_venue_plan
+from banners.gateways import gateway_for_source
 from banners.images import optimize_venue_image
 from banners.models import Venue, VenueComment, VenueRating, VenueSubmission
+from banners.pay_views import install_source, start_checkout
 from banners.promo import VENUE_PLANS, venue_plan_or_none
 
 SORTS = ("name", "distance", "rating")
@@ -62,19 +63,27 @@ def _decorate(venues, lat, lng):
     return items
 
 
+def _promo_key(venue):
+    live = venue.is_promo_live()
+    boosted = venue.boosted_at.timestamp() if live and venue.boosted_at else 0
+    return (0 if live else 1, -(venue.promo_rank or 0) if live else 0, -boosted)
+
+
 def _sort_venues(venues, sort, has_point):
     if sort == "name":
-        return sorted(venues, key=lambda item: item.name)
-    if sort == "distance" and has_point:
-        return sorted(venues, key=lambda item: (item.distance_km is None, item.distance_km or 0, item.name))
-    return sorted(
-        venues,
-        key=lambda item: (
-            -(item.avg_rating or 0),
-            -(item.rating_count or 0),
-            item.name,
-        ),
-    )
+        items = sorted(venues, key=lambda item: item.name)
+    elif sort == "distance" and has_point:
+        items = sorted(venues, key=lambda item: (item.distance_km is None, item.distance_km or 0, item.name))
+    else:
+        items = sorted(
+            venues,
+            key=lambda item: (
+                -(item.avg_rating or 0),
+                -(item.rating_count or 0),
+                item.name,
+            ),
+        )
+    return sorted(items, key=_promo_key)
 
 
 def _nav_for(venue):
@@ -361,31 +370,6 @@ def _public_id_from_text(raw):
     return int(digits)
 
 
-def _apply_venue_plan(venue, plan_key, channel=""):
-    plan = VENUE_PLANS[plan_key]
-    now = timezone.now()
-    venue.promo_plan = plan_key
-    venue.pending_plan = ""
-    venue.promo_rank = plan["rank"]
-    venue.show_on_home = bool(plan["show_on_home"])
-    venue.boosted_at = now
-    venue.boost_requested = True
-    venue.boost_channel = (channel or "")[:12]
-    venue.promo_expires_at = now + timedelta(days=plan["days"])
-    venue.save(
-        update_fields=[
-            "promo_plan",
-            "pending_plan",
-            "promo_rank",
-            "show_on_home",
-            "boosted_at",
-            "boost_requested",
-            "boost_channel",
-            "promo_expires_at",
-        ]
-    )
-
-
 def _new_venue_from_promo(request, values):
     lat = parse_coord(values["latitude"])
     lng = parse_coord(values["longitude"])
@@ -456,18 +440,14 @@ def venue_promo(request):
                     if not venue:
                         raise ValidationError("شناسه کافه پیدا نشد. اگر کافه ثبت نشده، حالت ثبت کافه جدید را انتخاب کنید.")
                 channel = getattr(request, "app_source", "") or ""
+                package = package_for_venue_plan(plan_key)
+                if not package:
+                    raise ValidationError("شناسه محصول این پلن در فروشگاه تعریف نشده است.")
                 venue.boost_requested = True
                 venue.pending_plan = plan_key
                 venue.boost_channel = channel[:12]
                 venue.save(update_fields=["boost_requested", "pending_plan", "boost_channel"])
-                if settings.DEBUG:
-                    _apply_venue_plan(venue, plan_key, channel)
-                    messages.success(request, f"پلن {chosen['title']} برای «{venue.name}» فعال شد.")
-                    if chosen["show_on_home"]:
-                        return redirect("home")
-                    return redirect("ads")
-                messages.info(request, "درخواست پلن ثبت شد. اتصال به درگاه پرداخت بعداً اضافه می‌شود.")
-                return redirect("venue_promo")
+                return start_checkout(request, package, venue=venue, fail_url="venue_promo")
             except ValidationError as exc:
                 error = " ".join(exc.messages)
     return render(
@@ -478,5 +458,7 @@ def venue_promo(request):
             "error": error,
             "plans": list(VENUE_PLANS.values()),
             "local_checkout": settings.DEBUG,
+            "install_source": install_source(request),
+            "gateway": gateway_for_source(getattr(request, "app_source", "")),
         },
     )

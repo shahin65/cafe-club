@@ -375,6 +375,34 @@ a.tab {
     display: none !important;
 }
 
+.offline-screen {
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    background: rgba(5, 6, 12, 0.94);
+}
+
+.offline-screen[hidden] {
+    display: none !important;
+}
+
+.offline-card {
+    max-width: 360px;
+    text-align: center;
+}
+
+.offline-card h2 {
+    margin: 0 0 10px;
+}
+
+.offline-card p {
+    margin: 0 0 18px;
+    color: var(--muted);
+}
+
 .install-card h1 {
     margin-bottom: 6px;
 }
@@ -1175,7 +1203,7 @@ h1, h2 {
 
 .card-sheet {
     --deal-chrome: calc(56px + 32px + 92px + env(safe-area-inset-bottom, 0px));
-    --deal-meta: 8.5rem;
+    --deal-meta: 7.6rem;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -1315,8 +1343,19 @@ h1, h2 {
     font-size: 0.82rem;
 }
 
-.card-hint {
+.card-footer {
     flex: none;
+    display: grid;
+    place-items: center;
+    width: min(78vw, 280px);
+    min-height: 72px;
+}
+
+.card-footer > * {
+    grid-area: 1 / 1;
+}
+
+.card-hint {
     margin: 0;
     color: var(--muted);
     text-align: center;
@@ -1324,11 +1363,10 @@ h1, h2 {
 }
 
 .card-actions {
-    flex: none;
     display: grid;
     place-items: center;
-    min-height: 52px;
-    width: min(78vw, 260px);
+    width: 100%;
+    min-height: 72px;
 }
 
 .card-actions .choice {
@@ -2100,7 +2138,7 @@ dialog.settings-dialog:not([open]) {
 
 @media (max-width: 720px) {
     .card-sheet {
-        --deal-meta: 8.1rem;
+        --deal-meta: 7.4rem;
     }
 
     .card-sheet .deal-kicker img {
@@ -2293,6 +2331,7 @@ dialog.settings-dialog:not([open]) {
 }
 
 .place-card {
+    position: relative;
     display: grid;
     grid-template-columns: 64px minmax(0, 1fr);
     gap: 12px;
@@ -2302,6 +2341,33 @@ dialog.settings-dialog:not([open]) {
     background: rgba(8, 8, 12, 0.55);
     border: 1px solid var(--line);
     text-decoration: none;
+}
+
+.place-card.is-boosted,
+.places-frost .place-card.is-boosted {
+    border: 1px solid rgba(184, 115, 51, 0.88);
+    box-shadow: 0 0 0 1px rgba(184, 115, 51, 0.28), 0 12px 28px rgba(70, 38, 12, 0.35);
+    background:
+        linear-gradient(180deg, rgba(184, 115, 51, 0.2), rgba(8, 8, 12, 0.2) 42%),
+        rgba(18, 12, 8, 0.72);
+}
+
+.place-card.is-plan-silver,
+.places-frost .place-card.is-plan-silver {
+    border-color: rgba(196, 205, 216, 0.92);
+    box-shadow: 0 0 0 1px rgba(196, 205, 216, 0.3), 0 12px 28px rgba(40, 48, 58, 0.4);
+    background:
+        linear-gradient(180deg, rgba(196, 205, 216, 0.2), rgba(8, 8, 12, 0.22) 42%),
+        rgba(14, 16, 20, 0.78);
+}
+
+.place-card.is-plan-gold,
+.places-frost .place-card.is-plan-gold {
+    border-color: rgba(230, 194, 122, 0.95);
+    box-shadow: 0 0 0 1px rgba(230, 194, 122, 0.35), 0 12px 28px rgba(90, 58, 18, 0.4);
+    background:
+        linear-gradient(180deg, rgba(230, 194, 122, 0.2), rgba(8, 8, 12, 0.2) 42%),
+        rgba(18, 12, 8, 0.72);
 }
 
 .place-card img,
@@ -3113,20 +3179,6 @@ dialog.nav-sheet:not([open]) {
     max-width: 920px;
     margin: 0 auto 8px;
     padding: 6px 10px;
-}
-
-.home-promo-kicker {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    margin: 0 0 4px;
-    font-size: 0.78rem;
-    font-weight: 700;
-    color: #e6c27a;
-}
-
-.home-promo-kicker svg {
-    flex: 0 0 auto;
 }
 
 .home-promo-list {
@@ -4251,4 +4303,39 @@ button.choice.tournament-end,
 
 .tournament-prize {
     color: rgba(244, 240, 232, 0.86);
+}
+
+.wallet-balance,
+.wallet-source {
+    margin: 0 0 12px;
+}
+
+.wallet-packages {
+    list-style: none;
+    margin: 0 0 24px;
+    padding: 0;
+    display: grid;
+    gap: 12px;
+}
+
+.wallet-card {
+    padding: 16px;
+    border-radius: 16px;
+    background: rgba(230, 194, 122, 0.12);
+    border: 1px solid rgba(230, 194, 122, 0.28);
+}
+
+.wallet-card h2 {
+    margin: 0 0 8px;
+}
+
+.wallet-verify {
+    margin-top: 8px;
+}
+
+.ad-plan-sku {
+    margin: 0 0 8px;
+    font-size: 0.82rem;
+    letter-spacing: 0.02em;
+    color: rgba(244, 240, 232, 0.72);
 }

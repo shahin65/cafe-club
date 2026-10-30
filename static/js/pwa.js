@@ -21,4 +21,28 @@
       iosGuide.scrollIntoView({ behavior: "smooth", block: "start" });
     });
   }
+
+  var offlineScreen = document.querySelector("[data-offline-screen]");
+  var retryButton = document.querySelector("[data-offline-retry]");
+  function showOffline() {
+    if (offlineScreen) offlineScreen.hidden = false;
+  }
+  function hideOffline() {
+    if (offlineScreen) offlineScreen.hidden = true;
+  }
+  if (offlineScreen) {
+    window.addEventListener("offline", showOffline);
+    window.addEventListener("online", hideOffline);
+    if (!navigator.onLine) showOffline();
+  }
+  if (retryButton) {
+    retryButton.addEventListener("click", function () {
+      if (navigator.onLine) {
+        hideOffline();
+        window.location.reload();
+        return;
+      }
+      showOffline();
+    });
+  }
 })();

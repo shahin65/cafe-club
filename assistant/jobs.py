@@ -19,6 +19,7 @@ from assistant.models import (
     STATUS_NEEDS_REVIEW,
     STATUS_PENDING,
     STATUS_REJECTED,
+    AssistantConfig,
     AssistantRun,
     BaleReport,
     ReviewCase,
@@ -26,12 +27,33 @@ from assistant.models import (
 from assistant.reviewer import process_pending
 
 
+def current_hour():
+    return timezone.localtime().hour
+
+
+def scheduled_now(hours):
+    slots = {int(hour) for hour in (hours or []) if str(hour).isdigit() or isinstance(hour, int)}
+    return current_hour() in slots
+
+
+def report_window_hours(hours):
+    slots = sorted({int(hour) % 24 for hour in (hours or []) if str(hour).isdigit() or isinstance(hour, int)})
+    if len(slots) >= 2:
+        gaps = [(slots[index] - slots[index - 1]) % 24 for index in range(1, len(slots))]
+        gaps.append((slots[0] - slots[-1]) % 24 or 24)
+        return min(gap or 24 for gap in gaps)
+    return 12
+
+
 def _busy(kind, window_minutes):
     cutoff = timezone.now() - timedelta(minutes=window_minutes)
     return AssistantRun.objects.filter(kind=kind, status=RUN_RUNNING, started_at__gte=cutoff).exists()
 
 
-def run_hourly():
+def run_hourly(force=False):
+    config = AssistantConfig.load()
+    if not force and not scheduled_now(config.review_hours):
+        return {"skipped": "not_scheduled"}
     if _busy(KIND_HOURLY, 50):
         return {"skipped": "busy"}
     run = AssistantRun.objects.create(kind=KIND_HOURLY, status=RUN_RUNNING)
@@ -103,11 +125,23 @@ def format_report(data):
     )
 
 
-def send_periodic_report(hours=12, retry_failed=True):
+def send_live_snapshot(prefix="گزارش لحظه‌ای دستیار کافه کلاب"):
+    end = timezone.now()
+    start = end - timedelta(hours=24)
+    payload = build_report(start, end)
+    send_bale_message(f"{prefix}\n{format_report(payload)}")
+    return {"sent": True}
+
+
+def send_periodic_report(hours=None, retry_failed=True, force=False):
+    config = AssistantConfig.load()
+    if not force and not scheduled_now(config.report_hours):
+        return {"skipped": "not_scheduled"}
     if _busy(KIND_REPORT, 10):
         return {"skipped": "busy"}
+    window = hours if hours is not None else report_window_hours(config.report_hours)
     end = timezone.now().replace(minute=0, second=0, microsecond=0)
-    start = end - timedelta(hours=hours)
+    start = end - timedelta(hours=window)
     run = AssistantRun.objects.create(kind=KIND_REPORT, status=RUN_RUNNING)
     report, created = BaleReport.objects.get_or_create(period_start=start, period_end=end, defaults={"payload": {}})
     if report.sent_at:

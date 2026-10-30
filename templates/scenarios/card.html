@@ -39,13 +39,15 @@
         <button type="submit">{% trans "بستن" %}</button>
       </form>
     </dialog>
-    <p class="card-hint"{% if auto_reveal %} hidden{% endif %}>{% trans "برای دیدن نقش، کارت را لمس کنید." %}</p>
-    <div class="card-actions">
-      <a class="choice deal-safe deal-next" href="{{ board_url }}" hidden>{{ continue_label }}</a>
-      <a class="choice deal-safe deal-host" href="{% url 'deal_host' %}" hidden>
-        <img src="{% static 'Icon-Opreator.png' %}" alt="" width="28" height="28">
-        <span>{% trans "مدیریت بازی" %}</span>
-      </a>
+    <div class="card-footer">
+      <p class="card-hint"{% if auto_reveal %} hidden{% endif %}>{% trans "برای دیدن نقش، کارت را لمس کنید." %}</p>
+      <div class="card-actions">
+        <a class="choice deal-safe deal-next" href="{{ board_url }}" hidden>{{ continue_label }}</a>
+        <a class="choice deal-safe deal-host" href="{% url 'deal_host' %}" hidden>
+          <img src="{% static 'Icon-Opreator.png' %}" alt="" width="28" height="28">
+          <span>{% trans "مدیریت بازی" %}</span>
+        </a>
+      </div>
     </div>
   </section>
   <script>

@@ -1,15 +1,17 @@
 from django import forms
+from django.conf import settings
 from django.contrib import admin, messages
 from django.core.files.uploadedfile import UploadedFile
+from django.db.models import Count, Q, Sum
 from django.shortcuts import redirect
-from django.urls import path
+from django.urls import path, reverse
 from django.utils import timezone
 from django.utils.html import format_html
 from django.views.decorators.http import require_POST
 
 from banners.geo import IRAN_CITIES
 from banners.images import optimize_image, optimize_venue_image
-from banners.models import Banner, BlueTickRequest, EventAd, LegalPage, SiteLink, SiteSettings, Tournament, TournamentPlayer, UserProfile, Venue, VenueComment, VenueRating, VenueSubmission
+from banners.models import Banner, BlueTickRequest, CoinPackage, EventAd, LegalPage, PaymentTransaction, SiteLink, SiteSettings, Tournament, TournamentPlayer, UserProfile, Venue, VenueComment, VenueRating, VenueSubmission
 from banners.venues import publish_venue_submission
 
 
@@ -540,6 +542,104 @@ admin.site.register(LegalPage, LegalPageAdmin)
 admin.site.register(Tournament, TournamentAdmin)
 
 
+class CoinPackageAdmin(admin.ModelAdmin):
+    change_list_template = "admin/banners/coinpackage/change_list.html"
+    list_display = ("sku", "title", "kind", "plan_key", "price_toman", "sold_count", "sold_amount", "is_active")
+    list_filter = ("kind", "is_active")
+    list_editable = ("is_active",)
+    search_fields = ("sku", "title", "plan_key")
+    ordering = ("kind", "sort_order", "id")
+
+    def get_queryset(self, request):
+        completed = Q(payments__status=PaymentTransaction.STATUS_COMPLETED)
+        return (
+            super()
+            .get_queryset(request)
+            .annotate(sold_count=Count("payments", filter=completed), sold_amount=Sum("payments__amount_toman", filter=completed))
+        )
+
+    @admin.display(description="فروش موفق")
+    def sold_count(self, obj):
+        return obj.sold_count or 0
+
+    @admin.display(description="مبلغ فروش (تومان)")
+    def sold_amount(self, obj):
+        return obj.sold_amount or 0
+
+    def changelist_view(self, request, extra_context=None):
+        extra_context = extra_context or {}
+        extra_context["android_package_name"] = getattr(settings, "ANDROID_PACKAGE_NAME", "")
+        return super().changelist_view(request, extra_context)
+
+
+class PaymentTransactionAdmin(admin.ModelAdmin):
+    change_list_template = "admin/banners/paymenttransaction/change_list.html"
+    date_hierarchy = "created_at"
+    list_display = (
+        "id",
+        "buyer",
+        "sku",
+        "kind",
+        "amount_toman",
+        "gateway",
+        "source",
+        "purchase_token",
+        "status",
+        "event_ad",
+        "venue",
+        "created_at",
+        "completed_at",
+    )
+    list_filter = ("status", "gateway", "source", "package__kind")
+    search_fields = (
+        "user__username",
+        "user__email",
+        "package__sku",
+        "package__title",
+        "bitpay_id_get",
+        "bitpay_trans_id",
+        "purchase_token",
+        "event_ad__event_name",
+        "venue__name",
+    )
+    list_select_related = ("user", "package", "event_ad", "venue")
+    readonly_fields = (
+        "user",
+        "package",
+        "event_ad",
+        "venue",
+        "gateway",
+        "source",
+        "amount_toman",
+        "status",
+        "bitpay_id_get",
+        "bitpay_trans_id",
+        "purchase_token",
+        "payload",
+        "created_at",
+        "completed_at",
+    )
+
+    @admin.display(description="خریدار", ordering="user__username")
+    def buyer(self, obj):
+        if not obj.user_id:
+            return "—"
+        email = obj.user.email or "بدون ایمیل"
+        return f"{obj.user.get_username()} — {email}"
+
+    @admin.display(description="SKU", ordering="package__sku")
+    def sku(self, obj):
+        return obj.package.sku if obj.package_id else "—"
+
+    @admin.display(description="نوع", ordering="package__kind")
+    def kind(self, obj):
+        return obj.package.get_kind_display() if obj.package_id else "—"
+
+
+admin.site.register(CoinPackage, CoinPackageAdmin)
+admin.site.register(PaymentTransaction, PaymentTransactionAdmin)
+
+
 @require_POST
 def toggle_maintenance(request):
     settings_row = SiteSettings.load()
@@ -563,9 +663,41 @@ def _cafe_admin_get_urls():
     return extra + _original_admin_get_urls()
 
 
+def _assistant_recent_events():
+    from assistant.models import ACTION_CHOICES, ReviewEvent
+
+    labels = dict(ACTION_CHOICES)
+    rows = []
+    events = ReviewEvent.objects.select_related("case", "actor_user").order_by("-created_at", "-id")[:10]
+    for event in events:
+        case = event.case
+        rows.append(
+            {
+                "url": reverse("assistant_case", args=[case.pk]),
+                "title": case.title or str(case),
+                "when": event.created_at,
+                "actor": "دستیار" if event.actor == "ai" else (event.actor_user.get_username() if event.actor_user_id else "مدیر"),
+                "scope": case.get_scope_display(),
+                "action": labels.get(event.action) or event.decision or event.action or "—",
+                "applied": event.applied,
+                "reason": (event.reason or "")[:160],
+            }
+        )
+    return rows
+
+
 def _cafe_admin_index(request, extra_context=None):
+    from assistant.models import STATUS_NEEDS_REVIEW, ReviewCase
+
     extra_context = extra_context or {}
     extra_context["maintenance_mode"] = SiteSettings.load().maintenance_mode
+    extra_context["assistant_events"] = _assistant_recent_events()
+    extra_context["manager_cases"] = list(
+        ReviewCase.objects.filter(status=STATUS_NEEDS_REVIEW).order_by("-updated_at", "-id")[:8]
+    )
+    extra_context["latest_purchases"] = list(
+        PaymentTransaction.objects.select_related("user", "package").order_by("-created_at", "-id")[:8]
+    )
     return _original_admin_index(request, extra_context)
 
 

@@ -1,18 +1,33 @@
 from django import template
 from django.urls import reverse
 
+from assistant.models import (
+    SOURCE_AD,
+    SOURCE_SCENARIO_COMMENT,
+    SOURCE_TICK,
+    SOURCE_VENUE,
+    SOURCE_VENUE_COMMENT,
+    STATUS_NEEDS_REVIEW,
+    STATUS_PENDING,
+    ReviewCase,
+)
 from banners.models import BlueTickRequest, EventAd, VenueComment, VenueSubmission
 from scenarios.models import ScenarioComment
 
 register = template.Library()
 
 
+def _unhandled(source, queryset):
+    handled = ReviewCase.objects.filter(source=source).exclude(status=STATUS_PENDING).values_list("object_id", flat=True)
+    return queryset.exclude(pk__in=handled).count()
+
+
 def _alarms():
-    ads = EventAd.objects.filter(is_new=True).count()
-    venues = VenueSubmission.objects.filter(is_reviewed=False).count()
-    venue_comments = VenueComment.objects.filter(is_approved=False).count()
-    scenario_comments = ScenarioComment.objects.filter(is_approved=False).count()
-    ticks = BlueTickRequest.objects.filter(is_reviewed=False).count()
+    ads = _unhandled(SOURCE_AD, EventAd.objects.filter(is_new=True))
+    venues = _unhandled(SOURCE_VENUE, VenueSubmission.objects.filter(is_reviewed=False))
+    venue_comments = _unhandled(SOURCE_VENUE_COMMENT, VenueComment.objects.filter(is_approved=False))
+    scenario_comments = _unhandled(SOURCE_SCENARIO_COMMENT, ScenarioComment.objects.filter(is_approved=False, is_admin=False))
+    ticks = _unhandled(SOURCE_TICK, BlueTickRequest.objects.filter(is_reviewed=False))
     return [
         {
             "key": "ads",
@@ -43,6 +58,12 @@ def _alarms():
             "label": "تیک آبی",
             "count": ticks,
             "url": reverse("admin:banners_bluetickrequest_changelist") + "?is_reviewed__exact=0",
+        },
+        {
+            "key": "manager",
+            "label": "بازبینی مدیر",
+            "count": ReviewCase.objects.filter(status=STATUS_NEEDS_REVIEW).count(),
+            "url": reverse("assistant_manager"),
         },
     ]
 

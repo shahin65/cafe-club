@@ -85,7 +85,8 @@
       <ul class="place-list">
         {% for venue in venues %}
           <li>
-            <a class="place-card" href="{% url 'venue_detail' venue.id %}{% if user_lat %}?lat={{ user_lat }}&lng={{ user_lng }}{% endif %}" data-lat="{{ venue.latitude|default_if_none:'' }}" data-lng="{{ venue.longitude|default_if_none:'' }}" data-name="{{ venue.name }}">
+            <a class="place-card{% if venue.is_promo_live %} is-boosted is-plan-{{ venue.promo_plan }}{% endif %}" href="{% url 'venue_detail' venue.id %}{% if user_lat %}?lat={{ user_lat }}&lng={{ user_lng }}{% endif %}" data-lat="{{ venue.latitude|default_if_none:'' }}" data-lng="{{ venue.longitude|default_if_none:'' }}" data-name="{{ venue.name }}">
+              {% if venue.is_promo_live and venue.promo_badge %}<span class="ad-ladder-badge is-{{ venue.promo_plan }}">{{ venue.promo_badge }}</span>{% endif %}
               {% if venue.logo %}
                 <img src="{{ venue.logo.url }}" alt="">
               {% else %}

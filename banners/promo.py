@@ -10,6 +10,7 @@ PLANS = {
     PLAN_BRONZE: {
         "key": PLAN_BRONZE,
         "title": "برنزی",
+        "sku": "ad_bronze",
         "price": 100_000,
         "price_label": "۱۰۰ هزار تومان",
         "rank": 1,
@@ -24,6 +25,7 @@ PLANS = {
     PLAN_SILVER: {
         "key": PLAN_SILVER,
         "title": "نقره‌ای",
+        "sku": "ad_silver",
         "price": 200_000,
         "price_label": "۲۰۰ هزار تومان",
         "rank": 2,
@@ -40,6 +42,7 @@ PLANS = {
     PLAN_GOLD: {
         "key": PLAN_GOLD,
         "title": "طلایی",
+        "sku": "ad_gold",
         "price": 250_000,
         "price_label": "۲۵۰ هزار تومان",
         "rank": 3,
@@ -106,38 +109,41 @@ VENUE_PLANS = {
     PLAN_BRONZE: {
         "key": PLAN_BRONZE,
         "title": "برنزی",
+        "sku": "venue_bronze",
         "price": 250_000,
         "price_label": "۲۵۰ هزار تومان",
         "rank": 1,
         "days": 7,
         "show_on_home": False,
         "features": (
-            "یک هفته نردبان در بالاترین قسمت آگهی‌ها",
+            "یک هفته نردبان در بالاترین قسمت صفحه کجا برم؟",
         ),
     },
     PLAN_SILVER: {
         "key": PLAN_SILVER,
         "title": "نقره‌ای",
+        "sku": "venue_silver",
         "price": 450_000,
         "price_label": "۴۵۰ هزار تومان",
         "rank": 2,
         "days": 15,
         "show_on_home": False,
         "features": (
-            "۱۵ روز نردبان در قسمت نقره‌ای آگهی‌ها",
+            "۱۵ روز نردبان در قسمت بالاتر صفحه کجا برم؟",
         ),
     },
     PLAN_GOLD: {
         "key": PLAN_GOLD,
         "title": "طلایی",
+        "sku": "venue_gold",
         "price": 800_000,
         "price_label": "۸۰۰ هزار تومان",
         "rank": 3,
         "days": 30,
         "show_on_home": True,
         "features": (
-            "یک ماه نردبان آگهی کلاب",
-            "نمایش در آگهی طلایی صفحه اصلی",
+            "یک ماه نردبان در صفحه کجا برم؟",
+            "نمایش در بنر ویژه صفحه اصلی",
         ),
     },
 }

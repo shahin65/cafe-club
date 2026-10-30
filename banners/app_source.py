@@ -4,6 +4,24 @@ APP_SOURCES = ("direct", "bazaar", "myket")
 APP_SOURCE_COOKIE = "cafeclub_app"
 APP_SOURCE_MAX_AGE = 60 * 60 * 24 * 400
 SESSION_KEY = "app_source"
+APP_SOURCE_HEADER = "HTTP_X_APP_SOURCE"
+
+
+def is_app_webview(request):
+    ua = (request.META.get("HTTP_USER_AGENT") or "").lower()
+    return "; wv" in ua or " wv)" in ua or "cafeclub" in ua or "amytisapp" in ua
+
+
+def incoming_source(request):
+    header = normalize_source(request.META.get(APP_SOURCE_HEADER))
+    if header:
+        return header
+    query = normalize_source(request.GET.get("app") or request.GET.get("from"))
+    if query:
+        return query
+    if is_app_webview(request) and not read_source(request):
+        return "direct"
+    return ""
 
 SOURCE_DOWNLOAD_KEYS = {
     "direct": {"android", "ios"},

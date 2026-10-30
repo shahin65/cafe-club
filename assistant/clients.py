@@ -80,9 +80,12 @@ def send_bale_message(text, timeout=30):
     if not bale_configured():
         raise AssistantClientError("بات بله روی سرور پیکربندی نشده است.")
     url = f"https://tapi.bale.ai/bot{settings.BALE_BOT_TOKEN}/sendMessage"
+    chat_id = str(settings.BALE_ADMIN_CHAT_ID or "").strip()
+    if chat_id.lstrip("-").isdigit():
+        chat_id = int(chat_id)
     payload = json.dumps(
         {
-            "chat_id": settings.BALE_ADMIN_CHAT_ID,
+            "chat_id": chat_id,
             "text": text,
         }
     ).encode("utf-8")

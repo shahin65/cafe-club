@@ -8,6 +8,43 @@
     <label><input type="checkbox" name="auto_paused" {% if config.auto_paused %}checked{% endif %}> توقف تمام اقدامات خودکار</label>
   </p>
   <p>
+    <label><input type="checkbox" name="report_purchases" {% if config.report_purchases %}checked{% endif %}> گزارش خریدهای جدید فروشگاه به بله</label>
+  </p>
+  <h2>ساعات بازبینی</h2>
+  <p>کرون هر ساعت اجرا می‌شود؛ بازبینی فقط در ساعت‌های انتخاب‌شده انجام می‌شود.</p>
+  <div class="assistant-hours">
+    {% for hour in hour_options %}
+      <label><input type="checkbox" name="review_hours" value="{{ hour }}" {% if hour in review_hours %}checked{% endif %}> {{ hour }}</label>
+    {% endfor %}
+  </div>
+  <h2>ساعات ارسال گزارش بله</h2>
+  <p>گزارش دوره‌ای فقط در این ساعت‌ها فرستاده می‌شود.</p>
+  <div class="assistant-hours">
+    {% for hour in hour_options %}
+      <label><input type="checkbox" name="report_hours" value="{{ hour }}" {% if hour in report_hours %}checked{% endif %}> {{ hour }}</label>
+    {% endfor %}
+  </div>
+  <h2>بلادرنگ هر بخش</h2>
+  <p>با ذخیره، صف فعلی همان لحظه بررسی می‌شود. گزارش بلادرنگ به بله فقط وقتی می‌رود که بررسی همان مورد تمام شده باشد، نه قبل از اتمام تسک.</p>
+  <table class="assistant-table">
+    <thead>
+      <tr>
+        <th>بخش</th>
+        <th>رسیدگی بلادرنگ</th>
+        <th>گزارش بلادرنگ</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for policy in policies %}
+        <tr>
+          <td>{{ policy.get_scope_display }}</td>
+          <td><label><input type="checkbox" name="realtime_review_{{ policy.scope }}" {% if policy.realtime_review %}checked{% endif %}> فعال</label></td>
+          <td><label><input type="checkbox" name="realtime_report_{{ policy.scope }}" {% if policy.realtime_report %}checked{% endif %}> فعال</label></td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p>
     <label>یادداشت داخلی مدیر (بدون توکن یا کلید)</label>
     <textarea name="notes" rows="4">{{ config.notes }}</textarea>
   </p>
@@ -15,8 +52,8 @@
 </form>
 <h2>اتصال سرویس‌ها</h2>
 <ul>
-  <li>هوش مصنوعی: {% if gapgpt_ok %}پیکربندی شده{% else %}نیاز به تنظیم GAPGPT_API_KEY، GAPGPT_BASE_URL و GAPGPT_MODEL روی سرور{% endif %}</li>
-  <li>بات بله: {% if bale_ok %}پیکربندی شده{% else %}نیاز به تنظیم BALE_BOT_TOKEN و BALE_ADMIN_CHAT_ID روی سرور{% endif %}</li>
+  <li>هوش مصنوعی: {% if gapgpt_ok %}پیکربندی شده{% else %}نیاز به تنظیم روی سرور{% endif %} — GAPGPT_API_KEY، GAPGPT_BASE_URL، GAPGPT_MODEL</li>
+  <li>بات بله: {% if bale_ok %}پیکربندی شده{% else %}نیاز به تنظیم روی سرور{% endif %} — BALE_BOT_TOKEN، BALE_ADMIN_CHAT_ID</li>
 </ul>
 <p>توکن و کلید در این پنل نمایش داده نمی‌شود.</p>
 {% endblock %}

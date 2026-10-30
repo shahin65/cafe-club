@@ -197,7 +197,6 @@ class UserProfile(models.Model):
         default="",
         help_text="اگر کاربر از لینک رفرال نسخه دایرکت، بازار یا مایکت وارد شده باشد اینجا ثبت می‌شود.",
     )
-
     class Meta:
         verbose_name = "تیک آبی"
         verbose_name_plural = "تیک آبی"
@@ -660,6 +659,104 @@ class LegalPage(models.Model):
         if (get_language() or "fa").startswith("en"):
             return self.body_en or self.body
         return self.body or self.body_en
+
+
+class CoinPackage(models.Model):
+    KIND_AD = "ad"
+    KIND_VENUE = "venue"
+    KIND_CHOICES = [
+        (KIND_AD, "پلن آگهی"),
+        (KIND_VENUE, "پلن کجا برم؟"),
+    ]
+
+    sku = models.SlugField("شناسه محصول (SKU)", unique=True, max_length=40)
+    title = models.CharField("عنوان", max_length=80)
+    kind = models.CharField("نوع محصول", max_length=12, choices=KIND_CHOICES, default=KIND_AD, db_index=True)
+    plan_key = models.CharField("کلید پلن", max_length=12, blank=True)
+    price_toman = models.PositiveIntegerField("قیمت تومان")
+    sort_order = models.PositiveSmallIntegerField("ترتیب", default=0)
+    is_active = models.BooleanField("فعال", default=True)
+
+    class Meta:
+        verbose_name = "محصول درون‌برنامه‌ای"
+        verbose_name_plural = "محصولات درون‌برنامه‌ای و SKU"
+        ordering = ["kind", "sort_order", "id"]
+
+    def __str__(self):
+        return f"{self.sku} — {self.title}"
+
+
+class PaymentTransaction(models.Model):
+    GATEWAY_BITPAY = "bitpay"
+    GATEWAY_BAZAAR = "bazaar"
+    GATEWAY_MYKET = "myket"
+    GATEWAY_CHOICES = [
+        (GATEWAY_BITPAY, "بیت‌پی"),
+        (GATEWAY_BAZAAR, "کافه بازار"),
+        (GATEWAY_MYKET, "مایکت"),
+    ]
+    STATUS_PENDING = "pending"
+    STATUS_COMPLETED = "completed"
+    STATUS_FAILED = "failed"
+    STATUS_CHOICES = [
+        (STATUS_PENDING, "در انتظار"),
+        (STATUS_COMPLETED, "تکمیل‌شده"),
+        (STATUS_FAILED, "ناموفق"),
+    ]
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="payments",
+        verbose_name="کاربر",
+    )
+    package = models.ForeignKey(
+        CoinPackage,
+        on_delete=models.PROTECT,
+        related_name="payments",
+        verbose_name="محصول",
+    )
+    event_ad = models.ForeignKey(
+        "EventAd",
+        on_delete=models.SET_NULL,
+        related_name="payments",
+        verbose_name="آگهی",
+        null=True,
+        blank=True,
+    )
+    venue = models.ForeignKey(
+        "Venue",
+        on_delete=models.SET_NULL,
+        related_name="payments",
+        verbose_name="کافه / کلاب",
+        null=True,
+        blank=True,
+    )
+    gateway = models.CharField("درگاه", max_length=12, choices=GATEWAY_CHOICES, db_index=True)
+    source = models.CharField("منبع ورود", max_length=12, blank=True)
+    amount_toman = models.PositiveIntegerField("مبلغ تومان")
+    status = models.CharField("وضعیت", max_length=12, choices=STATUS_CHOICES, default=STATUS_PENDING, db_index=True)
+    bitpay_id_get = models.CharField("شناسه بیت‌پی", max_length=40, blank=True, db_index=True)
+    bitpay_trans_id = models.CharField("تراکنش بیت‌پی", max_length=40, blank=True)
+    purchase_token = models.CharField("توکن خرید فروشگاه", max_length=255, blank=True)
+    payload = models.JSONField("پاسخ درگاه", default=dict, blank=True)
+    created_at = models.DateTimeField("زمان ایجاد", auto_now_add=True)
+    completed_at = models.DateTimeField("زمان تکمیل", null=True, blank=True)
+
+    class Meta:
+        verbose_name = "خرید فروشگاه"
+        verbose_name_plural = "فروشگاه و خریدها"
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["gateway", "purchase_token"],
+                condition=~models.Q(purchase_token=""),
+                name="unique_store_purchase_token",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.user_id} — {self.package_id} — {self.status}"
 
 
 class Tournament(models.Model):

@@ -95,6 +95,21 @@ def load_object(case):
     return ct.get_object_for_this_type(pk=case.object_id)
 
 
+def enqueue_object(source, scope, obj):
+    payload = collect_payload(source, obj)
+    case, created = ReviewCase.objects.get_or_create(
+        source=source,
+        object_id=obj.pk,
+        defaults={
+            "scope": scope,
+            "submitted_at": payload["submitted_at"] or timezone.now(),
+            "title": payload["title"][:200],
+            "excerpt": payload["excerpt"],
+        },
+    )
+    return case, created
+
+
 def enqueue_new_items():
     from banners.models import BlueTickRequest, EventAd, VenueComment, VenueSubmission
     from scenarios.models import ScenarioComment
@@ -112,17 +127,7 @@ def enqueue_new_items():
         for obj in queryset.iterator():
             if obj.pk in existing:
                 continue
-            payload = collect_payload(source, obj)
-            _, was_created = ReviewCase.objects.get_or_create(
-                source=source,
-                object_id=obj.pk,
-                defaults={
-                    "scope": scope,
-                    "submitted_at": payload["submitted_at"] or timezone.now(),
-                    "title": payload["title"][:200],
-                    "excerpt": payload["excerpt"],
-                },
-            )
+            _case, was_created = enqueue_object(source, scope, obj)
             if was_created:
                 created += 1
             existing.add(obj.pk)
@@ -167,6 +172,9 @@ def apply_to_object(case, decision, reply=""):
             obj.is_new = False
             obj.save(update_fields=["is_published", "is_new"])
             return "reject"
+        if obj.is_new:
+            obj.is_new = False
+            obj.save(update_fields=["is_new"])
         return "needs_review"
     if case.source == SOURCE_VENUE:
         from banners.venues import publish_venue_submission

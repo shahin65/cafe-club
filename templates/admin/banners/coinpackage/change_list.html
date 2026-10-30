@@ -1,0 +1,8 @@
+{% extends "admin/change_list.html" %}
+
+{% block content_title %}
+  <h1>گزارش SKU و محصولات درون‌برنامه‌ای</h1>
+  {% if android_package_name %}
+    <p>پکیج‌نیم رسمی اپلیکیشن: <strong dir="ltr">{{ android_package_name }}</strong></p>
+  {% endif %}
+{% endblock %}

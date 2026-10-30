@@ -1,0 +1,41 @@
+{% extends "admin/assistant/base.html" %}
+
+{% block assistant %}
+<h1>بازبینی مدیر</h1>
+<p>مواردی که دستیار برای تصمیم انسان کنار گذاشته است. از همین صفحه وارد هر مورد شوید و تأیید، رد یا توضیح ثبت کنید.</p>
+<table class="assistant-table">
+  <thead>
+    <tr>
+      <th>بخش</th>
+      <th>عنوان</th>
+      <th>پیشنهاد هوش مصنوعی</th>
+      <th>دلیل</th>
+      <th>اطمینان</th>
+      <th>زمان</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for case in cases %}
+      <tr>
+        <td>{{ case.get_scope_display }}</td>
+        <td>{{ case.title|truncatechars:80 }}</td>
+        <td>{{ case.get_ai_decision_display|default:"—" }}</td>
+        <td>{{ case.ai_reason|truncatechars:120|default:"—" }}</td>
+        <td>{{ case.ai_confidence|default:"—" }}</td>
+        <td>{{ case.updated_at }}</td>
+        <td><a href="{% url 'assistant_case' case.pk %}?next=manager">رسیدگی</a></td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="7">موردی برای بازبینی مدیر نیست.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% if page.has_other_pages %}
+  <p>
+    {% if page.has_previous %}<a href="?page={{ page.previous_page_number }}">قبلی</a>{% endif %}
+    صفحه {{ page.number }} از {{ page.paginator.num_pages }}
+    {% if page.has_next %}<a href="?page={{ page.next_page_number }}">بعدی</a>{% endif %}
+  </p>
+{% endif %}
+{% endblock %}

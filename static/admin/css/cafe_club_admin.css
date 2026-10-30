@@ -317,6 +317,16 @@ input, textarea, select, .button, input[type="submit"], .submit-row input {
     min-width: 120px;
 }
 
+.cafe-dashboard-boards {
+    display: grid;
+    gap: 16px;
+    margin: 0 0 18px;
+}
+
+.cafe-dashboard-boards .module table {
+    width: 100%;
+}
+
 .assistant-wrap {
     max-width: 960px;
 }
@@ -371,6 +381,14 @@ input, textarea, select, .button, input[type="submit"], .submit-row input {
 .assistant-inline {
     display: inline-block;
     margin-left: 8px;
+}
+
+.assistant-hours {
+    display: grid;
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+    gap: 6px 10px;
+    margin: 8px 0 18px;
+    max-width: 720px;
 }
 
 @media (max-width: 767px) {

@@ -46,11 +46,7 @@
   </section>
 
   {% if featured_ads %}
-    <section class="home-promo-ads home-frost" aria-labelledby="home-promo-title">
-      <p class="home-promo-kicker" id="home-promo-title">
-        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M12 2 9.5 8.5 3 9.2l5 4.8L6.8 21 12 17.8 17.2 21 16 14l5-4.8-6.5-.7Z"/></svg>
-        {% trans "آگهی طلایی" %}
-      </p>
+    <section class="home-promo-ads home-frost" aria-label="{% trans 'آگهی ویژه' %}">
       <ul class="home-promo-list" data-interval="5000">
         {% for ad in featured_ads %}
           <li{% if forloop.first %} class="is-active"{% endif %}>

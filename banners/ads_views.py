@@ -7,10 +7,13 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods, require_POST
 
+from banners.catalog import package_for_ad_plan
+from banners.gateways import gateway_for_source
 from banners.geo import ensure_guest_key, navigation_links, parse_coord
 from banners.images import optimize_ad_image
 from banners.jalali import HOUR_CHOICES, format_jalali_datetime, free_ad_date_choices, parse_event_at
-from banners.models import BlueTickRequest, EventAd, EventAdLike, Venue
+from banners.models import BlueTickRequest, EventAd, EventAdLike
+from banners.pay_views import install_source, start_checkout
 from banners.promo import CREATE_PLANS, PLANS, PLAN_GOLD, create_plan_key, plan_expires_at, plan_or_none
 
 ADS_PER_MONTH = 3
@@ -66,17 +69,6 @@ def _can_boost(request, ad):
     )
 
 
-def _live_venue_promos(plan_key):
-    now = timezone.now()
-    return list(
-        Venue.objects.filter(
-            is_active=True,
-            promo_plan=plan_key,
-            promo_expires_at__gt=now,
-        ).order_by("-boosted_at", "-id")
-    )
-
-
 def ads_page(request):
     ads = list(_live_ads())
     liked = _liked_ids(request, ads)
@@ -89,9 +81,6 @@ def ads_page(request):
         {
             "ads": ads,
             "title": "آگهی",
-            "club_bronze": _live_venue_promos("bronze"),
-            "club_silver": _live_venue_promos("silver"),
-            "club_gold": _live_venue_promos("gold"),
         },
     )
 
@@ -146,6 +135,8 @@ def _ad_form_context(request, values, remaining, error="", unlimited=False):
         "hour_choices": HOUR_CHOICES,
         "create_plans": CREATE_PLANS,
         "local_checkout": settings.DEBUG,
+        "install_source": install_source(request) if request.user.is_authenticated else "direct",
+        "gateway": gateway_for_source(getattr(request, "app_source", "")),
     }
 
 
@@ -265,52 +256,23 @@ def create_ad(request):
                     )
                 channel = getattr(request, "app_source", "") or ""
                 if plan_key:
+                    package = package_for_ad_plan(plan_key)
+                    if not package:
+                        messages.error(request, "شناسه محصول این پلن در فروشگاه تعریف نشده است.")
+                        return redirect("ad_create")
                     ad.boost_requested = True
                     ad.pending_plan = plan_key
                     ad.boost_channel = channel[:12]
                     ad.save(update_fields=["boost_requested", "pending_plan", "boost_channel"])
-                    if settings.DEBUG:
-                        _apply_plan(ad, plan_key, channel)
-                        messages.success(request, f"آگهی ثبت شد و پلن {chosen['title']} فعال شد.")
-                        if chosen["needs_extras"] and not ad.has_nav():
-                            return redirect("ad_promo_extras", ad_id=ad.id)
-                        return redirect("ad_detail", ad_id=ad.id)
-                    messages.info(
+                    return start_checkout(
                         request,
-                        "آگهی ثبت شد. اتصال به درگاه پرداخت برای لینک‌های رفرال بعداً اضافه می‌شود.",
+                        package,
+                        event_ad=ad,
+                        fail_url=f"/ads/{ad.id}/boost/",
                     )
-                    return redirect("ads")
                 messages.success(request, "آگهی شما ثبت شد و تا ۱۲ ساعت پس از زمان برگزاری نمایش داده می‌شود.")
                 return redirect("ads")
     return render(request, "banners/ad_create.html", _ad_form_context(request, values, remaining, error, unlimited))
-
-
-def _apply_plan(ad, plan_key, channel=""):
-    plan = PLANS[plan_key]
-    ad.promo_plan = plan_key
-    ad.pending_plan = ""
-    ad.promo_rank = plan["rank"]
-    ad.is_boosted = True
-    ad.boosted_at = timezone.now()
-    ad.boost_requested = True
-    ad.show_on_home = bool(plan["show_on_home"])
-    ad.boost_channel = (channel or "")[:12]
-    update_fields = [
-        "promo_plan",
-        "pending_plan",
-        "promo_rank",
-        "is_boosted",
-        "boosted_at",
-        "boost_requested",
-        "show_on_home",
-        "boost_channel",
-    ]
-    if ad.event_at:
-        extra_end = plan_expires_at(ad.event_at, plan_key)
-        if extra_end > ad.expires_at:
-            ad.expires_at = extra_end
-            update_fields.append("expires_at")
-    ad.save(update_fields=update_fields)
 
 
 def _live_owner_ad(request, ad_id):
@@ -329,6 +291,8 @@ def _live_owner_ad(request, ad_id):
 def boost_ad(request, ad_id):
     ad = _live_owner_ad(request, ad_id)
     channel = getattr(request, "app_source", "") or ""
+    source = install_source(request)
+    gateway = gateway_for_source(source)
     if request.method == "POST":
         plan_key = plan_or_none(request.POST.get("plan"))
         if not plan_key:
@@ -338,28 +302,23 @@ def boost_ad(request, ad_id):
         if chosen["rank"] <= (ad.promo_rank or 0):
             messages.info(request, "این آگهی همین پلن یا پلن بالاتر را دارد.")
             return redirect("ads")
+        package = package_for_ad_plan(plan_key)
+        if not package:
+            messages.error(request, "شناسه محصول این پلن در فروشگاه تعریف نشده است.")
+            return redirect("ad_boost", ad_id=ad.id)
         ad.boost_requested = True
         ad.pending_plan = plan_key
         ad.boost_channel = channel[:12]
         ad.save(update_fields=["boost_requested", "pending_plan", "boost_channel"])
-        if settings.DEBUG:
-            _apply_plan(ad, plan_key, channel)
-            messages.success(request, f"پلن {chosen['title']} برای آگهی فعال شد.")
-            if chosen["needs_extras"]:
-                return redirect("ad_promo_extras", ad_id=ad.id)
-            return redirect("ads")
-        messages.info(
-            request,
-            "درخواست پلن ثبت شد. اتصال به درگاه پرداخت برای لینک‌های رفرال بعداً اضافه می‌شود.",
-        )
-        return redirect("ad_boost", ad_id=ad.id)
+        return start_checkout(request, package, event_ad=ad, fail_url=f"/ads/{ad.id}/boost/", return_to="ads")
     return render(
         request,
         "banners/ad_boost.html",
         {
             "ad": ad,
             "plans": list(PLANS.values()),
-            "gateway_ready": False,
+            "gateway": gateway,
+            "install_source": source,
             "local_checkout": settings.DEBUG,
         },
     )

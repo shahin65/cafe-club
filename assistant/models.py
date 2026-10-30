@@ -3,6 +3,14 @@ from django.db import models
 from django.utils import timezone
 
 
+def default_review_hours():
+    return list(range(24))
+
+
+def default_report_hours():
+    return [0, 12]
+
+
 SCOPE_COMMENTS = "comments"
 SCOPE_ADS = "ads"
 SCOPE_VENUES = "venues"
@@ -61,6 +69,9 @@ RUN_ERROR = "error"
 
 class AssistantConfig(models.Model):
     auto_paused = models.BooleanField("توقف همه اقدامات خودکار", default=False)
+    review_hours = models.JSONField("ساعات بازبینی", default=default_review_hours, blank=True)
+    report_hours = models.JSONField("ساعات ارسال گزارش", default=default_report_hours, blank=True)
+    report_purchases = models.BooleanField("گزارش خریدهای جدید به بله", default=True)
     notes = models.TextField("یادداشت داخلی", blank=True)
     updated_at = models.DateTimeField(auto_now=True)
     updated_by = models.ForeignKey(
@@ -89,6 +100,8 @@ class AssistantConfig(models.Model):
 class ReviewPolicy(models.Model):
     scope = models.CharField("بخش", max_length=20, unique=True, choices=SCOPES)
     auto_enabled = models.BooleanField("بررسی خودکار فعال", default=True)
+    realtime_review = models.BooleanField("رسیدگی بلادرنگ", default=False)
+    realtime_report = models.BooleanField("گزارش بلادرنگ به بله", default=False)
     auto_reply_enabled = models.BooleanField("پاسخ‌دهی خودکار (فقط نظرات)", default=False)
     instructions = models.TextField("دستورالعمل و معیارهای بررسی", blank=True)
     confidence_threshold = models.DecimalField("آستانه اطمینان", max_digits=4, decimal_places=2, default=0.85)

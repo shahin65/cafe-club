@@ -55,13 +55,12 @@ Do not trust forwarded protocol headers without verifying the proxy configuratio
 
 ## دستیار هوش مصنوعی و زمان‌بندی هاست
 
-کلید سرویس هوش مصنوعی و توکن بات بله را فقط در محیط سرور یا `production.json` بگذارید؛ داخل گیت نگذارید. نام متغیرها: `GAPGPT_API_KEY`، `GAPGPT_BASE_URL`، `GAPGPT_MODEL`، `BALE_BOT_TOKEN`، `BALE_ADMIN_CHAT_ID`. مقدار واقعی مدل و آدرس را حدس نزنید؛ همان را که ارائه‌دهنده داده وارد کنید.
+کلید سرویس هوش مصنوعی، توکن بات بله و کلید درگاه‌ها را فقط در محیط سرور یا `production.json` بگذارید؛ داخل گیت نگذارید. نام متغیرها: `GAPGPT_API_KEY`، `GAPGPT_BASE_URL`، `GAPGPT_MODEL`، `BALE_BOT_TOKEN`، `BALE_ADMIN_CHAT_ID`، `BITPAY_API_KEY`، `BITPAY_SANDBOX`، `BAZAAR_CLIENT_ID`، `BAZAAR_CLIENT_SECRET`، `BAZAAR_REFRESH_TOKEN`، `MYKET_ACCESS_TOKEN`، `ANDROID_PACKAGE_NAME`. مقدار واقعی مدل و آدرس را حدس نزنید؛ همان را که ارائه‌دهنده داده وارد کنید.
 
-Celery در این پروژه استفاده نمی‌شود. دو cron جدا در cPanel بسازید که از همان Python محیط برنامه اجرا شوند:
+Celery در این پروژه استفاده نمی‌شود. یک cron ساعتی در cPanel بسازید که از همان Python محیط برنامه اجرا شود. ساعت بازبینی و ارسال گزارش از پنل دستیار تنظیم می‌شود:
 
 ```text
 0 * * * * cd /home/exmykvwq/cafe-club-app && /home/exmykvwq/virtualenv/cafe-club-app/3.12/bin/python manage.py run_assistant --settings=config.production
-0 0,12 * * * cd /home/exmykvwq/cafe-club-app && /home/exmykvwq/virtualenv/cafe-club-app/3.12/bin/python manage.py run_assistant --report --settings=config.production
 ```
 
 اگر مسیر virtualenv در cPanel فرق دارد، همان دستوری را بگذارید که برای `migrate` استفاده می‌کنید. برای تلاش مجدد گزارش‌های ارسال‌نشده:

@@ -30,6 +30,7 @@ from assistant.models import (
     AssistantRun,
     BaleReport,
     ReviewCase,
+    ReviewEvent,
     ReviewPolicy,
 )
 from assistant.reviewer import parse_model_json, process_pending, review_case
@@ -71,7 +72,8 @@ class AssistantAccessTests(TestCase):
         response = self.client.get(reverse("assistant_home"))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "دستیار هوش مصنوعی")
-        self.assertContains(response, "GAPGPT_API_KEY")
+        settings = self.client.get(reverse("assistant_settings"))
+        self.assertContains(settings, "GAPGPT_API_KEY")
 
     def test_migrations_create_policy_table_and_defaults(self):
         self.assertIn("assistant_reviewpolicy", connection.introspection.table_names())
@@ -79,6 +81,11 @@ class AssistantAccessTests(TestCase):
             set(ReviewPolicy.objects.values_list("scope", flat=True)),
             {"comments", "ads", "venues", "ticks"},
         )
+        ensure_policies()
+        comments = ReviewPolicy.objects.get(scope=SCOPE_COMMENTS)
+        ads = ReviewPolicy.objects.get(scope="ads")
+        self.assertIn(ACTION_APPROVE, comments.allowed_actions)
+        self.assertIn(ACTION_APPROVE, ads.allowed_actions)
 
 
 class AssistantReviewTests(TestCase):
@@ -258,8 +265,8 @@ class AssistantReportTests(TestCase):
     @patch("assistant.jobs.send_bale_message")
     def test_periodic_report_does_not_double_send(self, send):
         send.return_value = True
-        first = send_periodic_report()
-        second = send_periodic_report()
+        first = send_periodic_report(force=True)
+        second = send_periodic_report(force=True)
         self.assertTrue(first.get("sent"))
         self.assertEqual(second.get("skipped"), "already_sent")
         self.assertEqual(send.call_count, 1)
@@ -267,7 +274,7 @@ class AssistantReportTests(TestCase):
 
     @patch("assistant.jobs.send_bale_message", side_effect=AssistantClientError("ارسال گزارش به بله ناموفق بود."))
     def test_failed_report_can_retry(self, send):
-        result = send_periodic_report()
+        result = send_periodic_report(force=True)
         self.assertFalse(result["sent"])
         report = BaleReport.objects.get()
         self.assertIsNone(report.sent_at)
@@ -281,11 +288,152 @@ class AssistantReportTests(TestCase):
         self.assertIsNotNone(report.sent_at)
 
     @override_settings(GAPGPT_API_KEY="k", GAPGPT_BASE_URL="https://example.invalid/v1", GAPGPT_MODEL="demo")
+    @patch("assistant.jobs.send_periodic_report", return_value={"skipped": "not_scheduled"})
     @patch("assistant.jobs.enqueue_new_items", return_value=0)
     @patch("assistant.jobs.process_pending", return_value={"processed": 0, "errors": 0})
-    def test_management_command(self, _process, _enqueue):
+    def test_management_command(self, _process, _enqueue, _report):
         call_command("run_assistant")
         self.assertTrue(AssistantRun.objects.filter(kind=KIND_HOURLY).exists())
+
+    def test_review_skips_outside_configured_hours(self):
+        config = AssistantConfig.load()
+        config.review_hours = [3]
+        config.save()
+        with patch("assistant.jobs.current_hour", return_value=15):
+            self.assertEqual(run_hourly(), {"skipped": "not_scheduled"})
+
+    def test_staff_can_set_hours_and_realtime_flags(self):
+        self.client.force_login(_staff())
+        ensure_policies()
+        page = self.client.get(reverse("assistant_settings"))
+        self.assertContains(page, "ساعات بازبینی")
+        self.assertContains(page, "رسیدگی بلادرنگ")
+        self.assertContains(page, "گزارش بلادرنگ")
+        saved = self.client.post(
+            reverse("assistant_settings"),
+            {
+                "review_hours": ["9", "21"],
+                "report_hours": ["8"],
+                "realtime_review_comments": "on",
+                "realtime_report_ads": "on",
+                "report_purchases": "on",
+                "notes": "تست زمان‌بندی",
+            },
+        )
+        self.assertRedirects(saved, reverse("assistant_settings"))
+        config = AssistantConfig.load()
+        self.assertEqual(config.review_hours, [9, 21])
+        self.assertEqual(config.report_hours, [8])
+        comments = ReviewPolicy.objects.get(scope=SCOPE_COMMENTS)
+        ads = ReviewPolicy.objects.get(scope="ads")
+        self.assertTrue(comments.realtime_review)
+        self.assertFalse(comments.realtime_report)
+        self.assertTrue(ads.realtime_report)
+        home = self.client.get(reverse("assistant_home"))
+        self.assertContains(home, "بلادرنگ")
+
+    @patch("assistant.realtime.send_bale_message")
+    @patch("assistant.reviewer.complete_chat", return_value='{"decision":"needs_review","confidence":0.9,"reason":"تست لحظه‌ای","reply":""}')
+    def test_realtime_review_and_report_run_immediately(self, _complete, send):
+        ensure_policies()
+        policy = ReviewPolicy.objects.get(scope=SCOPE_COMMENTS)
+        policy.realtime_review = True
+        policy.realtime_report = True
+        policy.auto_enabled = True
+        policy.save()
+        case, _comment = _comment_case()
+        from assistant.realtime import handle_new_item
+
+        handle_new_item(SOURCE_SCENARIO_COMMENT, SCOPE_COMMENTS, _comment)
+        case.refresh_from_db()
+        self.assertEqual(case.status, STATUS_NEEDS_REVIEW)
+        send.assert_called_once()
+
+    @patch("assistant.realtime.send_bale_message")
+    @patch("assistant.reviewer.complete_chat", return_value='{"decision":"needs_review","confidence":0.9,"reason":"صف فعال‌سازی","reply":""}')
+    def test_saving_realtime_settings_reviews_queue_and_reports(self, _complete, send):
+        ensure_policies()
+        case, _comment = _comment_case()
+        self.client.force_login(_staff())
+        saved = self.client.post(
+            reverse("assistant_settings"),
+            {
+                "review_hours": ["0"],
+                "report_hours": ["0"],
+                "realtime_review_comments": "on",
+                "realtime_report_comments": "on",
+                "report_purchases": "on",
+            },
+        )
+        self.assertRedirects(saved, reverse("assistant_settings"))
+        case.refresh_from_db()
+        self.assertEqual(case.status, STATUS_NEEDS_REVIEW)
+        send.assert_called()
+
+    @patch("assistant.realtime.send_bale_message")
+    @patch("assistant.reviewer.complete_chat", side_effect=AssistantClientError("سرویس هوش مصنوعی روی سرور پیکربندی نشده است."))
+    def test_realtime_does_not_report_until_review_finishes(self, _complete, send):
+        ensure_policies()
+        policy = ReviewPolicy.objects.get(scope=SCOPE_COMMENTS)
+        policy.realtime_review = True
+        policy.realtime_report = True
+        policy.save()
+        case, comment = _comment_case()
+        from assistant.realtime import handle_new_item
+
+        handle_new_item(SOURCE_SCENARIO_COMMENT, SCOPE_COMMENTS, comment)
+        case.refresh_from_db()
+        self.assertEqual(case.status, STATUS_PENDING)
+        send.assert_not_called()
+
+    def test_manager_queue_and_dashboard_show_ai_actions(self):
+        ensure_policies()
+        case, _comment = _comment_case()
+        case.status = STATUS_NEEDS_REVIEW
+        case.ai_decision = ACTION_NEEDS_REVIEW
+        case.ai_reason = "نیاز به بررسی انسان"
+        case.save()
+        ReviewEvent.objects.create(
+            case=case,
+            actor="ai",
+            decision=ACTION_NEEDS_REVIEW,
+            action=ACTION_NEEDS_REVIEW,
+            reason="نیاز به بررسی انسان",
+        )
+        self.client.force_login(_staff())
+        dashboard = self.client.get("/admin/")
+        self.assertContains(dashboard, "بازبینی مدیر")
+        self.assertContains(dashboard, "اقدامات دستیار هوش مصنوعی")
+        self.assertContains(dashboard, "فروشگاه و آخرین خریدها")
+        self.assertContains(dashboard, "نیاز به بررسی انسان")
+        queue = self.client.get(reverse("assistant_manager"))
+        self.assertContains(queue, "نیاز به بررسی انسان")
+        detail = self.client.get(reverse("assistant_case", args=[case.pk]) + "?next=manager")
+        self.assertContains(detail, "بازگشت به بازبینی مدیر")
+
+    @override_settings(BALE_BOT_TOKEN="token", BALE_ADMIN_CHAT_ID="12")
+    @patch("assistant.purchases.send_bale_message", return_value=True)
+    def test_completed_purchase_is_reported_to_bale(self, send):
+        from banners.models import CoinPackage, PaymentTransaction
+        from banners.pay_views import _complete
+
+        user = User.objects.create_user("buyer", "buyer@example.com", "pass-word-123")
+        package = CoinPackage.objects.get(sku="ad_bronze")
+        txn = PaymentTransaction.objects.create(
+            user=user,
+            package=package,
+            gateway="bitpay",
+            amount_toman=100000,
+            status="pending",
+        )
+        _complete(txn, purchase_token="store-token-77")
+        send.assert_called_once()
+        text = send.call_args[0][0]
+        self.assertIn("گزارش خرید جدید", text)
+        self.assertIn("buyer", text)
+        self.assertIn("store-token-77", text)
+        txn.refresh_from_db()
+        self.assertTrue(txn.payload.get("bale_reported"))
 
     def test_parse_json_rejects_unknown_decision(self):
         parsed = parse_model_json('noise {"decision":"delete_all","confidence":1,"reason":"x"}')

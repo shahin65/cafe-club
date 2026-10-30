@@ -1,4 +1,6 @@
 from io import BytesIO
+import json
+from unittest.mock import patch
 
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
@@ -15,7 +17,7 @@ from django.test import RequestFactory
 from banners.admin import VenueSubmissionAdmin
 from banners.digits import persian_digits, persianize_html_digits
 from banners.geo import haversine_km
-from banners.models import Banner, BlueTickRequest, EventAd, SiteLink, SiteSettings, Tournament, UserProfile, Venue, VenueComment, VenueRating, VenueSubmission
+from banners.models import Banner, BlueTickRequest, EventAd, PaymentTransaction, SiteLink, SiteSettings, Tournament, UserProfile, Venue, VenueComment, VenueRating, VenueSubmission
 
 
 def _future_event_post(days=1, hour="22:00"):
@@ -154,6 +156,9 @@ class BannerSeedTests(TestCase):
         self.assertContains(dashboard, "داشبورد مدیریت کافه کلاب")
         self.assertContains(dashboard, 'dir="rtl"')
         self.assertContains(dashboard, "فعالیتهای اخیر")
+        self.assertContains(dashboard, "اقدامات دستیار هوش مصنوعی")
+        self.assertContains(dashboard, "بازبینی مدیر")
+        self.assertContains(dashboard, "فروشگاه و آخرین خریدها")
         self.assertContains(dashboard, "بنرها")
         self.assertContains(dashboard, "تنظیمات")
         self.assertContains(dashboard, "کافه‌ها و کلاب‌ها")
@@ -593,7 +598,14 @@ class PlacesTests(TestCase):
         listed = self.client.get("/location/")
         self.assertContains(listed, "کلاب شبانه")
 
-    @override_settings(DEBUG=True)
+    @override_settings(
+        DEBUG=True,
+        BITPAY_API_KEY="",
+        BAZAAR_CLIENT_ID="",
+        BAZAAR_CLIENT_SECRET="",
+        BAZAAR_REFRESH_TOKEN="",
+        MYKET_ACCESS_TOKEN="",
+    )
     def test_venue_promo_plans_existing_id_and_new_gold_on_home(self):
         venue = make_venue(name="کلاب نردبان برنز")
         places = self.client.get("/location/")
@@ -615,12 +627,15 @@ class PlacesTests(TestCase):
                 "venue_id": venue.public_id_display(),
             },
         )
-        self.assertRedirects(bronze, "/ads/")
+        self.assertRedirects(bronze, "/location/")
         venue.refresh_from_db()
         self.assertEqual(venue.promo_plan, "bronze")
-        listing = self.client.get("/ads/")
-        self.assertContains(listing, "کلاب نردبان برنز")
-        self.assertContains(listing, "نردبان برنزی کلاب")
+        places_listing = self.client.get("/location/")
+        self.assertContains(places_listing, "کلاب نردبان برنز")
+        self.assertContains(places_listing, "نردبان برنزی کلاب")
+        ads_listing = self.client.get("/ads/")
+        self.assertNotContains(ads_listing, "نردبان برنزی کلاب")
+        self.assertNotContains(ads_listing, "is-club")
         gold = self.client.post(
             "/location/promo/",
             {
@@ -642,7 +657,11 @@ class PlacesTests(TestCase):
         self.assertContains(home, "کلاب طلایی صفحه اول")
         self.assertContains(home, "کافه / کلاب")
         ads = self.client.get("/ads/")
-        self.assertContains(ads, "کلاب طلایی صفحه اول")
+        self.assertNotContains(ads, "نردبان طلایی کلاب")
+        self.assertNotContains(ads, "is-club")
+        places_gold = self.client.get("/location/")
+        self.assertContains(places_gold, "کلاب طلایی صفحه اول")
+        self.assertContains(places_gold, "نردبان طلایی کلاب")
 
 
 class AppSettingsPageTests(TestCase):
@@ -1143,7 +1162,14 @@ class EventAdTests(TestCase):
         self.assertEqual(ad.pending_plan, "bronze")
         self.assertFalse(ad.is_boosted)
 
-    @override_settings(DEBUG=True)
+    @override_settings(
+        DEBUG=True,
+        BITPAY_API_KEY="",
+        BAZAAR_CLIENT_ID="",
+        BAZAAR_CLIENT_SECRET="",
+        BAZAAR_REFRESH_TOKEN="",
+        MYKET_ACCESS_TOKEN="",
+    )
     def test_gold_plan_appears_on_home_and_silver_gets_navigation_extras(self):
         user = User.objects.create_user("goldhost", "goldhost@example.com", "pass-word-123")
         user.club_profile.is_verified = True
@@ -1188,7 +1214,7 @@ class EventAdTests(TestCase):
         self.assertTrue(gold.show_on_home)
         self.assertEqual(gold.promo_plan, "gold")
         home = self.client.get("/")
-        self.assertContains(home, "آگهی طلایی")
+        self.assertNotContains(home, "آگهی طلایی")
         self.assertContains(home, "ایونت طلایی صفحه اول")
         self.assertContains(home, "مافیا")
         self.assertContains(home, "home-promo-meta")
@@ -1215,19 +1241,22 @@ class EventAdTests(TestCase):
 class AppSourceTests(TestCase):
     def test_referral_links_hide_install_and_bind_the_market_gateway(self):
         SiteLink.objects.filter(key="android").update(url="https://example.com/app.apk")
-        SiteLink.objects.filter(key="bazaar").update(url="https://cafebazaar.ir/app/ir.cafeclub")
-        SiteLink.objects.filter(key="myket").update(url="https://myket.ir/app/ir.cafeclub")
+        SiteLink.objects.filter(key="bazaar").update(url="https://cafebazaar.ir/app/ir.cafeclub.amytis")
+        SiteLink.objects.filter(key="myket").update(url="https://myket.ir/app/ir.cafeclub.amytis")
         home = self.client.get("/")
         self.assertContains(home, "نصب اپلیکیشن")
         self.assertContains(home, 'href="/install/"')
+        self.assertContains(home, "data-offline-screen")
+        self.assertContains(home, "تلاش مجدد")
         bounced = self.client.get("/app/bazaar/")
         self.assertRedirects(bounced, "/")
+        self.assertEqual(self.client.session["app_source"], "bazaar")
         self.assertEqual(self.client.cookies["cafeclub_app"].value, "bazaar")
         listed = self.client.get("/")
         self.assertNotContains(listed, "نصب اپلیکیشن")
         self.assertRedirects(self.client.get("/install/"), "/")
         market = self.client.get("/settings/")
-        self.assertContains(market, "https://cafebazaar.ir/app/ir.cafeclub")
+        self.assertContains(market, "https://cafebazaar.ir/app/ir.cafeclub.amytis")
         self.assertNotContains(market, "https://example.com/app.apk")
         user = User.objects.create_user("market", "market@example.com", "pass-word-123")
         self.client.force_login(user)
@@ -1242,7 +1271,21 @@ class AppSourceTests(TestCase):
         self.assertEqual(user.club_profile.app_source, "direct")
         direct_settings = self.client.get("/settings/")
         self.assertContains(direct_settings, "https://example.com/app.apk")
-        self.assertNotContains(direct_settings, "https://cafebazaar.ir/app/ir.cafeclub")
+        self.assertNotContains(direct_settings, "https://cafebazaar.ir/app/ir.cafeclub.amytis")
+
+    def test_android_webview_on_home_binds_direct_like_referral(self):
+        ua = (
+            "Mozilla/5.0 (Linux; Android 13; Pixel Build/TQ) AppleWebKit/537.36 "
+            "(KHTML, like Gecko) Version/4.0 Chrome/120.0.0.0 Mobile Safari/537.36; wv"
+        )
+        home = self.client.get("/", HTTP_USER_AGENT=ua)
+        self.assertEqual(self.client.session["app_source"], "direct")
+        self.assertEqual(self.client.cookies["cafeclub_app"].value, "direct")
+        self.assertNotContains(home, "نصب اپلیکیشن")
+
+    def test_app_source_header_binds_store_referral(self):
+        self.client.get("/", HTTP_X_APP_SOURCE="myket")
+        self.assertEqual(self.client.session["app_source"], "myket")
 
 
 class MaintenanceModeTests(TestCase):
@@ -1425,4 +1468,146 @@ class TournamentTests(TestCase):
         self.assertContains(home, "tournament-plus")
         allowed = self.client.get("/tournament/create/?fresh=1")
         self.assertContains(allowed, "اسم تورنومنت")
+
+
+def _gateway_http(url, *, data=None, headers=None, method=None, timeout=20):
+    if "gateway-send" in url:
+        return 200, "88"
+    if "gateway-result" in url:
+        return 200, json.dumps({"status": 1})
+    if "pardakht.cafebazaar.ir/devapi/v2/auth/token/" in url:
+        return 200, json.dumps({"access_token": "bazaar-access", "expires_in": 3600})
+    if "/api/validate/" in url:
+        return 200, json.dumps({"purchaseState": 0})
+    if "developer.myket.ir" in url:
+        return 200, json.dumps({"purchaseState": 0})
+    raise AssertionError(url)
+
+
+@override_settings(
+    BITPAY_API_KEY="demo-bitpay",
+    BITPAY_SANDBOX=False,
+    BAZAAR_CLIENT_ID="bazaar-id",
+    BAZAAR_CLIENT_SECRET="bazaar-secret",
+    BAZAAR_REFRESH_TOKEN="bazaar-refresh",
+    MYKET_ACCESS_TOKEN="myket-token",
+    ANDROID_PACKAGE_NAME="ir.cafeclub.amytis",
+)
+class PaymentGatewayTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user("payer", "payer@example.com", "pass-word-123")
+        self.client.force_login(self.user)
+
+    def _ad(self, name="آگهی پولی"):
+        now = timezone.now()
+        return EventAd.objects.create(
+            user=self.user,
+            event_name=name,
+            organizer_name="علی",
+            image=_png_upload("pay-ad.png"),
+            address="تهران",
+            starts_at="۲۲:۰۰",
+            event_at=now + timedelta(days=1),
+            phone="09120000000",
+            ticket_price="رایگان",
+            cafe_bank="کافه",
+            city="تهران",
+            district="مرکز",
+            scenario="مافیا",
+            expires_at=now + timedelta(days=2),
+        )
+
+    @patch("banners.gateways._request", side_effect=_gateway_http)
+    def test_main_site_without_referral_uses_bitpay(self, _mock):
+        ad = self._ad("آگهی وب بیت‌پی")
+        offer = self.client.get(f"/ads/{ad.id}/boost/")
+        self.assertContains(offer, "بیت‌پی")
+        start = self.client.post(f"/ads/{ad.id}/boost/", {"plan": "bronze"})
+        self.assertEqual(start.status_code, 302)
+        self.assertIn("/payment/gateway-88-get", start["Location"])
+        txn = PaymentTransaction.objects.get(event_ad=ad)
+        self.assertEqual(txn.gateway, "bitpay")
+        self.assertEqual(txn.source, "direct")
+
+    @patch("banners.gateways._request", side_effect=_gateway_http)
+    def test_direct_source_sends_ad_plan_to_bitpay(self, _mock):
+        self.client.get("/app/direct/")
+        ad = self._ad("آگهی بیت‌پی")
+        offer = self.client.get(f"/ads/{ad.id}/boost/")
+        self.assertContains(offer, "بیت‌پی")
+        self.assertNotContains(offer, "ad_bronze")
+        start = self.client.post(f"/ads/{ad.id}/boost/", {"plan": "bronze"})
+        self.assertEqual(start.status_code, 302)
+        self.assertIn("/payment/gateway-88-get", start["Location"])
+        txn = PaymentTransaction.objects.get(event_ad=ad)
+        self.assertEqual(txn.gateway, "bitpay")
+        self.assertEqual(txn.package.sku, "ad_bronze")
+        self.assertEqual(txn.status, "pending")
+        callback = self.client.get("/pay/bitpay/callback/", {"trans_id": "t-1", "id_get": "88"})
+        self.assertRedirects(callback, "/ads/")
+        txn.refresh_from_db()
+        ad.refresh_from_db()
+        self.assertEqual(txn.status, "completed")
+        self.assertEqual(ad.promo_plan, "bronze")
+
+    @override_settings(DEBUG=False)
+    @patch("banners.gateways._request", side_effect=_gateway_http)
+    def test_bazaar_referral_routes_ad_plan_without_showing_sku(self, _mock):
+        self.client.get("/app/bazaar/")
+        ad = self._ad("آگهی بازار")
+        offer = self.client.get(f"/ads/{ad.id}/boost/")
+        self.assertContains(offer, "کافه بازار")
+        self.assertNotContains(offer, "SKU")
+        start = self.client.post(f"/ads/{ad.id}/boost/", {"plan": "bronze"})
+        txn = PaymentTransaction.objects.get(event_ad=ad)
+        self.assertEqual(txn.package.sku, "ad_bronze")
+        self.assertEqual(txn.gateway, "bazaar")
+        self.assertRedirects(start, f"/pay/checkout/{txn.id}/")
+        checkout = self.client.get(f"/pay/checkout/{txn.id}/")
+        self.assertContains(checkout, "پلن آگهی برنزی")
+        self.assertNotContains(checkout, "SKU")
+        paid = self.client.post(
+            "/pay/verify/bazaar/",
+            {"sku": "ad_bronze", "purchase_token": "ad-bz-token"},
+            HTTP_ACCEPT="application/json",
+        )
+        self.assertEqual(paid.json()["ok"], True)
+        ad.refresh_from_db()
+        self.assertEqual(ad.promo_plan, "bronze")
+        self.assertTrue(ad.is_boosted)
+
+    @override_settings(DEBUG=False)
+    @patch("banners.gateways._request", side_effect=_gateway_http)
+    def test_myket_referral_verifies_ad_plan(self, _mock):
+        self.client.get("/app/myket/")
+        ad = self._ad("آگهی مایکت")
+        start = self.client.post(f"/ads/{ad.id}/boost/", {"plan": "bronze"})
+        txn = PaymentTransaction.objects.get(event_ad=ad)
+        self.assertEqual(txn.gateway, "myket")
+        self.assertRedirects(start, f"/pay/checkout/{txn.id}/")
+        paid = self.client.post(
+            "/pay/verify/myket/",
+            {"sku": "ad_bronze", "purchase_token": "ad-mk-token"},
+            HTTP_ACCEPT="application/json",
+        )
+        self.assertEqual(paid.json()["ok"], True)
+        ad.refresh_from_db()
+        self.assertEqual(ad.promo_plan, "bronze")
+
+    def test_admin_sku_report_lists_ad_and_venue_products(self):
+        admin = User.objects.create_superuser("sku-admin", "sku-admin@example.com", "pass-word-123")
+        self.client.force_login(admin)
+        report = self.client.get("/admin/banners/coinpackage/")
+        self.assertContains(report, "ir.cafeclub.amytis")
+        self.assertContains(report, "ad_bronze")
+        self.assertContains(report, "ad_silver")
+        self.assertContains(report, "ad_gold")
+        self.assertContains(report, "venue_bronze")
+        self.assertContains(report, "venue_silver")
+        self.assertContains(report, "venue_gold")
+        self.assertNotContains(report, "coins_50")
+        shop = self.client.get("/admin/banners/paymenttransaction/")
+        self.assertContains(shop, "فروشگاه و آخرین خریدها")
+        self.assertContains(shop, "توکن خرید")
+
 

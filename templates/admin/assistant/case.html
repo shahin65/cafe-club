@@ -20,6 +20,7 @@
 <form method="post">
   {% csrf_token %}
   <input type="hidden" name="action" value="decide">
+  {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
   <p>
     <label>وضعیت نهایی</label>
     <select name="status">
@@ -62,5 +63,11 @@
     <li>{{ event.created_at }} — {{ event.actor }}{% if event.actor_user %} ({{ event.actor_user }}){% endif %} — {{ event.decision }} — {{ event.reason }} — اطمینان {{ event.confidence }} — معیار v{{ event.policy_version }} — اقدام {{ event.action }}{% if event.dry_run %} (آزمایشی){% endif %}</li>
   {% endfor %}
 </ul>
-<p><a href="{% url 'assistant_queue' case.source %}">بازگشت به فهرست</a></p>
+<p>
+  {% if next == "manager" %}
+    <a href="{% url 'assistant_manager' %}">بازگشت به بازبینی مدیر</a>
+  {% else %}
+    <a href="{% url 'assistant_queue' case.scope %}">بازگشت به فهرست</a>
+  {% endif %}
+</p>
 {% endblock %}

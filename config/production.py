@@ -89,6 +89,13 @@ GAPGPT_BASE_URL = config_value("GAPGPT_BASE_URL", "") or ""
 GAPGPT_MODEL = config_value("GAPGPT_MODEL", "") or ""
 BALE_BOT_TOKEN = config_value("BALE_BOT_TOKEN", "") or ""
 BALE_ADMIN_CHAT_ID = str(config_value("BALE_ADMIN_CHAT_ID", "") or "")
+BITPAY_API_KEY = config_value("BITPAY_API_KEY", "") or ""
+BITPAY_SANDBOX = str(config_value("BITPAY_SANDBOX", "") or "").lower() in {"1", "true", "yes"}
+BAZAAR_CLIENT_ID = config_value("BAZAAR_CLIENT_ID", "") or ""
+BAZAAR_CLIENT_SECRET = config_value("BAZAAR_CLIENT_SECRET", "") or ""
+BAZAAR_REFRESH_TOKEN = config_value("BAZAAR_REFRESH_TOKEN", "") or ""
+MYKET_ACCESS_TOKEN = config_value("MYKET_ACCESS_TOKEN", "") or ""
+ANDROID_PACKAGE_NAME = config_value("ANDROID_PACKAGE_NAME", "ir.cafeclub.amytis") or "ir.cafeclub.amytis"
 
 LOGGING = {
     "version": 1,

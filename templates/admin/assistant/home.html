@@ -3,11 +3,19 @@
 {% block assistant %}
 <h1>دستیار هوش مصنوعی</h1>
 <p>بررسی نظرات، آگهی‌ها، درخواست کافه و تیک آبی بر اساس معیارهای مدیر.</p>
+<p>
+  <a class="button" href="{% url 'assistant_manager' %}">بازبینی مدیر{% if manager_count %} ({{ manager_count }}){% endif %}</a>
+</p>
 <ul class="assistant-cards">
   {% for section in sections %}
     <li>
       <strong>{{ section.label }}</strong>
       <p>در انتظار {{ section.pending }} — بازبینی مدیر {{ section.review }} — کل {{ section.total }}</p>
+      <p>
+        رسیدگی: {% if section.realtime_review %}بلادرنگ{% else %}طبق ساعت تنظیم‌شده{% endif %}
+        —
+        گزارش: {% if section.realtime_report %}بلادرنگ{% else %}طبق ساعت تنظیم‌شده{% endif %}
+      </p>
       <a class="button" href="{% url 'assistant_queue' section.key %}">فهرست موارد</a>
       <a class="button" href="{% url 'assistant_policy' section.key %}">معیارهای بررسی</a>
     </li>

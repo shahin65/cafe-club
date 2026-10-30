@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "تایید خرید فروشگاه" %}{% endblock %}
+
+{% block content %}
+  <section class="sheet wizard-sheet wallet-sheet">
+    <h1>{% trans "تایید خرید فروشگاه" %}</h1>
+    {% if gateway == "bazaar" %}
+      <p class="wallet-source">{% trans "پرداخت از طریق کافه بازار" %}</p>
+    {% else %}
+      <p class="wallet-source">{% trans "پرداخت از طریق مایکت" %}</p>
+    {% endif %}
+    <p>{% trans "محصول" %}: <strong>{{ package.title }}</strong></p>
+    <p>{% trans "قیمت" %}: {{ package.price_toman }} {% trans "تومان" %}</p>
+    {% if messages %}
+      <ul class="form-messages">
+        {% for message in messages %}
+          <li class="{{ message.tags }}">{{ message }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+    <form class="wizard-form wallet-verify" method="post" action="{{ verify_url }}">
+      {% csrf_token %}
+      <input type="hidden" name="sku" value="{{ package.sku }}">
+      <label>{% trans "توکن خرید" %}
+        <input type="text" name="purchase_token" required dir="ltr" autocomplete="off">
+      </label>
+      <button class="choice wizard-submit" type="submit">{% trans "اعتبارسنجی خرید" %}</button>
+    </form>
+  </section>
+{% endblock %}

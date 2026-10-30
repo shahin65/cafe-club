@@ -6,7 +6,7 @@ from django.utils.deprecation import MiddlewareMixin
 from django.utils.translation import check_for_language
 
 from banners.accounts import user_is_blocked
-from banners.app_source import normalize_source, persist_source, read_source, set_source_cookie
+from banners.app_source import incoming_source, persist_source, read_source, set_source_cookie
 from banners.auth_views import language_prefixed_path
 from banners.digits import persianize_html_digits
 
@@ -65,7 +65,7 @@ class AttachAppSourceMiddleware(MiddlewareMixin):
     """Remember whether the visitor opened Cafe Club from direct, Bazaar, or Myket."""
 
     def process_request(self, request):
-        incoming = normalize_source(request.GET.get("app") or request.GET.get("from"))
+        incoming = incoming_source(request)
         if incoming:
             persist_source(request, incoming)
             return

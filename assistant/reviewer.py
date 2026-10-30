@@ -244,10 +244,26 @@ def review_case(case, *, actor="ai", user=None, dry_run=False, manager_decision=
         dry_run=False,
         policy_version=policy.version,
     )
+    _notify_finished(case)
     return case
 
 
-def process_pending(limit=40):
+def _notify_finished(case):
+    if case.status == STATUS_PENDING:
+        return
+    policy = policy_for(case.scope)
+    if not policy or not policy.realtime_report:
+        return
+    from assistant.realtime import report_finished_case
+
+    try:
+        report_finished_case(case)
+    except AssistantClientError as exc:
+        case.last_error = f"بله: {exc}"[:240]
+        case.save(update_fields=["last_error", "updated_at"])
+
+
+def process_pending(limit=40, scope=None):
     config = AssistantConfig.load()
     if config.auto_paused:
         return {"skipped": "paused", "processed": 0, "errors": 0}
@@ -255,10 +271,13 @@ def process_pending(limit=40):
     ReviewCase.objects.filter(processing=True, locked_at__lt=stale).update(processing=False, locked_at=None)
     processed = 0
     errors = 0
-    queryset = ReviewCase.objects.filter(status=STATUS_PENDING, processing=False).order_by("submitted_at", "id")[:limit]
+    queryset = ReviewCase.objects.filter(status=STATUS_PENDING, processing=False).order_by("submitted_at", "id")
+    if scope:
+        queryset = queryset.filter(scope=scope)
+    queryset = queryset[:limit]
     for case in queryset:
         policy = policy_for(case.scope)
-        if not policy or not policy.auto_enabled:
+        if not policy or not (policy.auto_enabled or policy.realtime_review or policy.realtime_report):
             continue
         locked = ReviewCase.objects.filter(pk=case.pk, processing=False, status=STATUS_PENDING).update(
             processing=True, locked_at=timezone.now()
@@ -276,6 +295,7 @@ def process_pending(limit=40):
                 case.status = STATUS_NEEDS_REVIEW
                 case.ai_reason = case.last_error
                 case.save(update_fields=["status", "ai_reason", "updated_at"])
+                _notify_finished(case)
         except Exception:
             case.mark_error("خطای داخلی بررسی")
             errors += 1
