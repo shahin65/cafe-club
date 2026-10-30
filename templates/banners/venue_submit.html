@@ -38,6 +38,9 @@
           <label>{% trans "نام مدیر یا سوپروایزر مجموعه" %}
             <input type="text" name="manager_name" maxlength="80" required value="{{ values.manager_name }}">
           </label>
+          <label>{% trans "شهر" %}
+            <input type="text" name="city" maxlength="80" required value="{{ values.city }}" placeholder="{% trans 'مثلاً تهران' %}">
+          </label>
           <label>{% trans "آدرس" %}
             <input type="text" name="address" maxlength="300" required value="{{ values.address }}">
           </label>

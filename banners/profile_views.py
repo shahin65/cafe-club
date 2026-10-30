@@ -19,6 +19,7 @@ from banners.gmail import (
     store_gmail_challenge,
 )
 from banners.images import optimize_profile_photo
+from banners.accounts import user_is_blocked
 from banners.models import BlueTickRequest, UserProfile
 
 
@@ -42,6 +43,8 @@ def _unique_username(base):
 
 
 def _login_user(request, user):
+    if user_is_blocked(user):
+        raise ValidationError("این اکانت مسدود شده است.")
     login(request, user, backend="django.contrib.auth.backends.ModelBackend")
 
 

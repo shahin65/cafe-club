@@ -8,6 +8,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% trans "اپلیکیشن در دست تعمیر است" %} | {% trans "کافه کلاب" %}</title>
   <link rel="icon" type="image/png" href="{% static 'Logo.png' %}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@500;700&display=swap" rel="stylesheet">
   <style>
     html, body {
       margin: 0;
@@ -18,15 +21,33 @@
       min-height: 100dvh;
       display: grid;
       place-items: center;
+      font-family: "Vazirmatn", Tahoma, sans-serif;
+      color: #f4f0e8;
     }
-    img {
-      width: min(46vw, 168px);
+    .maintenance-mark {
+      margin: 0;
+      display: grid;
+      justify-items: center;
+      gap: 18px;
+      text-align: center;
+    }
+    .maintenance-mark img {
+      width: min(38vw, 128px);
       height: auto;
       display: block;
+    }
+    .maintenance-mark figcaption {
+      margin: 0;
+      font-size: 1.05rem;
+      font-weight: 700;
+      letter-spacing: 0.01em;
     }
   </style>
 </head>
 <body>
-  <img src="{% static 'Icon-Settings1.png' %}" alt="{% trans 'اپلیکیشن در دست تعمیر است' %}">
+  <figure class="maintenance-mark">
+    <img src="{% static 'Icon-Settings1.png' %}" alt="">
+    <figcaption>{% trans "اپلیکیشن در دست تعمیر است" %}</figcaption>
+  </figure>
 </body>
 </html>

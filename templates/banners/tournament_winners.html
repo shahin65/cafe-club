@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% load i18n static %}
+
+{% block title %}{% trans "نفرات برتر" %} | {{ tournament.name }}{% endblock %}
+
+{% block tab_bar %}{% endblock %}
+
+{% block content %}
+  <section class="tournament-share-page">
+    <div class="tournament-share-wrap">
+      <div class="tournament-frost tournament-share-board is-winners" id="winners-board" data-share-board>
+        <p class="tournament-share-kicker">{% trans "کافه کلاب" %}</p>
+        <img class="tournament-share-icon" src="{% static 'Icon-Tournament.png' %}" alt="">
+        <h1>{{ tournament.name }}</h1>
+        <p class="tournament-share-round">{% trans "نفرات برتر و جوایز" %}</p>
+        <ol class="tournament-winner-list">
+          {% for row in rows %}
+            <li>
+              <span class="tournament-medal" aria-hidden="true">
+                {% if row.place == 1 %}
+                  <svg viewBox="0 0 24 24" width="28" height="28"><circle cx="12" cy="13" r="7" fill="#d4af37"/><path fill="#b8860b" d="M8 2h3l1 6-4-6Zm5 0h3l-4 6 1-6Z"/><text x="12" y="16.2" text-anchor="middle" font-size="8" font-weight="700" fill="#3a2a00">1</text></svg>
+                {% elif row.place == 2 %}
+                  <svg viewBox="0 0 24 24" width="28" height="28"><circle cx="12" cy="13" r="7" fill="#c0c7d1"/><path fill="#8e99a4" d="M8 2h3l1 6-4-6Zm5 0h3l-4 6 1-6Z"/><text x="12" y="16.2" text-anchor="middle" font-size="8" font-weight="700" fill="#2a3036">2</text></svg>
+                {% elif row.place == 3 %}
+                  <svg viewBox="0 0 24 24" width="28" height="28"><circle cx="12" cy="13" r="7" fill="#c08457"/><path fill="#8d5a32" d="M8 2h3l1 6-4-6Zm5 0h3l-4 6 1-6Z"/><text x="12" y="16.2" text-anchor="middle" font-size="8" font-weight="700" fill="#3a220f">3</text></svg>
+                {% else %}
+                  <svg viewBox="0 0 24 24" width="28" height="28"><path fill="#e6c27a" d="M12 2 9 8H3l5 4-2 8 6-4 6 4-2-8 5-4h-6L12 2Z"/></svg>
+                {% endif %}
+              </span>
+              <span class="tournament-place">{{ row.label }}</span>
+              <strong>{{ row.player.name }}</strong>
+              <span class="tournament-prize">{{ row.prize }}</span>
+            </li>
+          {% endfor %}
+        </ol>
+      </div>
+      <div class="tournament-card-share">
+        <button class="tournament-icon-btn" type="button" data-save-image data-share-target="winners-board" aria-label="{% trans 'ذخیره تصویر' %}">
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M5 3h10l4 4v14H5V3Zm2 2v14h10V8.8L13.2 5H7Zm5 4h2v4h3l-4 4-4-4h3V9Z"/></svg>
+          <span>{% trans "ذخیره" %}</span>
+        </button>
+        <button class="tournament-icon-btn" type="button" data-share-page data-share-target="winners-board" aria-label="{% trans 'اشتراک‌گذاری' %}">
+          <img src="{% static 'Icon-Share.png' %}" alt="" width="20" height="20">
+          <span>{% trans "اشتراک" %}</span>
+        </button>
+      </div>
+    </div>
+    <div class="tournament-share-actions">
+      {% if can_manage %}
+        <a class="choice tournament-btn" href="{% url 'tournament_manage' tournament.id %}">
+          <img src="{% static 'Icon-Tournament.png' %}" alt="" width="22" height="22">
+          <span>{% trans "بازگشت به مدیریت" %}</span>
+        </a>
+      {% endif %}
+    </div>
+  </section>
+  <script src="{% static 'js/html2canvas.min.js' %}"></script>
+  <script src="{% static 'js/tournament-share.js' %}?v=2"></script>
+{% endblock %}

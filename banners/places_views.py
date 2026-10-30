@@ -279,6 +279,7 @@ def submit_venue(request):
         "hours": "",
         "latitude": "",
         "longitude": "",
+        "city": "",
     }
     error = ""
     if request.method == "POST":
@@ -287,6 +288,7 @@ def submit_venue(request):
         values["address"] = (request.POST.get("address") or "").strip()[:300]
         values["phone"] = (request.POST.get("phone") or "").strip()[:30]
         values["hours"] = (request.POST.get("hours") or "").strip()[:200]
+        values["city"] = (request.POST.get("city") or "").strip()[:80]
         values["latitude"] = (request.POST.get("latitude") or "").strip()
         values["longitude"] = (request.POST.get("longitude") or "").strip()
         lat = parse_coord(values["latitude"])
@@ -294,9 +296,9 @@ def submit_venue(request):
         logo = request.FILES.get("logo")
         extras = [request.FILES.get("photo_1"), request.FILES.get("photo_2"), request.FILES.get("photo_3")]
         extras = [item for item in extras if item]
-        required = {key: values[key] for key in ("name", "manager_name", "address", "phone", "hours")}
+        required = {key: values[key] for key in ("name", "manager_name", "address", "phone", "hours", "city")}
         if not all(required.values()) or not logo:
-            error = "نام کلاب، لوگو، نام مدیر، آدرس، تلفن و ساعات کاری را کامل کنید."
+            error = "نام کلاب، لوگو، نام مدیر، شهر، آدرس، تلفن و ساعات کاری را کامل کنید."
         elif lat is None or lng is None:
             error = "محل کافه یا کلاب را روی نقشه انتخاب کنید."
         elif len(extras) > 3:
@@ -310,6 +312,7 @@ def submit_venue(request):
                     address=values["address"],
                     phone=values["phone"],
                     hours=values["hours"],
+                    city=values["city"],
                     latitude=lat,
                     longitude=lng,
                     logo=_save_upload(logo, 512),

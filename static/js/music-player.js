@@ -130,6 +130,16 @@
         }
         playTrack(track.id);
       });
+      var rename = document.createElement("button");
+      rename.type = "button";
+      rename.className = "music-rename";
+      rename.setAttribute("aria-label", list.dataset.rename || "ویرایش نام");
+      rename.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M4 17.2V20h2.8l8.3-8.3-2.8-2.8L4 17.2Zm13.8-8.2c.3-.3.3-.8 0-1.1l-1.7-1.7c-.3-.3-.8-.3-1.1 0l-1.3 1.3 2.8 2.8 1.3-1.3Z"/></svg>';
+      rename.addEventListener("click", function (event) {
+        event.preventDefault();
+        event.stopPropagation();
+        startRename(item, track, choose);
+      });
       var remove = document.createElement("button");
       remove.type = "button";
       remove.className = "music-remove";
@@ -139,6 +149,7 @@
         removeTrack(track.id);
       });
       item.appendChild(choose);
+      item.appendChild(rename);
       item.appendChild(remove);
       list.appendChild(item);
     });
@@ -151,6 +162,47 @@
       })[0];
       if (selected) setNow(selected.name);
     }
+  }
+
+  function startRename(item, track, choose) {
+    if (item.querySelector(".music-rename-input")) return;
+    var input = document.createElement("input");
+    input.type = "text";
+    input.className = "music-rename-input";
+    input.value = track.name || "";
+    input.maxLength = 80;
+    input.setAttribute("aria-label", list.dataset.renamePrompt || "نام نمایشی موسیقی");
+    choose.hidden = true;
+    item.insertBefore(input, choose);
+    input.focus();
+    input.select();
+    var done = false;
+    function finish(save) {
+      if (done) return;
+      done = true;
+      var next = (input.value || "").trim().slice(0, 80);
+      if (save && next && next !== track.name) {
+        track.name = next;
+        saveTrack(track).then(function () {
+          if (track.id === currentId) setNow(track.name);
+          render();
+        }).catch(render);
+        return;
+      }
+      render();
+    }
+    input.addEventListener("keydown", function (event) {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        finish(true);
+      } else if (event.key === "Escape") {
+        event.preventDefault();
+        finish(false);
+      }
+    });
+    input.addEventListener("blur", function () {
+      finish(true);
+    });
   }
 
   function revokeUrl() {

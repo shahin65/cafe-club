@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{{ title }} | {% trans "تورنومنت" %}{% endblock %}
+
+{% block content %}
+  <section class="sheet wizard-sheet tournament-frost">
+    <h1>{{ title }}</h1>
+    {% if hint %}<p>{{ hint }}</p>{% endif %}
+    {% if error %}<p class="wizard-error">{{ error }}</p>{% endif %}
+    <form class="wizard-form" method="post">
+      {% csrf_token %}
+      {% if mode == "name" %}
+        <label>{% trans "اسم تورنومنت" %}<input type="text" name="name" value="{{ value }}" required maxlength="120"></label>
+      {% elif mode == "count" %}
+        <label>{% trans "تعداد" %}<input type="number" name="count" min="{{ min_count }}" max="{{ max_count }}" value="{{ value }}" required></label>
+      {% elif mode == "names" %}
+        {% for field in fields %}
+          <label>{{ field_label }} {{ forloop.counter }}<input type="text" name="name_{{ field.index }}" value="{{ field.value }}" required maxlength="80"></label>
+        {% endfor %}
+      {% elif mode == "prizes" %}
+        {% for field in fields %}
+          <label>{{ field.label }}<input type="text" name="prize_{{ field.index }}" value="{{ field.value }}" required maxlength="80" placeholder="{% trans 'مثلاً ۱۰ میلیون تومان' %}"></label>
+        {% endfor %}
+      {% endif %}
+      <button class="choice tournament-btn wizard-submit" type="submit">
+        <svg class="tournament-next-icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M14 5 12.6 6.4 17.2 11H3v2h14.2l-4.6 4.6L14 19l8-7-8-7Z"/></svg>
+        <span>{% trans "ادامه" %}</span>
+      </button>
+    </form>
+  </section>
+{% endblock %}

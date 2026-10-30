@@ -4,7 +4,7 @@
 {% block title %}{% trans "همه سناریوها" %} | {% trans "کافه کلاب" %}{% endblock %}
 
 {% block content %}
-  <section class="sheet catalog-sheet" data-filter-bar>
+  <section class="sheet catalog-sheet" data-filter-bar data-home-full="{% if home_full %}1{% else %}0{% endif %}">
     <h1>{% trans "همه سناریوها" %}</h1>
     <nav class="places-bar places-bar-2" aria-label="{% trans 'جستجو و مرتب‌سازی' %}">
       <button type="button" class="places-bar-btn" data-toggle-panel="sort" aria-expanded="false">
@@ -55,22 +55,71 @@
               {% endif %}
               <span class="catalog-card-name">{{ scenario.display_name }}</span>
             </a>
-            <form class="pin-home catalog-pin" method="post" action="{% url 'scenario_pin' scenario.id %}">
-              {% csrf_token %}
-              <input type="hidden" name="next" value="{{ request.get_full_path }}">
-              <button type="submit" class="{% if scenario.id in pinned_ids %}is-pinned{% endif %}" aria-label="{% trans 'اضافه به صفحه اصلی' %}">
-                <img src="{% static 'Icon-Favorite.png' %}" alt="" width="28" height="28">
-              </button>
-            </form>
+            <button
+              type="button"
+              class="catalog-pin-btn{% if scenario.id in pinned_ids %} is-pinned{% endif %}"
+              data-pin-url="{% url 'scenario_pin' scenario.id %}"
+              data-add-id="{{ scenario.id }}"
+              data-pinned="{% if scenario.id in pinned_ids %}1{% else %}0{% endif %}"
+              aria-label="{% trans 'اضافه به صفحه اصلی' %}"
+            >
+              <img src="{% static 'Icon-Favorite.png' %}" alt="" width="28" height="28">
+            </button>
           </li>
         {% endfor %}
       </ul>
     {% else %}
       <p>{% trans "سناریویی با این نام پیدا نشد." %}</p>
     {% endif %}
+    <dialog class="catalog-dialog" data-pin-confirm>
+      <form method="dialog" class="catalog-dialog-card">
+        <p>{% trans "آیا قصد قرار دادن این سناریو در صفحه نخست را دارید؟" %}</p>
+        <div class="catalog-dialog-actions">
+          <button value="no" class="choice">{% trans "خیر" %}</button>
+          <button value="yes" class="choice wizard-submit">{% trans "بله" %}</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog class="catalog-dialog" data-pin-remove>
+      <form method="dialog" class="catalog-dialog-card">
+        <p>{% trans "این سناریو از صفحه اصلی برداشته شود؟" %}</p>
+        <div class="catalog-dialog-actions">
+          <button value="no" class="choice">{% trans "خیر" %}</button>
+          <button value="yes" class="choice wizard-submit">{% trans "بله" %}</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog class="catalog-dialog" data-pin-replace>
+      <form class="catalog-dialog-card" method="post" action="{% url 'scenario_pin_replace' %}">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <input type="hidden" name="add_id" value="">
+        <p>{% trans "شش سناریوی فعلی صفحه اصلی:" %}</p>
+        <p class="catalog-replace-hint">{% trans "یکی را انتخاب کنید تا از صفحه اصلی حذف شود." %}</p>
+        <ul class="catalog-replace-list">
+          {% for item in home_scenarios %}
+            <li>
+              <label>
+                <input type="radio" name="remove_id" value="{{ item.id }}" required>
+                <span>{{ item.display_name }}</span>
+              </label>
+            </li>
+          {% endfor %}
+        </ul>
+        <div class="catalog-dialog-actions">
+          <button type="button" class="choice" data-close-dialog>{% trans "انصراف" %}</button>
+          <button class="choice wizard-submit" type="submit">{% trans "جایگزینی" %}</button>
+        </div>
+      </form>
+    </dialog>
+    <form method="post" hidden data-pin-post>
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{{ request.get_full_path }}">
+    </form>
   </section>
 {% endblock %}
 
 {% block extra_js %}
-  <script src="{% static 'js/places.js' %}?v=4"></script>
+  <script src="{% static 'js/places.js' %}?v=5"></script>
+  <script src="{% static 'js/catalog.js' %}?v=1"></script>
 {% endblock %}

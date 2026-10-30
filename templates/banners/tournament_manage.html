@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% load i18n static %}
+
+{% block title %}{{ tournament.name }} | {% trans "تورنومنت" %}{% endblock %}
+
+{% block content %}
+  <section class="sheet tournament-sheet tournament-frost">
+    <p class="doc-kicker"><a href="{% url 'home' %}">{% trans "خانه" %}</a> / {% trans "تورنومنت" %}</p>
+    <header class="tournament-head">
+      <img src="{% static 'Icon-Tournament.png' %}" alt="" width="48" height="48">
+      <h1>{{ tournament.name }}</h1>
+    </header>
+    {% if error %}<p class="wizard-error">{{ error }}</p>{% endif %}
+    <p class="tournament-count">{% trans "افراد حاضر" %}: {{ active_count }}</p>
+
+    {% if not last_round %}
+      <form class="tournament-tool" method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="draw_1">
+        <h2>{% trans "مدیریت دور اول تورنومنت" %}</h2>
+        <p>{% trans "افراد حاضر به چند گروه چند نفره تقسیم شوند؟" %}</p>
+        <div class="ad-detail-pair">
+          <label>{% trans "تعداد گروه" %}<input type="number" name="group_count" min="1" max="20" required></label>
+          <label>{% trans "نفر در هر گروه" %}<input type="number" name="group_size" min="2" max="20" required></label>
+        </div>
+        <button class="choice tournament-btn wizard-submit" type="submit">
+          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M4 4h6v6H4V4Zm10 0h6v6h-6V4ZM4 14h6v6H4v-6Zm10.2 1.1 1.6-1.6 4.1 4.1-1.6 1.6-4.1-4.1Zm1.5 4.7-1.6-1.6 4.1-4.1 1.6 1.6-4.1 4.1Z"/></svg>
+          <span>{% trans "قرعه گروه‌ها و صندلی‌ها" %}</span>
+        </button>
+      </form>
+    {% endif %}
+
+    {% if last_round %}
+      <div class="tournament-tool">
+        <h2>{{ last_round.title }} {% trans "قرعه شد" %}</h2>
+        <a class="choice tournament-btn" href="{% url 'tournament_groups' tournament.id last_round.number %}">
+          <img src="{% static 'Icon-List.png' %}" alt="" width="22" height="22">
+          <span>{% trans "نمایش گروه‌ها و صندلی‌ها" %}</span>
+        </a>
+      </div>
+    {% endif %}
+
+    {% if last_round and not last_round.is_final %}
+      <div class="tournament-tool">
+        <h2>{% trans "مرحله بعد" %}</h2>
+        <div class="tournament-stage-row">
+          <a class="choice tournament-btn{% if next_kind == 'round2' %} is-on{% endif %}" href="?next=round2">
+            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M4 6h9v2H4V6Zm0 5h13v2H4v-2Zm0 5h16v2H4v-2Z"/></svg>
+            <span>{% trans "ساخت دور دوم تورنومنت" %}</span>
+          </a>
+          <a class="choice tournament-btn{% if next_kind == 'semi' %} is-on{% endif %}" href="?next=semi">
+            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M4 5h7v6H4V5Zm9 0h7v6h-7V5ZM8 13h8v6H8v-6Z"/></svg>
+            <span>{% trans "ساخت نیمه نهایی" %}</span>
+          </a>
+          <a class="choice tournament-btn{% if next_kind == 'final' %} is-on{% endif %}" href="?next=final">
+            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M7 3h10v3a5 5 0 0 1-4 4.9V13h3v2H8v-2h3V10.9A5 5 0 0 1 7 6V3Zm2 16h6v2H9v-2Z"/></svg>
+            <span>{% trans "ساخت فینال" %}</span>
+          </a>
+        </div>
+      </div>
+      {% if next_kind %}
+        <form class="tournament-tool" method="post">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="next_stage">
+          <input type="hidden" name="kind" value="{{ next_kind }}">
+          <h2>{% trans "ساخت" %} {{ next_title }}</h2>
+          <p>{% trans "صعودی‌ها را مشخص کنید؛ بعد قرعه این مرحله انجام می‌شود." %}</p>
+          <ul class="tournament-check">
+            {% for player in active_players %}
+              <li>
+                <label>
+                  <input type="checkbox" name="advance" value="{{ player.id }}">
+                  <span>{{ player.name }}</span>
+                </label>
+              </li>
+            {% endfor %}
+          </ul>
+          {% if not next_is_final %}
+            <div class="ad-detail-pair">
+              <label>{% trans "تعداد گروه" %}<input type="number" name="group_count" min="1" max="20" required></label>
+              <label>{% trans "نفر در هر گروه" %}<input type="number" name="group_size" min="2" max="20" required></label>
+            </div>
+          {% else %}
+            <p>{% trans "در فینال فقط شماره صندلی قرعه می‌شود." %}</p>
+          {% endif %}
+          <button class="choice tournament-btn wizard-submit" type="submit">
+            <img src="{% static 'Icon-Refresh.png' %}" alt="" width="22" height="22">
+            <span>{% trans "ثبت صعودی‌ها و قرعه" %}</span>
+          </button>
+        </form>
+      {% endif %}
+    {% endif %}
+
+    {% if last_round and last_round.is_final %}
+      <div class="tournament-tool">
+        <h2>{% trans "مشخص کردن نفرات برتر" %}</h2>
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="set_winners">
+          {% for field in prize_fields %}
+            <label class="tournament-select">{{ field.label }} — {{ field.prize }}
+              <select name="place_{{ field.index }}" required>
+                <option value="">{% trans "انتخاب کنید" %}</option>
+                {% for player in active_players %}
+                  <option value="{{ player.id }}">{{ player.name }}</option>
+                {% endfor %}
+              </select>
+            </label>
+          {% endfor %}
+          <button class="choice tournament-btn wizard-submit" type="submit">
+            <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M7 3h10v3a5 5 0 0 1-4 4.9V13h3v2H8v-2h3V10.9A5 5 0 0 1 7 6V3Zm2 16h6v2H9v-2Z"/></svg>
+            <span>{% trans "ثبت نفرات برتر" %}</span>
+          </button>
+        </form>
+        {% if has_winners %}
+          <a class="choice tournament-btn" href="{% url 'tournament_winners' tournament.id %}">
+            <img src="{% static 'Icon-Tournament.png' %}" alt="" width="22" height="22">
+            <span>{% trans "صفحه نفرات برتر" %}</span>
+          </a>
+        {% endif %}
+      </div>
+    {% endif %}
+
+    <form class="tournament-tool" method="post" data-end-confirm="{% trans 'با پایان تورنومنت این مورد از فهرست تورنومنت‌های شما حذف می‌شود. ادامه می‌دهید؟' %}" onsubmit="return confirm(this.getAttribute('data-end-confirm'));">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="end">
+      <button class="choice tournament-btn tournament-end" type="submit">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M7 7h10v10H7V7Zm5-5a10 10 0 1 0 0 20 10 10 0 0 0 0-20Z"/></svg>
+        <span>{% trans "پایان تورنومنت" %}</span>
+      </button>
+    </form>
+  </section>
+{% endblock %}

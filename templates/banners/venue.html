@@ -29,28 +29,37 @@
       {% if venue.gallery %}
         <ul class="venue-gallery">
           {% for image in venue.gallery %}
-            <li><img src="{{ image.url }}" alt=""></li>
+            <li>
+              <button class="venue-photo-btn" type="button" data-photo="{{ image.url }}">
+                <img src="{{ image.url }}" alt="{{ venue.name }}">
+              </button>
+            </li>
           {% endfor %}
         </ul>
       {% endif %}
-      <dl class="venue-meta">
-        {% if venue.manager_name %}
-          <div><dt>{% trans "مدیر یا سوپروایزر" %}</dt><dd>{{ venue.manager_name }}</dd></div>
-        {% endif %}
+      <div class="ad-detail-grid">
+        <div class="ad-detail-pair">
+          {% include "banners/_ad_chip.html" with icon="city" label="شهر" text=venue.city %}
+          {% if venue.manager_name %}
+            {% include "banners/_ad_chip.html" with icon="user" label="مدیر" text=venue.manager_name %}
+          {% endif %}
+        </div>
         {% if venue.hours %}
-          <div><dt>{% trans "روزها و ساعات کاری" %}</dt><dd>{{ venue.hours }}</dd></div>
+          {% include "banners/_ad_chip.html" with icon="time" label="ساعات کاری" text=venue.hours center=1 %}
         {% endif %}
-        <div><dt>{% trans "آدرس" %}</dt><dd>{{ venue.address }}</dd></div>
-        {% if venue.phone %}
-          <div><dt>{% trans "تلفن تماس" %}</dt><dd dir="ltr"><a href="tel:{{ venue.phone }}">{{ venue.phone }}</a></dd></div>
-        {% endif %}
-        {% if venue.avg_display %}
-          <div><dt>{% trans "امتیاز" %}</dt><dd>★ {{ venue.avg_display }} ({{ venue.rating_count }})</dd></div>
-        {% endif %}
+        {% include "banners/_ad_chip.html" with icon="address" label="آدرس" text=venue.address center=1 %}
+        <div class="ad-detail-pair">
+          {% if venue.phone %}
+            {% include "banners/_ad_chip.html" with icon="phone" label="تلفن" text=venue.phone call=venue.phone %}
+          {% endif %}
+          {% if venue.avg_display %}
+            {% include "banners/_ad_chip.html" with icon="star" label="امتیاز" text=venue.avg_display %}
+          {% endif %}
+        </div>
         {% if venue.distance_label %}
-          <div><dt>{% trans "فاصله" %}</dt><dd>{{ venue.distance_label }}</dd></div>
+          {% include "banners/_ad_chip.html" with icon="distance" label="فاصله" text=venue.distance_label center=1 %}
         {% endif %}
-      </dl>
+      </div>
 
       <section class="venue-rate">
         <h2>{% trans "امتیاز شما" %}</h2>
@@ -93,6 +102,12 @@
       </section>
     </div>
 
+    <dialog class="photo-sheet" data-photo-sheet>
+      <form method="dialog">
+        <img data-photo-view alt="" hidden>
+        <button type="submit">{% trans "بستن" %}</button>
+      </form>
+    </dialog>
     <dialog class="nav-sheet" data-nav-sheet>
       <form method="dialog">
         <h2>{% trans "مسیریابی با" %}</h2>
@@ -109,5 +124,5 @@
 {% endblock %}
 
 {% block extra_js %}
-  <script src="{% static 'js/places.js' %}?v=4"></script>
+  <script src="{% static 'js/places.js' %}?v=5"></script>
 {% endblock %}

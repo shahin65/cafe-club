@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% load i18n static %}
+
+{% block title %}{{ round.title }} | {{ tournament.name }}{% endblock %}
+
+{% block tab_bar %}{% endblock %}
+
+{% block content %}
+  <section class="tournament-share-page">
+    <div class="tournament-frost tournament-share-head">
+      <p class="tournament-share-kicker">{% trans "کافه کلاب" %}</p>
+      <h1>{{ tournament.name }}</h1>
+      <p class="tournament-share-round">{{ round.title }}</p>
+    </div>
+    <div class="tournament-share-grid">
+      {% for group in groups %}
+        <div class="tournament-share-wrap">
+          <article class="tournament-frost tournament-share-card" id="group-{{ group.index }}" data-share-board>
+            <h2>
+              <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M3 5h8v6H3V5Zm10 0h8v6h-8V5ZM3 13h8v6H3v-6Zm10 0h8v6h-8v-6Z"/></svg>
+              {% if round.is_final %}{% trans "میز فینال" %}{% else %}{% trans "گروه" %} {{ group.index }}{% endif %}
+            </h2>
+            <ol>
+              {% for seat in group.seats %}
+                <li>
+                  <span class="tournament-person">
+                    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M12 4a4 4 0 1 1 0 8 4 4 0 0 1 0-8Zm0 10c4 0 8 2 8 4.5V20H4v-1.5C4 16 8 14 12 14Z"/></svg>
+                    <strong>{{ seat.player.name }}</strong>
+                  </span>
+                  <span class="tournament-seat">
+                    <img src="{% static 'Icon-Chair.png' %}" alt="" width="16" height="16">
+                    {% trans "صندلی" %} {{ seat.seat_number }}
+                  </span>
+                </li>
+              {% endfor %}
+            </ol>
+          </article>
+          {% include "banners/_tournament_share_btns.html" with target=group.index %}
+        </div>
+      {% endfor %}
+    </div>
+    <div class="tournament-share-actions">
+      {% if can_manage %}
+        <a class="choice tournament-btn" href="{% url 'tournament_manage' tournament.id %}">
+          <img src="{% static 'Icon-Tournament.png' %}" alt="" width="22" height="22">
+          <span>{% trans "بازگشت به مدیریت" %}</span>
+        </a>
+      {% endif %}
+    </div>
+  </section>
+  <script src="{% static 'js/html2canvas.min.js' %}"></script>
+  <script src="{% static 'js/tournament-share.js' %}?v=2"></script>
+{% endblock %}

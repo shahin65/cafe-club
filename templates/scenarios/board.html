@@ -12,10 +12,6 @@
         <img src="{% static 'Icon-Opreator.png' %}" alt="" width="56" height="56">
         <span>{% trans "مدیریت بازی" %}</span>
       </a>
-      <a class="choice deal-safe" href="{% url 'deal_restart' %}">
-        <img src="{% static 'Icon-Refresh.png' %}" alt="" width="56" height="56">
-        <span>{% trans "تقسیم نقش مجدد" %}</span>
-      </a>
     {% elif mode == "random" %}
       <p>{% trans "روی کادر دلخواه بزنید." %}</p>
       <ul class="mystery-grid">

@@ -16,7 +16,7 @@
     {% trans "نصب اپلیکیشن" %}
   </a>
   {% endif %}
-  <section class="quick-roles" aria-labelledby="quick-roles-title">
+  <section class="quick-roles home-frost" aria-labelledby="quick-roles-title">
     <header class="quick-roles-bar">
       <button class="quick-roles-gear" type="button" data-open-settings aria-label="{% trans 'تنظیمات' %}">
         <img src="{% static 'Icon-Settings2.png' %}" alt="" width="32" height="32">
@@ -45,7 +45,33 @@
     <a class="quick-more" href="{% url 'scenario_catalog' %}">{% trans "مشاهده سایر سناریوها" %}</a>
   </section>
 
-  <section class="ad-rotator" aria-label="{% trans 'بنرهای کافه' %}" data-interval="3000">
+  <section class="large-roles home-frost" aria-labelledby="large-roles-title">
+    <header class="quick-roles-bar">
+      <span class="quick-roles-gear" aria-hidden="true"></span>
+      <div class="quick-roles-title">
+        <img src="{% static 'Icon-Objective.png' %}" alt="" width="40" height="40">
+        <h2 id="large-roles-title">{% trans "تقسیم نقش سناریو تعداد بالا" %}</h2>
+      </div>
+    </header>
+    {% if large_scenarios %}
+      <ul class="quick-role-list">
+        {% for scenario in large_scenarios %}
+          <li>
+            <a href="{% url 'large_start' scenario.id %}?fresh=1">
+              {% if scenario.icon %}
+                <span class="scenario-icon-frame">
+                  <img class="quick-role-icon" src="{{ scenario.icon.url }}" alt="">
+                </span>
+              {% endif %}
+              <p class="quick-role-name">{{ scenario.display_name }}</p>
+            </a>
+          </li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  </section>
+
+  <section class="ad-rotator home-frost" aria-label="{% trans 'بنرهای کافه' %}" data-interval="3000">
     {% for banner in banners %}
       {% if banner.public_url %}
         <a class="ad-slide{% if forloop.first %} is-active{% endif %}" href="{{ banner.public_url }}" {% if banner.opens_externally %}target="_blank" rel="noopener noreferrer"{% endif %}>
@@ -69,7 +95,7 @@
     {% endfor %}
   </section>
 
-  <section class="favorite-scenarios" aria-labelledby="favorite-scenarios-title">
+  <section class="favorite-scenarios home-frost" aria-labelledby="favorite-scenarios-title">
     <header class="quick-roles-bar">
       {% if my_scenarios %}
         <a class="quick-roles-gear favorite-add" href="{% url 'custom_name' %}?fresh=1" aria-label="{% trans 'سناریو دلخواهتو بساز' %}">
@@ -111,6 +137,42 @@
         <span>{% trans "سناریو دلخواهتو بساز" %}</span>
       </a>
     {% endif %}
+  </section>
+
+  <section class="tournament-home home-frost" aria-labelledby="tournament-home-title">
+    <header class="quick-roles-bar">
+      <span class="quick-roles-gear" aria-hidden="true"></span>
+      <div class="quick-roles-title">
+        <img src="{% static 'Icon-Tournament.png' %}" alt="" width="40" height="40">
+        <h2 id="tournament-home-title">{% trans "تورنومنت" %}</h2>
+      </div>
+    </header>
+    {% if my_tournaments %}
+      <ul class="tournament-home-list">
+        {% for item in my_tournaments %}
+          <li>
+            <a href="{% url 'tournament_manage' item.id %}">
+              <img src="{% static 'Icon-List.png' %}" alt="" width="28" height="28">
+              <span>{{ item.name }} {{ item.player_count }} {% trans "نفره" %}</span>
+            </a>
+            <form method="post" action="{% url 'tournament_delete' item.id %}">
+              {% csrf_token %}
+              <button type="submit" aria-label="{% trans 'حذف' %}">×</button>
+            </form>
+          </li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+    <div class="tournament-cta">
+      <p>{% trans "تورنومنت مافیا بساز و همینجا مدیریتش کن" %}</p>
+      {% if can_create_tournament %}
+        <a class="places-add-btn tournament-plus" href="{% url 'tournament_create' %}?fresh=1">
+          <span aria-hidden="true">+</span>
+        </a>
+      {% else %}
+        <p class="tournament-limit">{% trans "تا پایان یا حذف یکی از تورنومنت‌ها نمی‌توانید تورنومنت جدید بسازید." %}</p>
+      {% endif %}
+    </div>
   </section>
   <dialog class="settings-dialog" id="quick-settings">
     <div class="settings-panel" data-panel="menu">

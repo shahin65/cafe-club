@@ -128,7 +128,13 @@
     fill.style.strokeDasharray = String(LAP);
     fill.style.strokeDashoffset = String(LAP * (1 - elapsed / total));
     var shown = remaining <= 0 ? 0 : Math.ceil(remaining - 1e-6);
-    card.querySelector(".timer-count").textContent = String(shown);
+    var text = String(shown);
+    if ((document.documentElement.lang || "").indexOf("fa") === 0) {
+      text = text.replace(/[0-9]/g, function (digit) {
+        return "۰۱۲۳۴۵۶۷۸۹"[digit];
+      });
+    }
+    card.querySelector(".timer-count").textContent = text;
   }
 
   function setup(card, store) {

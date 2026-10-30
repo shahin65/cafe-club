@@ -5,8 +5,10 @@ from django.utils import translation
 from django.utils.deprecation import MiddlewareMixin
 from django.utils.translation import check_for_language
 
+from banners.accounts import user_is_blocked
 from banners.app_source import normalize_source, persist_source, read_source, set_source_cookie
 from banners.auth_views import language_prefixed_path
+from banners.digits import persianize_html_digits
 
 _UNPREFIXED_ROOTS = (
     "/admin",
@@ -99,14 +101,30 @@ def _maintenance_path_allowed(path):
     return any(path == root or path.startswith(root) for root in _MAINTENANCE_ALLOWED)
 
 
+class BlockedAccountMiddleware(MiddlewareMixin):
+    """Keep blocked accounts out of the public site even if a session is open."""
+
+    def process_request(self, request):
+        user = getattr(request, "user", None)
+        if not user or not user.is_authenticated:
+            return
+        if not user_is_blocked(user):
+            return
+        if _maintenance_path_allowed(request.path):
+            return
+        from django.contrib.auth import logout
+
+        logout(request)
+        from django.urls import reverse
+
+        return HttpResponseRedirect(reverse("login"))
+
+
 class MaintenanceModeMiddleware(MiddlewareMixin):
     """Close the public site while staff turn on maintenance for an update."""
 
     def process_request(self, request):
         if _maintenance_path_allowed(request.path):
-            return
-        user = getattr(request, "user", None)
-        if user is not None and user.is_authenticated and user.is_staff:
             return
         try:
             from banners.models import SiteSettings
@@ -117,3 +135,30 @@ class MaintenanceModeMiddleware(MiddlewareMixin):
         if not closed:
             return
         return render(request, "banners/maintenance.html", status=503)
+
+
+class PersianDigitsMiddleware(MiddlewareMixin):
+    """Show Western digits as Persian numerals on the public Farsi site."""
+
+    def process_response(self, request, response):
+        language = getattr(request, "LANGUAGE_CODE", "") or ""
+        if not language.startswith("fa"):
+            return response
+        path = request.path or ""
+        if path == "/admin" or path.startswith("/admin/") or path.startswith("/static/") or path.startswith("/media/"):
+            return response
+        content_type = response.get("Content-Type", "")
+        if "text/html" not in content_type or not hasattr(response, "content"):
+            return response
+        try:
+            charset = response.charset or "utf-8"
+            html = response.content.decode(charset)
+        except (LookupError, UnicodeDecodeError):
+            return response
+        converted = persianize_html_digits(html)
+        if converted == html:
+            return response
+        response.content = converted.encode(charset)
+        if response.has_header("Content-Length"):
+            response["Content-Length"] = str(len(response.content))
+        return response

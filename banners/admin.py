@@ -8,7 +8,8 @@ from django.views.decorators.http import require_POST
 
 from banners.geo import IRAN_CITIES
 from banners.images import optimize_image, optimize_venue_image
-from banners.models import Banner, BlueTickRequest, EventAd, LegalPage, SiteLink, SiteSettings, UserProfile, Venue, VenueComment, VenueRating, VenueSubmission
+from banners.models import Banner, BlueTickRequest, EventAd, LegalPage, SiteLink, SiteSettings, Tournament, TournamentPlayer, UserProfile, Venue, VenueComment, VenueRating, VenueSubmission
+from banners.venues import publish_venue_submission
 
 
 class BannerAdmin(admin.ModelAdmin):
@@ -111,12 +112,36 @@ admin.site.register(Banner, BannerAdmin)
 
 class UserProfileAdmin(admin.ModelAdmin):
     change_list_template = "admin/banners/userprofile/change_list.html"
-    list_display = ("public_id_display", "user", "google_email", "app_source", "is_verified")
-    list_filter = ("is_verified", "app_source")
+    list_display = ("public_id_display", "user", "google_email", "app_source", "is_verified", "is_blocked")
+    list_filter = ("is_verified", "is_blocked", "app_source")
+    list_editable = ("is_blocked",)
     search_fields = ("public_id", "user__username", "display_name", "google_email")
     search_help_text = "جستجو با شناسه شش‌رقمی، نام کاربری یا جیمیل"
     readonly_fields = ("public_id", "user", "google_email", "google_sub")
-    fields = ("user", "public_id", "display_name", "is_verified", "app_source", "google_email", "bio", "photo")
+    fields = ("user", "public_id", "display_name", "is_verified", "is_blocked", "app_source", "google_email", "bio", "photo")
+    actions = ("block_accounts", "unblock_accounts")
+
+    def save_model(self, request, obj, form, change):
+        if obj.user.is_superuser:
+            obj.is_blocked = False
+        super().save_model(request, obj, form, change)
+
+    @admin.action(description="مسدود کردن اکانت‌های انتخاب‌شده")
+    def block_accounts(self, request, queryset):
+        updated = 0
+        for profile in queryset.select_related("user"):
+            if profile.user.is_superuser:
+                continue
+            if not profile.is_blocked:
+                profile.is_blocked = True
+                profile.save(update_fields=["is_blocked"])
+                updated += 1
+        self.message_user(request, f"{updated} اکانت به لیست مسدودی اضافه شد.")
+
+    @admin.action(description="رفع مسدودی اکانت‌های انتخاب‌شده")
+    def unblock_accounts(self, request, queryset):
+        updated = queryset.filter(is_blocked=True).update(is_blocked=False)
+        self.message_user(request, f"{updated} اکانت از لیست مسدودی خارج شد.")
 
     def get_urls(self):
         urls = super().get_urls()
@@ -172,6 +197,7 @@ class EventAdAdmin(admin.ModelAdmin):
         "organizer_name",
         "user",
         "starts_at",
+        "event_at",
         "phone",
         "is_published",
         "is_new",
@@ -196,6 +222,7 @@ class EventAdAdmin(admin.ModelAdmin):
                     "image_preview_large",
                     "address",
                     "starts_at",
+                    "event_at",
                     "phone",
                     "ticket_price",
                     "cafe_bank",
@@ -365,41 +392,20 @@ class VenueSubmissionAdmin(admin.ModelAdmin):
         ("بررسی", {"fields": ("user", "is_reviewed", "created_at")}),
     )
 
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        if obj.is_reviewed:
+            publish_venue_submission(obj)
+
     @admin.action(description="ثبت انتخاب‌شده‌ها در لیست کافه‌ها و کلاب‌ها")
     def publish_to_list(self, request, queryset):
         created = 0
-        skipped = 0
         for item in queryset:
-            if not (item.city or "").strip():
-                skipped += 1
-                continue
-            venue = Venue(
-                name=item.name,
-                city=item.city.strip(),
-                manager_name=item.manager_name,
-                address=item.address,
-                phone=item.phone,
-                hours=item.hours,
-                latitude=item.latitude,
-                longitude=item.longitude,
-                is_active=True,
-            )
-            if item.logo:
-                venue.logo = item.logo
-            if item.photo_1:
-                venue.photo_1 = item.photo_1
-            if item.photo_2:
-                venue.photo_2 = item.photo_2
-            if item.photo_3:
-                venue.photo_3 = item.photo_3
-            venue.save()
-            item.is_reviewed = True
-            item.save(update_fields=["is_reviewed"])
-            created += 1
+            _venue, was_created = publish_venue_submission(item)
+            if was_created:
+                created += 1
         if created:
             self.message_user(request, f"{created} کافه در لیست ثبت شد.")
-        if skipped:
-            self.message_user(request, f"{skipped} مورد بدون شهر رد شد. ابتدا شهر را وارد کنید.", level=messages.ERROR)
 
 
 class SiteLinkAdmin(admin.ModelAdmin):
@@ -448,12 +454,25 @@ class LegalPageAdmin(admin.ModelAdmin):
         return False
 
 
+class TournamentPlayerInline(admin.TabularInline):
+    model = TournamentPlayer
+    extra = 0
+
+
+class TournamentAdmin(admin.ModelAdmin):
+    list_display = ("name", "status", "owner", "created_at")
+    list_filter = ("status",)
+    search_fields = ("name",)
+    inlines = (TournamentPlayerInline,)
+
+
 admin.site.register(Venue, VenueAdmin)
 admin.site.register(VenueComment, VenueCommentAdmin)
 admin.site.register(VenueRating, VenueRatingAdmin)
 admin.site.register(VenueSubmission, VenueSubmissionAdmin)
 admin.site.register(SiteLink, SiteLinkAdmin)
 admin.site.register(LegalPage, LegalPageAdmin)
+admin.site.register(Tournament, TournamentAdmin)
 
 
 @require_POST

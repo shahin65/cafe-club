@@ -9,15 +9,33 @@ SIDE_MAFIA = "mafia"
 SIDE_CITIZEN = "citizen"
 SIDE_INDEPENDENT = "independent"
 SIDE_WEREWOLF = "werewolf"
+SIDE_VILLAGE = "village"
 
 GUEST_SCENARIO_KEY = "custom_guest_key"
+
+KIND_ADVANCED = "advanced"
+KIND_NIGHT = "night"
+KIND_WEREWOLF = "werewolf"
+
+LARGE_KIND_CHOICES = [
+    (KIND_ADVANCED, "پیشرفته"),
+    (KIND_NIGHT, "شب مافیا"),
+    (KIND_WEREWOLF, "گرگینه"),
+]
 
 SIDE_CHOICES = [
     (SIDE_MAFIA, "مافیا"),
     (SIDE_CITIZEN, "شهروند"),
     (SIDE_INDEPENDENT, "مستقل"),
     (SIDE_WEREWOLF, "گرگینه"),
+    (SIDE_VILLAGE, "روستا"),
 ]
+
+KIND_SIDES = {
+    KIND_ADVANCED: (SIDE_MAFIA, SIDE_CITIZEN, SIDE_INDEPENDENT),
+    KIND_NIGHT: (SIDE_MAFIA, SIDE_CITIZEN, SIDE_INDEPENDENT),
+    KIND_WEREWOLF: (SIDE_WEREWOLF, SIDE_VILLAGE, SIDE_INDEPENDENT),
+}
 
 SIDE_FIELDS = {
     SIDE_MAFIA: "mafia_count",
@@ -72,7 +90,19 @@ class Scenario(models.Model):
         "آیکون سناریو",
         upload_to="scenario_icons",
         blank=True,
-        help_text="این آیکون کنار اسم سناریو در بخش تقسیم نقش سریع صفحه اول دیده می‌شود.",
+        help_text="این آیکون کنار اسم سناریو در صفحه اول دیده می‌شود.",
+    )
+    is_large = models.BooleanField(
+        "سناریو تعداد بالا",
+        default=False,
+        help_text="در بخش تقسیم نقش سناریو تعداد بالا نشان داده می‌شود.",
+    )
+    large_kind = models.CharField(
+        "نوع تعداد بالا",
+        max_length=20,
+        blank=True,
+        choices=LARGE_KIND_CHOICES,
+        help_text="پیشرفته، شب مافیا یا گرگینه.",
     )
     has_final_move = models.BooleanField(
         "کارت حرکت آخر دارد",
@@ -148,6 +178,8 @@ class Scenario(models.Model):
 
     def clean(self):
         super().clean()
+        if self.is_large and not self.large_kind:
+            raise ValidationError({"large_kind": "نوع سناریو تعداد بالا را انتخاب کنید."})
         if (self.owner_id or self.guest_key) and self.is_featured:
             raise ValidationError({"is_featured": "سناریوی شخصی کاربر را نمی‌توان برای صفحه اول تأیید کرد."})
         if not self.is_featured:
@@ -171,6 +203,9 @@ class Scenario(models.Model):
     def is_custom(self):
         return bool(self.owner_id or self.guest_key)
 
+    def large_sides(self):
+        return KIND_SIDES.get(self.large_kind) or KIND_SIDES[KIND_ADVANCED]
+
     def can_be_managed_by(self, request):
         if not self.is_custom():
             return False
@@ -183,6 +218,10 @@ class Scenario(models.Model):
 
         if self.owner_id or self.guest_key:
             self.is_featured = False
+        if self.is_large:
+            self.is_featured = False
+            if self.large_kind == KIND_NIGHT:
+                self.has_final_move = True
         self.slug = unique_scenario_slug(self.name, self.pk, self.slug)
         for field in (
             "rulebook_body_fa",
@@ -265,6 +304,8 @@ class Scenario(models.Model):
         return reverse("scenario_comments", kwargs={"scenario_id": self.pk})
 
     def is_complete(self):
+        if self.is_large:
+            return self.catalog_roles.exists()
         sizes = list(self.sizes.all())
         if not 1 <= len(sizes) <= 5:
             return False
@@ -449,3 +490,50 @@ class ScenarioComment(models.Model):
 
     def approved_replies(self):
         return self.replies.filter(is_approved=True).order_by("created_at", "id")
+
+
+class CatalogRole(models.Model):
+    scenario = models.ForeignKey(
+        Scenario,
+        verbose_name="سناریو",
+        related_name="catalog_roles",
+        on_delete=models.CASCADE,
+    )
+    side = models.CharField("ساید", max_length=20, choices=SIDE_CHOICES)
+    name = models.CharField("اسم نقش", max_length=80)
+    description = models.CharField("توضیح نقش", max_length=300, blank=True)
+    allows_quantity = models.BooleanField(
+        "تعدادپذیر",
+        default=False,
+        help_text="مثل مافیای ساده یا شهروند ساده که چند تا از آن در بازی باشد.",
+    )
+    sort_order = models.PositiveIntegerField("ترتیب", default=0)
+
+    class Meta:
+        verbose_name = "نقش کاتالوگ تعداد بالا"
+        verbose_name_plural = "نقش‌های کاتالوگ تعداد بالا"
+        ordering = ["sort_order", "id"]
+
+    def __str__(self):
+        return self.name
+
+
+class CatalogFinalCard(models.Model):
+    scenario = models.ForeignKey(
+        Scenario,
+        verbose_name="سناریو",
+        related_name="catalog_finals",
+        on_delete=models.CASCADE,
+    )
+    name = models.CharField("اسم کارت حرکت آخر", max_length=80)
+    description = models.CharField("توضیحات کارت", max_length=300, blank=True)
+    sort_order = models.PositiveIntegerField("ترتیب", default=0)
+
+    class Meta:
+        verbose_name = "کارت حرکت آخر تعداد بالا"
+        verbose_name_plural = "کارت‌های حرکت آخر تعداد بالا"
+        ordering = ["sort_order", "id"]
+
+    def __str__(self):
+        return self.name
+

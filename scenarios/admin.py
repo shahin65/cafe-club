@@ -6,7 +6,7 @@ from django.core.exceptions import ValidationError
 from django.forms.models import BaseInlineFormSet, inlineformset_factory
 from django.utils.html import format_html, format_html_join
 
-from .models import SIDE_FIELDS, CardBranding, FinalMoveCard, Role, Scenario, ScenarioComment, ScenarioSize
+from .models import SIDE_FIELDS, CardBranding, CatalogFinalCard, CatalogRole, FinalMoveCard, Role, Scenario, ScenarioComment, ScenarioSize
 from .widgets import PageHtmlWidget
 
 SIDE_LABELS = dict(Role._meta.get_field("side").choices)
@@ -390,15 +390,27 @@ class ScenarioCommentAdmin(admin.ModelAdmin):
         self.message_user(request, "پاسخ مدیریت ثبت شد و زیر نظر کاربر نمایش داده می‌شود.")
 
 
+class CatalogRoleInline(admin.TabularInline):
+    model = CatalogRole
+    extra = 4
+    fields = ("side", "name", "allows_quantity", "description", "sort_order")
+
+
+class CatalogFinalInline(admin.TabularInline):
+    model = CatalogFinalCard
+    extra = 3
+    fields = ("name", "description", "sort_order")
+
+
 class ScenarioAdmin(admin.ModelAdmin):
-    list_display = ("name", "slug", "owner", "player_modes", "has_final_move", "has_death_lottery", "is_featured", "home_order")
-    list_filter = ("is_featured", "has_final_move", "has_death_lottery", "owner")
+    list_display = ("name", "slug", "is_large", "large_kind", "owner", "player_modes", "has_final_move", "has_death_lottery", "is_featured", "home_order")
+    list_filter = ("is_large", "large_kind", "is_featured", "has_final_move", "has_death_lottery", "owner")
     search_fields = ("name", "name_en", "slug")
     ordering = ("home_order", "id")
     inlines = (ScenarioSizeInline,)
     readonly_fields = ("icon_preview",)
     fieldsets = (
-        ("سناریو", {"fields": ("name", "name_en", "slug", "owner", "guest_key", "icon", "icon_preview", "has_final_move", "has_death_lottery")}),
+        ("سناریو", {"fields": ("name", "name_en", "slug", "owner", "guest_key", "icon", "icon_preview", "is_large", "large_kind", "has_final_move", "has_death_lottery")}),
         (
             "صفحه اول",
             {
@@ -415,6 +427,14 @@ class ScenarioAdmin(admin.ModelAdmin):
     class Media:
         js = ("admin/js/scenario-size-slots.js",)
         css = {"all": ("admin/css/scenario-size-slots.css",)}
+
+    def get_inlines(self, request, obj=None):
+        if obj and obj.is_large:
+            items = [CatalogRoleInline]
+            if obj.large_kind == "night" or obj.has_final_move:
+                items.append(CatalogFinalInline)
+            return items
+        return (ScenarioSizeInline,)
 
     def formfield_for_dbfield(self, db_field, request, **kwargs):
         if db_field.name in {"rulebook_body_fa", "rules_body_fa"}:

@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import branding, custom_views, views
+from . import branding, custom_views, large_views, views
 
 urlpatterns = [
     path("my-scenarios/create/", custom_views.custom_name, name="custom_name"),
@@ -19,6 +19,7 @@ urlpatterns = [
     path("my-scenarios/create/final/roles/", custom_views.custom_final_names, name="custom_final_names"),
     path("scenarios/", views.scenario_catalog, name="scenario_catalog"),
     path("scenarios/<int:scenario_id>/pin/", views.pin_scenario, name="scenario_pin"),
+    path("scenarios/pin/replace/", views.pin_scenario_replace, name="scenario_pin_replace"),
     path("scenario/<int:scenario_id>/rulebook/", views.scenario_rulebook, name="scenario_rulebook"),
     path("scenario/<int:scenario_id>/rules/", views.scenario_rules, name="scenario_rules"),
     path("scenario/<int:scenario_id>/comments/", views.scenario_comments, name="scenario_comments"),
@@ -44,4 +45,12 @@ urlpatterns = [
     path("deal/lottery/<int:index>/", views.lottery_card, name="deal_lottery_card"),
     path("deal/restart/", views.restart, name="deal_restart"),
     path("deal/cancel/", views.cancel, name="deal_cancel"),
+    path("large/<int:scenario_id>/", large_views.start, name="large_start"),
+    path("large/<int:scenario_id>/sides/", large_views.side_count, name="large_side_count"),
+    path("large/<int:scenario_id>/roles/", large_views.roles, name="large_roles"),
+    path("large/<int:scenario_id>/qty/", large_views.quantities, name="large_qty"),
+    path("large/<int:scenario_id>/final/", large_views.finals, name="large_final"),
+    path("large/<int:scenario_id>/ready/", large_views.done, name="large_done"),
+    path("large/<int:scenario_id>/mode/", large_views.choose_mode, name="large_mode"),
+    path("large/<int:scenario_id>/play/<slug:mode>/", large_views.play, name="large_play"),
 ]

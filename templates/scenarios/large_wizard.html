@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% load i18n static %}
+
+{% block title %}{{ title }} | {{ scenario.display_name }}{% endblock %}
+
+{% block content %}
+  <section class="sheet wizard-sheet tournament-frost">
+    <p class="doc-kicker"><a href="{% url 'home' %}">{% trans "خانه" %}</a> / {{ scenario.display_name }}</p>
+    <h1>{{ title }}</h1>
+    {% if hint %}<p>{{ hint }}</p>{% endif %}
+    {% if error %}<p class="wizard-error">{{ error }}</p>{% endif %}
+    {% if mode == "error" %}
+      <a class="choice tournament-btn" href="{% url 'large_start' scenario.id %}?fresh=1">
+        <img src="{% static 'Icon-Refresh.png' %}" alt="" width="22" height="22">
+        <span>{% trans "شروع دوباره" %}</span>
+      </a>
+    {% else %}
+      <form class="wizard-form" method="post">
+        {% csrf_token %}
+        {% if side %}<input type="hidden" name="side" value="{{ side }}">{% endif %}
+        {% if mode == "counts" %}
+          {% for field in fields %}
+            <label>{{ field.label }}<input type="number" name="{{ field.field }}" min="{{ field.min }}" max="{{ field.max }}" value="{{ field.value }}" required></label>
+          {% endfor %}
+        {% elif mode == "roles" %}
+          <p>{% trans "باید" %} {{ needed }} {% trans "نقش انتخاب شود." %}</p>
+          <ul class="tournament-check">
+            {% for role in roles %}
+              <li>
+                <label>
+                  <input type="checkbox" name="role" value="{{ role.name }}" {% if role.name in selected %}checked{% endif %}>
+                  <span>{{ role.name }}{% if role.allows_quantity %} ({% trans "تعدادپذیر" %}){% endif %}</span>
+                </label>
+              </li>
+            {% endfor %}
+          </ul>
+          <label>{% trans "نقش جدید" %}
+            <input type="text" name="new_role" maxlength="80" placeholder="{% trans 'اگر نقش مورد نظر نبود بنویسید' %}">
+          </label>
+          <button class="choice tournament-btn" type="submit" name="add_role" value="1">
+            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6V5Z"/></svg>
+            <span>{% trans "افزودن نقش به فهرست" %}</span>
+          </button>
+        {% elif mode == "qty" %}
+          {% for field in fields %}
+            <label>{{ field.name }}<input type="number" name="qty_{{ field.index }}" min="1" value="{{ field.value }}" required></label>
+          {% endfor %}
+        {% elif mode == "final" %}
+          <label>{% trans "تعداد کارت حرکت آخر" %}<input type="number" name="count" min="0" value="{{ value }}"></label>
+          <ul class="tournament-check">
+            {% for card in cards %}
+              <li>
+                <label>
+                  <input type="checkbox" name="card" value="{{ card.name }}" {% if card.name in selected %}checked{% endif %}>
+                  <span>{{ card.name }}</span>
+                </label>
+              </li>
+            {% endfor %}
+          </ul>
+          <button class="choice tournament-btn" type="submit" name="select_all" value="1" formnovalidate>
+            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2Z"/></svg>
+            <span>{% trans "انتخاب همه کارت‌ها" %}</span>
+          </button>
+        {% endif %}
+        <button class="choice tournament-btn wizard-submit" type="submit">
+          <svg class="tournament-next-icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M14 5 12.6 6.4 17.2 11H3v2h14.2l-4.6 4.6L14 19l8-7-8-7Z"/></svg>
+          <span>{% trans "ادامه" %}</span>
+        </button>
+      </form>
+    {% endif %}
+  </section>
+{% endblock %}

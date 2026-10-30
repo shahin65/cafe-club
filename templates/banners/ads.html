@@ -4,11 +4,11 @@
 {% block title %}{% trans "آگهی" %} | {% trans "کافه کلاب" %}{% endblock %}
 
 {% block content %}
-  <section class="sheet places-sheet">
-    <div class="venue-card ads-panel">
+  <section class="sheet places-sheet ads-sheet places-frost ads-panel">
       <h1 class="places-title">{% trans "آگهی" %}</h1>
       <p class="ad-intro">{% trans "ایوینت مافیا، پانتومیم، گل یا پوچ داری یا تورنومنت برگذار میکنی رایگان آگهی بده" %}</p>
       <a class="places-add-btn" href="{% url 'ad_create' %}">
+        <img src="{% static 'Icon-Advertisement.png' %}" alt="" width="22" height="22">
         <span aria-hidden="true">+</span>
         {% trans "درج آگهی رایگان" %}
       </a>
@@ -19,27 +19,32 @@
           {% endfor %}
         </ul>
       {% endif %}
-      <p class="ad-note">{% trans "هر آگهی رایگان تا سه روز نمایش داده می‌شود." %}</p>
+      <p class="ad-note">{% trans "هر آگهی تا ۱۲ ساعت پس از زمان برگزاری نمایش داده می‌شود." %}</p>
       {% if ads %}
         <ul class="ad-list">
           {% for ad in ads %}
             <li class="ad-banner">
               <a class="ad-banner-link" href="{% url 'ad_detail' ad.id %}">
                 <img class="ad-banner-photo" src="{{ ad.image.url }}" alt="{{ ad.event_name }}">
-                <div class="ad-banner-row">
-                  <div class="ad-banner-left">
-                    <img class="ad-avatar" src="{% if ad.user.club_profile.photo %}{{ ad.user.club_profile.photo.url }}{% else %}{% static 'Icon-profile.png' %}{% endif %}" alt="">
-                    <span>{{ ad.city }}</span>
-                    <span>{{ ad.district }}</span>
-                  </div>
-                  <p class="ad-banner-center">{% trans "سناریو" %}: {{ ad.scenario }}</p>
+                <div class="ad-banner-person">
+                  <img class="ad-avatar" src="{% if ad.user.club_profile.photo %}{{ ad.user.club_profile.photo.url }}{% else %}{% static 'Icon-profile.png' %}{% endif %}" alt="">
+                  <span class="ad-advertiser">{{ ad.advertiser_name }}</span>
                 </div>
               </a>
+              <div class="ad-chip-grid">
+                {% include "banners/_ad_chip.html" with icon="date" label="تاریخ" text=ad.date_display %}
+                {% include "banners/_ad_chip.html" with icon="time" label="ساعت" text=ad.time_display %}
+                {% include "banners/_ad_chip.html" with icon="scenario" label="سناریو" text=ad.scenario %}
+                {% include "banners/_ad_chip.html" with icon="city" label="شهر" text=ad.city %}
+                {% include "banners/_ad_chip.html" with icon="phone" label="تلفن" text=ad.phone call=ad.phone %}
+              </div>
               <form class="ad-like" method="post" action="{% url 'ad_like' ad.id %}">
                 {% csrf_token %}
                 <input type="hidden" name="next" value="{% url 'ads' %}">
                 <button type="submit" class="{% if ad.liked %}is-liked{% endif %}" aria-label="{% trans 'لایک' %}">
-                  <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M12 21s-6.7-4.35-9.33-8.2C.7 9.7 2.2 6 5.6 6c1.9 0 3.1 1.1 3.9 2.2C10.3 7.1 11.5 6 13.4 6c3.4 0 4.9 3.7 2.93 6.8C18.7 16.65 12 21 12 21Z"/></svg>
+                  <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+                    <path fill="currentColor" d="M14.5 9V4.8c0-1-.8-1.8-1.8-1.8h-.4c-.5 0-1 .3-1.2.8L9 9H5.2C4 9 3 10 3 11.2v7.6C3 20 4 21 5.2 21H16c1.1 0 2-.7 2.2-1.8l1.5-6.2c.3-1.3-.7-2.5-2-2.5H14.5ZM5.2 19.2v-8.4H8v8.4H5.2Z"/>
+                  </svg>
                   <span>{{ ad.like_count }}</span>
                 </button>
               </form>
@@ -49,6 +54,5 @@
       {% else %}
         <p class="coming-soon">{% trans "هنوز آگهی فعالی ثبت نشده است." %}</p>
       {% endif %}
-    </div>
   </section>
 {% endblock %}

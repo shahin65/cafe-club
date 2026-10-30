@@ -9,8 +9,24 @@ from django.test import Client, TestCase
 from django.utils.encoding import iri_to_uri
 from PIL import Image
 
+from banners.digits import persian_digits
 from scenarios.dealing import create_deal, shuffled
-from scenarios.models import CardBranding, FinalMoveCard, Role, Scenario, ScenarioComment, ScenarioSize
+from scenarios.large_deal import seed_large_scenarios
+from scenarios.models import (
+    KIND_ADVANCED,
+    KIND_NIGHT,
+    KIND_WEREWOLF,
+    SIDE_CITIZEN,
+    SIDE_MAFIA,
+    SIDE_VILLAGE,
+    SIDE_WEREWOLF,
+    CardBranding,
+    FinalMoveCard,
+    Role,
+    Scenario,
+    ScenarioComment,
+    ScenarioSize,
+)
 
 
 def make_complete_scenario(name="سناریو بازپرس", featured=False):
@@ -72,8 +88,14 @@ class ScenarioRulesTests(TestCase):
         response = self.client.get("/")
         content = response.content.decode()
         self.assertLess(content.find("نصب اپلیکیشن"), content.find("quick-roles"))
-        self.assertLess(content.find("quick-roles"), content.find("ad-rotator"))
+        self.assertLess(content.find("quick-roles"), content.find("large-roles"))
+        self.assertLess(content.find("large-roles"), content.find("ad-rotator"))
+        self.assertContains(response, "تقسیم نقش سناریو تعداد بالا")
+        self.assertContains(response, "Icon-Objective.png")
         self.assertLess(content.find("ad-rotator"), content.find("favorite-scenarios"))
+        self.assertLess(content.find("favorite-scenarios"), content.find("tournament-home"))
+        self.assertContains(response, "تورنومنت مافیا بساز و همینجا مدیریتش کن")
+        self.assertContains(response, "Icon-Tournament.png")
         self.assertContains(response, "تقسیم نقش سریع")
         self.assertContains(response, "سناریو دلخواه من")
         self.assertContains(response, "Icon-Favorite.png")
@@ -122,10 +144,15 @@ class ScenarioRulesTests(TestCase):
         self.assertLess(named.content.decode().find("آلفا"), named.content.decode().find("بتا"))
         mode = self.client.get(f"/deal/{extra.id}/", follow=True)
         self.assertContains(mode, "اضافه به صفحه اصلی")
-        pinned = self.client.post(f"/scenarios/{extra.id}/pin/", {"next": "/"})
+        dropped = Scenario.objects.get(name="سناریو 0")
+        pinned = self.client.post(
+            "/scenarios/pin/replace/",
+            {"add_id": extra.id, "remove_id": dropped.id, "next": "/"},
+        )
         self.assertRedirects(pinned, "/")
         listed = self.client.get("/")
         self.assertContains(listed, "سناریو هفتم")
+        self.assertNotContains(listed, persian_digits("سناریو 0"))
 
     def test_home_lists_official_admin_scenarios_even_if_roles_are_incomplete(self):
         make_complete_scenario(name="سناریو کامل", featured=True)
@@ -141,6 +168,8 @@ class ScenarioRulesTests(TestCase):
         catalog = self.client.get("/scenarios/")
         self.assertContains(catalog, "سناریو مذاکره")
         self.assertContains(catalog, "Icon-Favorite.png")
+        self.assertContains(catalog, "catalog-pin-btn")
+        self.assertContains(catalog, "آیا قصد قرار دادن این سناریو در صفحه نخست را دارید")
 
     def test_scenario_icons_render_on_home_and_catalog(self):
         buffer = BytesIO()
@@ -160,12 +189,18 @@ class ScenarioRulesTests(TestCase):
 
     def test_pinning_more_than_six_is_blocked(self):
         extras = [make_complete_scenario(name=f"پین {index}") for index in range(7)]
-        for scenario in extras[:6]:
-            self.client.post(f"/scenarios/{scenario.id}/pin/", {"next": "/"})
         blocked = self.client.post(f"/scenarios/{extras[6].id}/pin/", {"next": "/"})
         self.assertRedirects(blocked, "/")
         home = self.client.get("/")
-        self.assertNotContains(home, extras[6].name)
+        self.assertNotContains(home, persian_digits(extras[6].name))
+        replaced = self.client.post(
+            "/scenarios/pin/replace/",
+            {"add_id": extras[6].id, "remove_id": extras[0].id, "next": "/"},
+        )
+        self.assertRedirects(replaced, "/")
+        home = self.client.get("/")
+        self.assertContains(home, persian_digits(extras[6].name))
+        self.assertNotContains(home, persian_digits(extras[0].name))
 
 
 class RoleDealTests(TestCase):
@@ -213,8 +248,8 @@ class RoleDealTests(TestCase):
         Role.objects.create(size=size, side="citizen", name="شهروند")
         Role.objects.create(size=size, side="citizen", name="دکتر")
         response = self.client.get(f"/deal/{scenario.id}/")
-        self.assertContains(response, "2 نفره")
-        self.assertContains(response, "3 نفره")
+        self.assertContains(response, "۲ نفره")
+        self.assertContains(response, "۳ نفره")
 
     def test_deal_assigns_each_role_once_and_survives_return(self):
         scenario = make_complete_scenario()
@@ -289,6 +324,10 @@ class HostToolsTests(TestCase):
         self.assertContains(response, "رول بوک")
         self.assertContains(response, "قوانین")
         self.assertContains(response, "نظر کاربران")
+        self.assertContains(response, "تقسیم نقش مجدد")
+        self.assertContains(response, 'href="/deal/restart/"')
+        self.assertContains(response, "data-rename")
+        self.assertContains(response, "music-player.js?v=7")
         self.assertContains(response, f'href="{iri_to_uri(scenario.get_rulebook_url())}"')
         self.assertContains(response, f'href="{iri_to_uri(scenario.get_rules_url())}"')
         self.assertNotContains(response, "Icon-Advertisement.png")
@@ -696,3 +735,133 @@ class ScenarioAdminTests(TestCase):
         page = self.client.get(scenario.get_comments_url())
         self.assertContains(page, "این سناریو بالانس است؟")
         self.assertContains(page, "بله، این نسخه برای میز ده‌نفره بالانس شده است.")
+
+
+class LargeScenarioDealTests(TestCase):
+    def setUp(self):
+        self.packs = {item.large_kind: item for item in seed_large_scenarios()}
+
+    def test_home_lists_the_three_large_scenarios(self):
+        page = self.client.get("/")
+        self.assertContains(page, "پیشرفته")
+        self.assertContains(page, "شب مافیا")
+        self.assertContains(page, "گرگینه")
+        self.assertContains(page, f'href="/large/{self.packs[KIND_ADVANCED].id}/?fresh=1"')
+
+    def test_admin_can_edit_catalog_roles_and_night_cards(self):
+        user = get_user_model().objects.create_superuser("host", "host@example.com", "pass-word-123")
+        self.client.force_login(user)
+        advanced = self.packs[KIND_ADVANCED]
+        form = self.client.get(f"/admin/scenarios/scenario/{advanced.pk}/change/")
+        self.assertContains(form, 'id="catalog_roles-group"')
+        self.assertContains(form, "تعدادپذیر")
+        self.assertContains(form, 'id="id_icon"')
+        night = self.packs[KIND_NIGHT]
+        night_form = self.client.get(f"/admin/scenarios/scenario/{night.pk}/change/")
+        self.assertContains(night_form, 'id="catalog_finals-group"')
+
+    def test_advanced_wizard_asks_quantity_and_opens_host(self):
+        scenario = self.packs[KIND_ADVANCED]
+        mismatch = self.client.post(
+            f"/large/{scenario.id}/",
+            {"player_count": "8", "mafia_count": "3", "citizen_count": "4", "independent_count": "0"},
+        )
+        self.assertContains(mismatch, "جمع تعداد سایدها باید با تعداد بازیکن یکی باشد")
+        start = self.client.post(
+            f"/large/{scenario.id}/",
+            {"player_count": "8", "mafia_count": "3", "citizen_count": "4", "independent_count": "1"},
+        )
+        self.assertEqual(start.status_code, 302)
+        self.assertIn("/roles/", start.url)
+        self.client.post(
+            f"/large/{scenario.id}/roles/",
+            {"side": SIDE_MAFIA, "role": ["مافیای ساده", "پدرخوانده"]},
+        )
+        qty = self.client.post(f"/large/{scenario.id}/qty/?side=mafia", {"qty_0": "2", "side": SIDE_MAFIA})
+        self.assertEqual(qty.status_code, 302)
+        self.client.post(
+            f"/large/{scenario.id}/roles/",
+            {"side": SIDE_CITIZEN, "role": ["شهروند ساده", "دکتر"]},
+        )
+        self.client.post(f"/large/{scenario.id}/qty/?side=citizen", {"qty_0": "3", "side": SIDE_CITIZEN})
+        self.client.post(
+            f"/large/{scenario.id}/roles/",
+            {"side": "independent", "role": ["قاتل زنجیره‌ای"]},
+        )
+        mode = self.client.get(f"/large/{scenario.id}/mode/")
+        self.assertContains(mode, "به ترتیب نفرات")
+        self.assertContains(mode, "به ترتیب صندلی")
+        self.assertContains(mode, "تصادفی")
+        play = self.client.get(f"/large/{scenario.id}/play/order/?fresh=1")
+        self.assertRedirects(play, "/deal/card/1/")
+        card = self.client.get("/deal/card/1/")
+        self.assertContains(card, "نفر شماره")
+        revealed = self.client.post("/deal/reveal/1/")
+        self.assertEqual(revealed.status_code, 200)
+        self.assertIn("name", revealed.json())
+
+    def test_night_mafia_selects_all_final_cards(self):
+        scenario = self.packs[KIND_NIGHT]
+        self.client.post(
+            f"/large/{scenario.id}/",
+            {"player_count": "6", "mafia_count": "2", "citizen_count": "3", "independent_count": "1"},
+        )
+        self.client.post(f"/large/{scenario.id}/roles/", {"side": SIDE_MAFIA, "role": ["مافیا", "گادفادر"]})
+        self.client.post(
+            f"/large/{scenario.id}/roles/",
+            {"side": SIDE_CITIZEN, "role": ["شهروند", "اسنایپر", "نگهبان"]},
+        )
+        add = self.client.post(
+            f"/large/{scenario.id}/roles/",
+            {"side": "independent", "add_role": "1", "new_role": "نقش سفارشی شب", "role": ["جوکر"]},
+        )
+        self.assertEqual(add.status_code, 302)
+        kept = self.client.get(f"/large/{scenario.id}/roles/?side=independent")
+        self.assertContains(kept, 'value="جوکر"')
+        self.assertContains(kept, 'value="نقش سفارشی شب"')
+        self.assertContains(kept, 'checked')
+        self.client.post(f"/large/{scenario.id}/roles/", {"side": "independent", "role": ["نقش سفارشی شب"]})
+        finals = self.client.post(f"/large/{scenario.id}/final/", {"select_all": "1"})
+        self.assertEqual(finals.status_code, 302)
+        self.assertIn("/mode/", finals.url)
+        self.client.get(f"/large/{scenario.id}/play/random/?fresh=1")
+        deal = self.client.session["role_deal"]
+        deal["revealed"] = [True] * deal["player_count"]
+        session = self.client.session
+        session["role_deal"] = deal
+        session.save()
+        host = self.client.get("/deal/host/")
+        self.assertContains(host, "حرکت آخر")
+        board = self.client.get("/deal/final/")
+        self.assertContains(board, "/deal/final/1/")
+        self.assertEqual(len(self.client.session["role_deal"]["final_slots"]), 4)
+
+    def test_werewolf_asks_village_sides(self):
+        scenario = self.packs[KIND_WEREWOLF]
+        start = self.client.get(f"/large/{scenario.id}/")
+        self.assertContains(start, "تعداد بازیکن")
+        self.assertContains(start, "گرگینه")
+        self.assertContains(start, "روستا")
+        counts = self.client.post(
+            f"/large/{scenario.id}/",
+            {"player_count": "5", "werewolf_count": "2", "village_count": "2", "independent_count": "1"},
+        )
+        self.assertEqual(counts.status_code, 302)
+        self.client.post(f"/large/{scenario.id}/roles/", {"side": SIDE_WEREWOLF, "role": ["گرگینه", "آلفا"]})
+        village = self.client.get(f"/large/{scenario.id}/roles/?side={SIDE_VILLAGE}")
+        self.assertContains(village, "روستا")
+        self.client.post(f"/large/{scenario.id}/roles/", {"side": SIDE_VILLAGE, "role": ["روستایی", "پیشگو"]})
+        self.client.post(f"/large/{scenario.id}/roles/", {"side": "independent", "role": ["گرگ‌نما"]})
+        mode = self.client.get(f"/large/{scenario.id}/mode/")
+        self.assertContains(mode, "تصادفی")
+        self.client.get(f"/large/{scenario.id}/play/random/?fresh=1")
+        board = self.client.get(f"/large/{scenario.id}/play/random/")
+        self.assertContains(board, "روی کادر دلخواه بزنید")
+        deal = self.client.session["role_deal"]
+        deal["revealed"] = [True] * deal["player_count"]
+        session = self.client.session
+        session["role_deal"] = deal
+        session.save()
+        host = self.client.get("/deal/host/")
+        self.assertContains(host, "گرگینه")
+        self.assertNotContains(host, "حرکت آخر")

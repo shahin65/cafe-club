@@ -1,0 +1,11 @@
+{% load i18n static %}
+<div class="tournament-card-share">
+  <button class="tournament-icon-btn" type="button" data-save-image data-share-target="group-{{ target }}" aria-label="{% trans 'ذخیره تصویر' %}">
+    <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M5 3h10l4 4v14H5V3Zm2 2v14h10V8.8L13.2 5H7Zm5 4h2v4h3l-4 4-4-4h3V9Z"/></svg>
+    <span>{% trans "ذخیره" %}</span>
+  </button>
+  <button class="tournament-icon-btn" type="button" data-share-page data-share-target="group-{{ target }}" aria-label="{% trans 'اشتراک‌گذاری' %}">
+    <img src="{% static 'Icon-Share.png' %}" alt="" width="20" height="20">
+    <span>{% trans "اشتراک" %}</span>
+  </button>
+</div>

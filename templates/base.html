@@ -20,7 +20,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Lalezar&family=Vazirmatn:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{% static 'css/site.css' %}?v=48">
+  <link rel="stylesheet" href="{% static 'css/site.css' %}?v=62">
 </head>
 <body{% if role_deal_active %} data-deal-active="1" data-deal-cancel="{% url 'deal_cancel' %}"{% endif %}>
   <header class="app-bar">
@@ -45,6 +45,18 @@
     {% include "_default_tabs.html" %}
   {% endblock %}
   {% block extra_js %}{% endblock %}
+  <dialog class="nav-sheet call-sheet" data-call-sheet>
+    <form method="dialog">
+      <h2>{% trans "تماس تلفنی" %}</h2>
+      <p>{% trans "آیا می‌خواهید با این شماره تماس بگیرید؟" %}</p>
+      <p class="call-number" data-call-display dir="ltr"></p>
+      <div class="nav-apps">
+        <button class="choice" type="button" data-call-confirm>{% trans "تماس" %}</button>
+        <button type="submit">{% trans "انصراف" %}</button>
+      </div>
+    </form>
+  </dialog>
+  <script src="{% static 'js/call.js' %}?v=1"></script>
   <script src="{% static 'js/pwa.js' %}?v=2"></script>
   <script>
     if (document.body.dataset.dealActive) {

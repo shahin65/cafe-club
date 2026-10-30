@@ -58,8 +58,10 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "config.middleware.BlockedAccountMiddleware",
     "config.middleware.AttachAppSourceMiddleware",
     "config.middleware.MaintenanceModeMiddleware",
+    "config.middleware.PersianDigitsMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]

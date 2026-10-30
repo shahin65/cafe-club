@@ -1,13 +1,12 @@
 {% extends "base.html" %}
-{% load i18n %}
+{% load i18n static %}
 
 {% block title %}{% trans "درج آگهی رایگان" %} | {% trans "کافه کلاب" %}{% endblock %}
 
 {% block content %}
-  <section class="sheet venue-sheet">
-    <div class="venue-card">
+  <section class="sheet venue-sheet places-frost">
       <p class="doc-kicker"><a href="{% url 'ads' %}">{% trans "آگهی" %}</a></p>
-      <h1>{% trans "درج آگهی رایگان" %}</h1>
+      <h1 class="places-title">{% trans "درج آگهی رایگان" %}</h1>
       {% if messages %}
         <ul class="form-messages">
           {% for message in messages %}
@@ -34,14 +33,17 @@
               <label>لطفا یک بیوگرافی از خود برای ما ارسال کنید تا با شما تماس حاصل شده و تیک آبی اکانت شما فعال شود
                 <textarea name="biography" rows="5" maxlength="2000" required></textarea>
               </label>
-              <button class="choice wizard-submit" type="submit">{% trans "ارسال درخواست تیک آبی" %}</button>
+              <button class="choice tournament-btn wizard-submit" type="submit">
+                <img src="{% static 'Icon-BlueTick.png' %}" alt="" width="22" height="22">
+                <span>{% trans "ارسال درخواست تیک آبی" %}</span>
+              </button>
             </form>
           {% else %}
             <p><a class="wizard-link" href="{% url 'login' %}?next={% url 'ad_create' %}">{% trans "برای ارسال فرم درخواست تیک آبی ابتدا وارد شوید." %}</a></p>
           {% endif %}
         </section>
       {% else %}
-        <p class="venue-submit-intro">{% trans "هر آگهی سه روز رایگان نمایش داده می‌شود. در هر ماه حداکثر سه آگهی رایگان می‌توانید ثبت کنید." %}</p>
+        <p class="venue-submit-intro">{% trans "هر آگهی تا ۱۲ ساعت پس از زمان برگزاری نمایش داده می‌شود. در هر ماه حداکثر سه آگهی رایگان می‌توانید ثبت کنید." %}</p>
         <p class="ad-note">{% trans "آگهی‌های باقی‌مانده این ماه" %}: {{ remaining }}</p>
         {% if error %}<p class="wizard-error">{{ error }}</p>{% endif %}
         {% if remaining %}
@@ -58,12 +60,7 @@
             </label>
             <p class="music-note">{% trans "حداکثر حجم تصویر ۲ مگابایت است." %}</p>
             <label>{% trans "شهر" %}
-              <select name="city" required>
-                <option value="">{% trans "شهر را انتخاب کنید" %}</option>
-                {% for city in cities %}
-                  <option value="{{ city }}"{% if values.city == city %} selected{% endif %}>{{ city }}</option>
-                {% endfor %}
-              </select>
+              <input type="text" name="city" maxlength="80" required value="{{ values.city }}" placeholder="{% trans 'نام شهر را بنویسید' %}">
             </label>
             <label>{% trans "محدوده" %}
               <input type="text" name="district" maxlength="120" required value="{{ values.district }}" placeholder="{% trans 'مثلاً ونک' %}">
@@ -74,9 +71,24 @@
             <label>{% trans "آدرس ایونت" %}
               <input type="text" name="address" maxlength="300" required value="{{ values.address }}">
             </label>
-            <label>{% trans "ساعت برگزاری ایونت" %}
-              <input type="text" name="starts_at" maxlength="80" required value="{{ values.starts_at }}" placeholder="{% trans 'جمعه ۲۲:۰۰' %}">
-            </label>
+            <div class="ad-when">
+              <label>{% trans "روز برگزاری" %}
+                <select name="event_date" required>
+                  <option value="">{% trans "انتخاب روز" %}</option>
+                  {% for day in date_choices %}
+                    <option value="{{ day.value }}"{% if values.event_date == day.value %} selected{% endif %}>{{ day.label }}</option>
+                  {% endfor %}
+                </select>
+              </label>
+              <label>{% trans "ساعت برگزاری" %}
+                <select name="event_hour" required>
+                  <option value="">{% trans "انتخاب ساعت" %}</option>
+                  {% for hour in hour_choices %}
+                    <option value="{{ hour }}"{% if values.event_hour == hour %} selected{% endif %}>{{ hour }}</option>
+                  {% endfor %}
+                </select>
+              </label>
+            </div>
             <label>{% trans "تلفن تماس ایونت‌گذار" %}
               <input type="tel" name="phone" maxlength="30" required dir="ltr" value="{{ values.phone }}">
             </label>
@@ -86,10 +98,12 @@
             <label>{% trans "بانک کافه" %}
               <input type="text" name="cafe_bank" maxlength="120" required value="{{ values.cafe_bank }}">
             </label>
-            <button class="choice wizard-submit" type="submit">{% trans "ثبت آگهی برای نمایش" %}</button>
+            <button class="choice tournament-btn wizard-submit" type="submit">
+              <img src="{% static 'Icon-Advertisement.png' %}" alt="" width="22" height="22">
+              <span>{% trans "ثبت آگهی برای نمایش" %}</span>
+            </button>
           </form>
         {% endif %}
       {% endif %}
-    </div>
   </section>
 {% endblock %}

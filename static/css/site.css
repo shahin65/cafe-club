@@ -313,11 +313,13 @@ a.tab {
     margin: 0 auto 14px;
     padding: 0 18px;
     border-radius: 12px;
-    background: #1f9d55;
-    color: #fff;
+    background: linear-gradient(180deg, #e0c48a, #b48a4a);
+    border: 1px solid rgba(244, 224, 180, 0.55);
+    color: #1a140c;
     font-weight: 700;
     font-size: 0.98rem;
     text-decoration: none;
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.35);
 }
 
 .app-install-icon {
@@ -328,7 +330,7 @@ a.tab {
 }
 
 .app-install-btn:active {
-    background: #178a48;
+    background: linear-gradient(180deg, #c9ad72, #9a733c);
 }
 
 .app-install-btn[hidden] {
@@ -401,6 +403,50 @@ a.tab {
 .ios-guide {
     margin-top: 8px;
     padding-top: 4px;
+}
+
+.home-frost {
+    padding: 14px 12px 16px;
+    border-radius: 22px;
+    background: rgba(10, 12, 18, 0.72);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    border: 1px solid rgba(230, 194, 122, 0.28);
+}
+
+.home-frost .quick-roles-bar {
+    background: rgba(8, 10, 16, 0.62);
+    border: 1px solid rgba(230, 194, 122, 0.22);
+    box-shadow: none;
+}
+
+.home-frost .quick-role-list a:not(.favorite-edit) {
+    background: rgba(10, 12, 18, 0.78);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(230, 194, 122, 0.28);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
+}
+
+.home-frost .quick-more,
+.home-frost .favorite-create {
+    background: rgba(10, 12, 18, 0.78);
+    backdrop-filter: blur(14px);
+    border: 1px solid rgba(230, 194, 122, 0.38);
+}
+
+.home-frost .tournament-cta {
+    background: rgba(8, 10, 16, 0.55);
+}
+
+.home-frost .tournament-home-list a {
+    background: rgba(10, 12, 18, 0.78);
+}
+
+.ad-rotator.home-frost {
+    padding: 0;
+    overflow: hidden;
+    background: rgba(10, 12, 18, 0.72);
 }
 
 .quick-roles {
@@ -864,6 +910,10 @@ h1, h2 {
 .music-player .music-now {
     color: var(--gold);
     font-weight: 600;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .music-controls {
@@ -874,6 +924,7 @@ h1, h2 {
 .music-add,
 .music-play,
 .music-track,
+.music-rename,
 .music-remove {
     border: 1px solid rgba(255, 255, 255, 0.28);
     background: rgba(0, 0, 0, 0.45);
@@ -926,19 +977,20 @@ h1, h2 {
 .music-list {
     display: grid;
     gap: 8px;
-    max-height: 220px;
     margin: 0;
     padding: 0;
-    overflow-y: auto;
+    overflow: hidden;
     list-style: none;
 }
 
 .music-list li {
     display: flex;
     gap: 8px;
+    min-width: 0;
 }
 
-.music-track {
+.music-track,
+.music-rename-input {
     flex: 1;
     min-width: 0;
     padding: 10px 12px;
@@ -949,17 +1001,32 @@ h1, h2 {
     white-space: nowrap;
 }
 
+.music-rename-input {
+    border: 1px solid rgba(212, 180, 131, 0.7);
+    background: rgba(0, 0, 0, 0.55);
+    color: inherit;
+    font: inherit;
+    text-overflow: clip;
+}
+
 .music-list li.is-current .music-track {
     border-color: rgba(212, 180, 131, 0.85);
     background: rgba(212, 180, 131, 0.12);
     color: var(--gold);
 }
 
+.music-rename,
 .music-remove {
     width: 42px;
     flex: none;
     border-radius: 12px;
     font-size: 1.2rem;
+}
+
+.music-rename {
+    display: grid;
+    place-items: center;
+    padding: 0;
 }
 
 .choice-list {
@@ -1823,6 +1890,7 @@ dialog.settings-dialog:not([open]) {
 .wizard-form input[type="email"],
 .wizard-form input[type="tel"],
 .wizard-form input[type="file"],
+.wizard-form select,
 .wizard-form textarea {
     font: inherit;
     color: var(--ink);
@@ -2004,17 +2072,9 @@ dialog.settings-dialog:not([open]) {
         max-height: none;
     }
 
-    .ad-banner-row {
-        grid-template-columns: 1fr;
-        direction: rtl;
-        text-align: right;
-    }
-
-    .ad-banner-left {
-        align-items: flex-start;
-        flex-direction: row;
-        flex-wrap: wrap;
-        gap: 8px;
+    .ad-chip-grid,
+    .ad-detail-pair {
+        grid-template-columns: 1fr 1fr;
     }
 
     .venue-hero h1 {
@@ -2218,6 +2278,161 @@ dialog.settings-dialog:not([open]) {
     overflow-x: hidden;
 }
 
+.places-frost {
+    padding: 16px 14px 20px;
+    border-radius: 22px;
+    background: rgba(10, 12, 18, 0.72);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    border: 1px solid rgba(230, 194, 122, 0.28);
+}
+
+.places-frost .places-title,
+.places-frost .places-geo-status,
+.places-frost > p,
+.places-frost .coming-soon,
+.places-frost .ad-detail-title {
+    padding: 10px 12px;
+    border-radius: 14px;
+    background: rgba(8, 10, 16, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.places-frost .places-bar,
+.places-frost .places-panel,
+.places-frost .place-card,
+.places-frost .places-more,
+.places-frost .places-add-btn,
+.places-frost .ad-banner,
+.places-frost .blue-tick-request,
+.places-frost .ad-detail-person {
+    background: rgba(10, 12, 18, 0.78);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(230, 194, 122, 0.28);
+}
+
+.places-frost .places-add-btn {
+    background: linear-gradient(180deg, #e0c48a, #b48a4a);
+    color: #1a140c;
+    border-color: rgba(244, 224, 180, 0.55);
+}
+
+.places-frost .places-add-btn img {
+    width: 22px;
+    height: 22px;
+    object-fit: contain;
+}
+
+.places-frost .places-bar {
+    padding: 8px;
+    border-radius: 16px;
+}
+
+.places-frost .places-bar-btn {
+    background: rgba(8, 10, 16, 0.55);
+    border: 1px solid rgba(230, 194, 122, 0.18);
+}
+
+.places-frost .place-card,
+.places-frost .ad-banner {
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+}
+
+.places-frost {
+    color-scheme: dark;
+    accent-color: var(--gold);
+    scrollbar-width: thin;
+    scrollbar-color: #d4b483 rgba(8, 10, 16, 0.85);
+}
+
+.places-frost input[type="text"],
+.places-frost input[type="tel"],
+.places-frost input[type="file"],
+.places-frost input[type="search"],
+.places-frost input[type="number"],
+.places-frost select,
+.places-frost textarea {
+    width: 100%;
+    appearance: none;
+    -webkit-appearance: none;
+    font: inherit;
+    color: #f4f0e8;
+    border: 1px solid rgba(230, 194, 122, 0.42);
+    background-color: #161822;
+    border-radius: 12px;
+    padding: 10px 12px;
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.25);
+}
+
+.places-frost select {
+    padding-inline-end: 38px;
+    background-image:
+        linear-gradient(45deg, transparent 50%, #d4b483 50%),
+        linear-gradient(135deg, #d4b483 50%, transparent 50%),
+        linear-gradient(to left, rgba(230, 194, 122, 0.22), rgba(230, 194, 122, 0.22));
+    background-position:
+        calc(100% - 18px) calc(50% - 3px),
+        calc(100% - 12px) calc(50% - 3px),
+        calc(100% - 34px) 50%;
+    background-size: 6px 6px, 6px 6px, 1px 18px;
+    background-repeat: no-repeat;
+}
+
+html[dir="rtl"] .places-frost select {
+    background-position:
+        calc(0% + 12px) calc(50% - 3px),
+        calc(0% + 18px) calc(50% - 3px),
+        calc(0% + 34px) 50%;
+}
+
+.places-frost select option {
+    background: #12141c;
+    color: #f4f0e8;
+}
+
+.places-frost input:focus,
+.places-frost select:focus,
+.places-frost textarea:focus {
+    outline: 2px solid rgba(212, 180, 131, 0.55);
+    outline-offset: 1px;
+    border-color: var(--gold);
+}
+
+.places-frost .ad-chip {
+    background: rgba(8, 10, 16, 0.62);
+    border: 1px solid rgba(230, 194, 122, 0.28);
+}
+
+.places-frost .ad-chip svg {
+    color: var(--gold);
+}
+
+.places-frost .ad-chip-label {
+    color: var(--gold);
+}
+
+.places-frost .ad-like button {
+    background: rgba(10, 12, 18, 0.82);
+    border: 1px solid rgba(230, 194, 122, 0.45);
+    color: #f4f0e8;
+}
+
+.places-frost .ad-like button.is-liked {
+    background: linear-gradient(180deg, #e0c48a, #b48a4a);
+    color: #1a140c;
+    border-color: rgba(244, 224, 180, 0.55);
+}
+
+.places-frost .ad-detail-photo {
+    border: 1px solid rgba(230, 194, 122, 0.28);
+}
+
+.places-frost .blue-tick-request {
+    padding: 14px;
+    border-radius: 16px;
+}
+
 .venue-card {
     background: rgba(0, 0, 0, 0.58);
     border: 1px solid rgba(255, 255, 255, 0.08);
@@ -2299,11 +2514,60 @@ dialog.settings-dialog:not([open]) {
     min-width: 0;
 }
 
+.venue-photo-btn {
+    display: block;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: zoom-in;
+}
+
 .venue-gallery img {
     width: 100%;
     aspect-ratio: 1;
     object-fit: cover;
     border-radius: 12px;
+}
+
+dialog.photo-sheet:not([open]) {
+    display: none !important;
+}
+
+.photo-sheet {
+    width: min(92vw, 720px);
+    max-width: calc(100vw - 24px);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    background: #111;
+    color: inherit;
+    padding: 12px;
+}
+
+.photo-sheet::backdrop {
+    background: rgba(0, 0, 0, 0.72);
+}
+
+.photo-sheet img {
+    width: 100%;
+    max-height: 78vh;
+    object-fit: contain;
+    border-radius: 12px;
+    background: #000;
+}
+
+.photo-sheet button {
+    width: 100%;
+    margin-top: 10px;
+}
+
+.call-number {
+    margin: 8px 0 0;
+    text-align: center;
+    font-size: 1.15rem;
+    letter-spacing: 0.04em;
+    direction: ltr;
 }
 
 .venue-meta {
@@ -2372,8 +2636,7 @@ dialog.nav-sheet:not([open]) {
 }
 
 .ads-panel {
-    background: rgba(0, 0, 0, 0.72);
-    backdrop-filter: blur(10px);
+    color: #f4f0e8;
 }
 
 .ads-panel .places-title,
@@ -2399,12 +2662,35 @@ dialog.nav-sheet:not([open]) {
     font-size: 0.92rem;
 }
 
+.ads-sheet {
+    max-width: 1120px;
+}
+
+.ad-when {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
 .ad-list {
     list-style: none;
     margin: 0;
     padding: 0;
     display: grid;
     gap: 12px;
+}
+
+@media (min-width: 860px) {
+    .ad-list {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        align-items: start;
+    }
+}
+
+@media (min-width: 1120px) {
+    .ad-list {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
 }
 
 .ad-card {
@@ -2453,8 +2739,10 @@ dialog.nav-sheet:not([open]) {
 .ad-detail-photo {
     width: 100%;
     max-width: 100%;
-    height: 150px;
+    height: auto;
+    aspect-ratio: 16 / 9;
     object-fit: cover;
+    object-position: center;
     display: block;
 }
 
@@ -2466,23 +2754,17 @@ dialog.nav-sheet:not([open]) {
     margin-bottom: 12px;
 }
 
-.ad-banner-row {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
-    gap: 10px;
+.ad-banner-person,
+.ad-detail-person {
+    display: flex;
     align-items: center;
-    padding: 10px 12px 12px;
-    direction: ltr;
-    min-width: 0;
+    gap: 10px;
+    padding: 10px 12px 4px;
 }
 
-.ad-banner-left {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 2px;
-    color: #f4f0e8;
-    font-size: 0.82rem;
+.ad-detail-person {
+    justify-content: center;
+    padding: 0 0 10px;
 }
 
 .ad-avatar {
@@ -2492,11 +2774,93 @@ dialog.nav-sheet:not([open]) {
     object-fit: cover;
 }
 
-.ad-banner-center {
+.ad-chip-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    padding: 8px 12px 12px;
+}
+
+.ad-chip-grid .ad-chip:last-child {
+    grid-column: 1 / -1;
+}
+
+.ad-chip {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    min-width: 0;
     margin: 0;
+    padding: 8px 10px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #f4f0e8;
+    font: inherit;
+    font-size: 0.82rem;
+    line-height: 1.4;
+    text-align: inherit;
+}
+
+button.ad-chip {
+    cursor: pointer;
+    appearance: none;
+}
+
+.ad-chip svg {
+    flex: none;
+    opacity: 0.9;
+}
+
+.ad-chip-body {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0 6px;
+    min-width: 0;
+}
+
+.ad-chip-label {
+    flex: none;
+    color: rgba(244, 240, 232, 0.72);
+}
+
+.ad-chip-value {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ad-chip.is-center .ad-chip-value {
+    white-space: normal;
+}
+
+.ad-chip.is-center {
+    justify-content: center;
     text-align: center;
-    font-weight: 700;
-    color: #fff;
+    grid-column: 1 / -1;
+}
+
+.ad-detail-title {
+    text-align: center;
+    margin: 4px 0 8px;
+}
+
+.ad-detail-grid {
+    display: grid;
+    gap: 8px;
+}
+
+.ad-detail-pair {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.ad-detail-grid .ad-chip {
+    min-height: 44px;
 }
 
 .ad-like {
@@ -2525,7 +2889,12 @@ dialog.nav-sheet:not([open]) {
 }
 
 .ad-like button.is-liked {
-    color: #ff6b81;
+    color: #fff;
+    background: rgba(212, 180, 131, 0.28);
+}
+
+.ad-advertiser {
+    font-weight: 700;
 }
 
 .venue-map-public {
@@ -2625,64 +2994,126 @@ dialog.nav-sheet:not([open]) {
     margin: 0;
     padding: 0;
     display: grid;
-    gap: 10px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
 }
 
 .catalog-list li {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 8px;
-    align-items: center;
+    position: relative;
+    display: block;
+    min-width: 0;
 }
 
 .catalog-card {
     display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: 12px;
+    justify-content: center;
+    gap: 10px;
     min-width: 0;
-    padding: 10px 12px;
-    border-radius: 14px;
+    min-height: 148px;
+    padding: 18px 12px 16px;
+    border-radius: 16px;
     background: rgba(0, 0, 0, 0.55);
     border: 1px solid rgba(255, 255, 255, 0.08);
     text-decoration: none;
+    text-align: center;
 }
 
 .catalog-icon-frame {
-    width: 48px;
-    height: 48px;
+    width: 64px;
+    height: 64px;
 }
 
 .catalog-card .scenario-icon {
-    width: 48px;
-    height: 48px;
-    max-width: 48px;
-    max-height: 48px;
+    width: 64px;
+    height: 64px;
+    max-width: 64px;
+    max-height: 64px;
 }
 
 .catalog-card-name {
     min-width: 0;
     font-weight: 700;
+    line-height: 1.4;
 }
 
-.catalog-pin {
+.catalog-pin-btn {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    z-index: 1;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.55);
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+}
+
+.catalog-pin-btn.is-pinned {
+    border-color: rgba(255, 107, 129, 0.7);
+}
+
+.catalog-pin-btn img {
+    width: 24px;
+    height: 24px;
+    object-fit: contain;
+    display: block;
+}
+
+.catalog-dialog {
+    width: min(92vw, 420px);
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+}
+
+.catalog-dialog::backdrop {
+    background: rgba(0, 0, 0, 0.72);
+}
+
+.catalog-dialog-card {
+    display: grid;
+    gap: 12px;
+    padding: 18px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 16px;
+    background: rgba(10, 12, 18, 0.92);
+}
+
+.catalog-dialog-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.catalog-replace-hint,
+.catalog-dialog-card p {
     margin: 0;
 }
 
-.catalog-pin button {
-    width: 44px;
-    height: 44px;
-    min-height: 44px;
+.catalog-replace-list {
+    list-style: none;
+    margin: 0;
     padding: 0;
-    border-radius: 12px;
     display: grid;
-    place-items: center;
+    gap: 8px;
+    max-height: 240px;
+    overflow: auto;
 }
 
-.catalog-pin button img {
-    width: 28px;
-    height: 28px;
-    object-fit: contain;
-    display: block;
+.catalog-replace-list label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.35);
 }
 
 .maintenance-sheet {
@@ -2706,4 +3137,510 @@ dialog.nav-sheet:not([open]) {
 .maintenance-sheet p {
     margin: 0;
     color: var(--muted);
+}
+
+.large-roles {
+    max-width: 920px;
+    margin: 0 auto 16px;
+}
+
+.wizard-form {
+    display: grid;
+    gap: 12px;
+}
+
+.wizard-error {
+    color: #f2c9c9;
+}
+
+.tournament-home {
+    max-width: 920px;
+    margin: 0 auto 20px;
+}
+
+.tournament-cta {
+    display: grid;
+    justify-items: center;
+    gap: 14px;
+    padding: 18px 16px;
+    border-radius: 16px;
+    background: rgba(0, 0, 0, 0.55);
+    border: 1px solid rgba(230, 194, 122, 0.4);
+    text-align: center;
+}
+
+.tournament-cta p {
+    margin: 0;
+    color: #f4f0e8;
+    font-weight: 600;
+    line-height: 1.9;
+}
+
+.tournament-plus {
+    width: 48px;
+    min-width: 48px;
+    height: 48px;
+    margin: 0;
+    padding: 0;
+    font-size: 1.6rem;
+    background: linear-gradient(180deg, #e0c48a, #b48a4a);
+    color: #1a140c;
+    border: 1px solid rgba(244, 224, 180, 0.55);
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.35);
+}
+
+.tournament-plus:active {
+    background: linear-gradient(180deg, #c9ad72, #9a733c);
+}
+
+.tournament-home-list {
+    list-style: none;
+    margin: 0 0 12px;
+    padding: 0;
+    display: grid;
+    gap: 8px;
+}
+
+.tournament-home-list li {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 40px;
+    gap: 8px;
+    align-items: center;
+}
+
+.tournament-home-list a {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: rgba(12, 12, 16, 0.78);
+    backdrop-filter: blur(14px);
+    border: 1px solid rgba(230, 194, 122, 0.28);
+    color: inherit;
+    text-decoration: none;
+}
+
+.tournament-home-list a span {
+    min-width: 0;
+}
+
+.tournament-home-list button {
+    height: 40px;
+    border: 1px solid rgba(255, 120, 120, 0.42);
+    border-radius: 10px;
+    background: rgba(132, 28, 28, 0.72);
+    color: #ffd6d6;
+    font-size: 1.2rem;
+    cursor: pointer;
+}
+
+.tournament-limit {
+    margin: 0;
+    color: rgba(244, 240, 232, 0.75);
+    font-size: 0.9rem;
+}
+
+.tournament-head {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 12px;
+    text-align: center;
+}
+
+.tournament-head h1 {
+    margin: 0;
+}
+
+.tournament-frost {
+    background: rgba(10, 12, 18, 0.82);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(230, 194, 122, 0.28);
+    color-scheme: dark;
+    accent-color: var(--gold);
+    scrollbar-width: thin;
+    scrollbar-color: #d4b483 rgba(8, 10, 16, 0.85);
+}
+
+.tournament-frost::-webkit-scrollbar,
+.tournament-check::-webkit-scrollbar,
+.tournament-frost select::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.tournament-frost::-webkit-scrollbar-track,
+.tournament-check::-webkit-scrollbar-track,
+.tournament-frost select::-webkit-scrollbar-track {
+    background: rgba(8, 10, 16, 0.9);
+    border-radius: 999px;
+}
+
+.tournament-frost::-webkit-scrollbar-thumb,
+.tournament-check::-webkit-scrollbar-thumb,
+.tournament-frost select::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #e0c48a, #a88452);
+    border-radius: 999px;
+}
+
+.tournament-sheet.tournament-frost,
+.wizard-sheet.tournament-frost {
+    padding: 18px 16px;
+    border-radius: 20px;
+}
+
+.tournament-tool {
+    display: grid;
+    gap: 10px;
+    margin: 0 0 18px;
+    padding: 14px;
+    border-radius: 16px;
+    background: rgba(8, 10, 16, 0.72);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.tournament-stage-row {
+    display: grid;
+    gap: 8px;
+}
+
+.choice.is-on {
+    border-color: var(--gold);
+    color: var(--gold);
+    background: rgba(212, 180, 131, 0.16);
+    box-shadow: inset 0 0 0 1px rgba(212, 180, 131, 0.35);
+}
+
+.tournament-tool h2,
+.tournament-tool h3 {
+    margin: 0;
+}
+
+.tournament-tool label,
+.tournament-sheet label {
+    display: grid;
+    gap: 6px;
+}
+
+.tournament-frost input[type="text"],
+.tournament-frost input[type="number"],
+.tournament-frost select {
+    width: 100%;
+    appearance: none;
+    -webkit-appearance: none;
+    font: inherit;
+    color: #f4f0e8;
+    border: 1px solid rgba(230, 194, 122, 0.42);
+    background-color: #161822;
+    background-image: none;
+    border-radius: 12px;
+    padding: 10px 12px;
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.25);
+    color-scheme: dark;
+}
+
+.tournament-frost input[type="number"] {
+    -moz-appearance: textfield;
+    padding-inline-end: 8px;
+}
+
+.tournament-frost input[type="number"]::-webkit-outer-spin-button,
+.tournament-frost input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: inner-spin-button;
+    opacity: 1;
+    width: 16px;
+    height: 28px;
+    margin-inline: 4px;
+    filter: sepia(1) saturate(3) hue-rotate(2deg) brightness(1.05);
+}
+
+.tournament-frost select {
+    padding-inline-end: 38px;
+    background-color: #161822;
+    background-image:
+        linear-gradient(45deg, transparent 50%, #d4b483 50%),
+        linear-gradient(135deg, #d4b483 50%, transparent 50%),
+        linear-gradient(to left, rgba(230, 194, 122, 0.22), rgba(230, 194, 122, 0.22));
+    background-position:
+        calc(100% - 18px) calc(50% - 3px),
+        calc(100% - 12px) calc(50% - 3px),
+        calc(100% - 34px) 50%;
+    background-size: 6px 6px, 6px 6px, 1px 18px;
+    background-repeat: no-repeat;
+}
+
+html[dir="rtl"] .tournament-frost select {
+    background-position:
+        calc(0% + 12px) calc(50% - 3px),
+        calc(0% + 18px) calc(50% - 3px),
+        calc(0% + 34px) 50%;
+}
+
+.tournament-frost select option {
+    background: #12141c;
+    color: #f4f0e8;
+}
+
+.tournament-frost input:focus,
+.tournament-frost select:focus {
+    outline: 2px solid rgba(212, 180, 131, 0.55);
+    outline-offset: 1px;
+    border-color: var(--gold);
+}
+
+.tournament-check {
+    list-style: none;
+    margin: 0;
+    padding: 4px;
+    display: grid;
+    gap: 8px;
+    max-height: 280px;
+    overflow: auto;
+    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.22);
+    border: 1px solid rgba(230, 194, 122, 0.16);
+    scrollbar-width: thin;
+    scrollbar-color: #d4b483 rgba(8, 10, 16, 0.85);
+}
+
+.tournament-check label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 10px;
+    background: rgba(12, 14, 20, 0.72);
+    border: 1px solid rgba(230, 194, 122, 0.18);
+    cursor: pointer;
+}
+
+.tournament-check input[type="checkbox"] {
+    appearance: none;
+    -webkit-appearance: none;
+    flex: none;
+    width: 22px;
+    height: 22px;
+    margin: 0;
+    border-radius: 6px;
+    border: 1.5px solid rgba(230, 194, 122, 0.55);
+    background: rgba(8, 10, 16, 0.9);
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35);
+    cursor: pointer;
+}
+
+.tournament-check input[type="checkbox"]:checked {
+    border-color: #e0c48a;
+    background-color: #b48a4a;
+    background-image:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='%231a140c' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round' d='M3.5 8.2 6.4 11 12.5 4.5'/%3E%3C/svg%3E"),
+        linear-gradient(180deg, #e0c48a, #b48a4a);
+    background-repeat: no-repeat;
+    background-position: center, center;
+    background-size: 14px, 100% 100%;
+}
+
+.tournament-btn {
+    justify-content: center;
+    gap: 10px;
+    min-height: 48px;
+    background: rgba(12, 14, 20, 0.78);
+    border: 1px solid rgba(230, 194, 122, 0.38);
+    color: #f4f0e8;
+}
+
+.tournament-btn img,
+.tournament-btn svg {
+    width: 26px;
+    height: 26px;
+    object-fit: contain;
+    flex: none;
+    color: var(--gold);
+}
+
+.tournament-btn span {
+    display: inline;
+}
+
+.choice-list .tournament-btn {
+    justify-content: flex-start;
+}
+
+.choice-list .tournament-btn span {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.choice-list .tournament-btn img,
+.choice-list .tournament-btn svg {
+    width: 40px;
+    height: 40px;
+}
+
+html[dir="rtl"] .tournament-next-icon {
+    transform: scaleX(-1);
+}
+
+button.choice.tournament-end,
+.tournament-end {
+    background: linear-gradient(180deg, #e25555, #b32626);
+    border: 1px solid #ff8d8d;
+    color: #fff;
+}
+
+.tournament-end svg {
+    color: #ffe1e1;
+}
+
+.tournament-share-page {
+    max-width: 920px;
+    margin: 0 auto 24px;
+}
+
+.tournament-share-head,
+.tournament-share-board {
+    padding: 22px 16px 18px;
+    border-radius: 22px;
+    text-align: center;
+    margin-bottom: 12px;
+}
+
+.tournament-share-kicker {
+    margin: 0 0 6px;
+    color: var(--gold);
+    letter-spacing: 0.08em;
+}
+
+.tournament-share-board h1 {
+    margin: 0 0 8px;
+    font-family: Lalezar, Vazirmatn, sans-serif;
+}
+
+.tournament-share-round {
+    margin: 0 0 16px;
+    color: rgba(244, 240, 232, 0.78);
+}
+
+.tournament-share-grid {
+    display: grid;
+    gap: 10px;
+}
+
+@media (min-width: 720px) {
+    .tournament-share-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+.tournament-share-wrap {
+    display: grid;
+    gap: 8px;
+}
+
+.tournament-share-card {
+    padding: 14px;
+    border-radius: 16px;
+    text-align: right;
+}
+
+.tournament-share-card h2 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 8px;
+    color: var(--gold);
+    font-size: 1rem;
+}
+
+.tournament-person,
+.tournament-seat {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.tournament-card-share {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+}
+
+.tournament-icon-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 36px;
+    padding: 0 12px;
+    border: 1px solid rgba(230, 194, 122, 0.35);
+    border-radius: 999px;
+    background: rgba(8, 10, 16, 0.7);
+    color: #f4f0e8;
+    cursor: pointer;
+    font: inherit;
+    font-size: 0.82rem;
+}
+
+.tournament-share-card ol {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    gap: 6px;
+}
+
+.tournament-share-card li {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 10px;
+    background: rgba(0, 0, 0, 0.28);
+}
+
+.tournament-share-actions {
+    display: grid;
+    gap: 8px;
+    margin-top: 14px;
+}
+
+.tournament-share-icon {
+    width: 56px;
+    height: 56px;
+    margin: 0 auto 8px;
+}
+
+.tournament-winner-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 10px;
+}
+
+.tournament-winner-list li {
+    display: grid;
+    justify-items: center;
+    gap: 4px;
+    padding: 14px;
+    border-radius: 14px;
+    background: rgba(230, 194, 122, 0.12);
+    border: 1px solid rgba(230, 194, 122, 0.28);
+}
+
+.tournament-medal {
+    display: grid;
+    place-items: center;
+}
+
+.tournament-place {
+    color: var(--gold);
+}
+
+.tournament-prize {
+    color: rgba(244, 240, 232, 0.86);
 }

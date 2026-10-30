@@ -155,6 +155,11 @@ class UserProfile(models.Model):
         help_text="اگر پر شود، این نام به‌جای نام کاربری به خود کاربر و دیگران نشان داده می‌شود.",
     )
     is_verified = models.BooleanField("تیک آبی", default=False)
+    is_blocked = models.BooleanField(
+        "مسدود",
+        default=False,
+        help_text="اگر فعال باشد این کاربر نمی‌تواند دوباره وارد حساب شود.",
+    )
     bio = models.CharField("بیوگرافی", max_length=280, blank=True)
     photo = models.ImageField("عکس پروفایل", upload_to="profiles", blank=True)
     google_email = models.EmailField("جیمیل متصل", blank=True, null=True, unique=True)
@@ -244,6 +249,7 @@ class EventAd(models.Model):
     image = models.ImageField("تصویر ایونت", upload_to="event_ads")
     address = models.CharField("آدرس ایونت", max_length=300)
     starts_at = models.CharField("ساعت برگزاری ایونت", max_length=80)
+    event_at = models.DateTimeField("زمان برگزاری", null=True, blank=True, db_index=True)
     phone = models.CharField("تلفن تماس ایونت‌گذار", max_length=30)
     ticket_price = models.CharField("قیمت ورودی", max_length=80)
     cafe_bank = models.CharField("بانک کافه", max_length=120)
@@ -267,6 +273,33 @@ class EventAd(models.Model):
         from django.utils import timezone
 
         return self.is_published and self.expires_at > timezone.now()
+
+    def advertiser_name(self):
+        profile = getattr(self.user, "club_profile", None)
+        if profile:
+            return profile.shown_name()
+        return self.user.get_username()
+
+    def when_display(self):
+        from banners.jalali import format_jalali_datetime
+
+        if self.event_at:
+            return format_jalali_datetime(self.event_at)
+        return self.starts_at
+
+    def date_display(self):
+        from banners.jalali import format_jalali_date
+
+        if self.event_at:
+            return format_jalali_date(self.event_at)
+        return self.starts_at
+
+    def time_display(self):
+        from banners.jalali import format_jalali_time
+
+        if self.event_at:
+            return format_jalali_time(self.event_at)
+        return ""
 
 
 class EventAdLike(models.Model):
@@ -522,3 +555,133 @@ class LegalPage(models.Model):
         if (get_language() or "fa").startswith("en"):
             return self.body_en or self.body
         return self.body or self.body_en
+
+
+class Tournament(models.Model):
+    STATUS_READY = "ready"
+    STATUS_ACTIVE = "active"
+    STATUS_CHOICES = [
+        (STATUS_READY, "آماده شروع"),
+        (STATUS_ACTIVE, "در حال برگزاری"),
+    ]
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="tournaments",
+        null=True,
+        blank=True,
+        verbose_name="کاربر",
+    )
+    guest_key = models.CharField("کلید مهمان", max_length=64, blank=True, db_index=True)
+    name = models.CharField("نام تورنومنت", max_length=120)
+    prizes = models.JSONField("جوایز", default=list)
+    status = models.CharField("وضعیت", max_length=20, choices=STATUS_CHOICES, default=STATUS_READY, db_index=True)
+    created_at = models.DateTimeField("زمان ساخت", auto_now_add=True)
+    ended_at = models.DateTimeField("پایان تورنومنت", null=True, blank=True, db_index=True)
+
+    class Meta:
+        verbose_name = "تورنومنت"
+        verbose_name_plural = "تورنومنت‌ها"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return self.name
+
+    def prize_count(self):
+        return len(self.prizes or [])
+
+    def active_players(self):
+        return self.players.filter(is_active=True).order_by("id")
+
+    def winners(self):
+        return self.players.filter(place__isnull=False).order_by("place")
+
+    def can_manage(self, request):
+        if self.owner_id:
+            return request.user.is_authenticated and request.user.id == self.owner_id
+        key = request.session.get("custom_guest_key") or ""
+        return bool(key) and key == self.guest_key
+
+    def latest_round(self, number=None):
+        if number is None:
+            return self.rounds.order_by("-number").first()
+        return self.rounds.filter(number=number).first()
+
+    def is_open(self):
+        return self.ended_at is None
+
+    def last_kind(self):
+        last = self.latest_round()
+        return getattr(last, "kind", "") if last else ""
+
+
+class TournamentPlayer(models.Model):
+    tournament = models.ForeignKey(Tournament, on_delete=models.CASCADE, related_name="players", verbose_name="تورنومنت")
+    name = models.CharField("نام", max_length=80)
+    is_active = models.BooleanField("حاضر", default=True)
+    place = models.PositiveSmallIntegerField("رتبه", null=True, blank=True)
+
+    class Meta:
+        verbose_name = "شرکت‌کننده تورنومنت"
+        verbose_name_plural = "شرکت‌کنندگان تورنومنت"
+        ordering = ["id"]
+
+    def __str__(self):
+        return self.name
+
+
+class TournamentRound(models.Model):
+    tournament = models.ForeignKey(Tournament, on_delete=models.CASCADE, related_name="rounds", verbose_name="تورنومنت")
+    KIND_ROUND1 = "round1"
+    KIND_ROUND2 = "round2"
+    KIND_SEMI = "semi"
+    KIND_FINAL = "final"
+    KIND_CHOICES = [
+        (KIND_ROUND1, "دور اول"),
+        (KIND_ROUND2, "دور دوم"),
+        (KIND_SEMI, "نیمه نهایی"),
+        (KIND_FINAL, "فینال"),
+    ]
+    number = models.PositiveSmallIntegerField("شماره دور")
+    kind = models.CharField("نوع دور", max_length=12, choices=KIND_CHOICES, default=KIND_ROUND1)
+    title = models.CharField("عنوان", max_length=40)
+    group_count = models.PositiveSmallIntegerField("تعداد گروه", default=1)
+    group_size = models.PositiveSmallIntegerField("نفر در گروه", default=1)
+    is_final = models.BooleanField("دور پایانی", default=False)
+    created_at = models.DateTimeField("زمان قرعه", auto_now_add=True)
+
+    class Meta:
+        verbose_name = "دور تورنومنت"
+        verbose_name_plural = "دورهای تورنومنت"
+        unique_together = ("tournament", "number")
+        ordering = ["number"]
+
+    def __str__(self):
+        return f"{self.tournament} — {self.title}"
+
+    def grouped_seats(self):
+        groups = []
+        seats = list(self.seats.select_related("player").order_by("group_index", "seat_number"))
+        current = None
+        for seat in seats:
+            if current is None or current["index"] != seat.group_index:
+                current = {"index": seat.group_index, "seats": []}
+                groups.append(current)
+            current["seats"].append(seat)
+        return groups
+
+
+class TournamentSeat(models.Model):
+    round = models.ForeignKey(TournamentRound, on_delete=models.CASCADE, related_name="seats", verbose_name="دور")
+    player = models.ForeignKey(TournamentPlayer, on_delete=models.CASCADE, related_name="seats", verbose_name="بازیکن")
+    group_index = models.PositiveSmallIntegerField("گروه")
+    seat_number = models.PositiveSmallIntegerField("صندلی")
+
+    class Meta:
+        verbose_name = "صندلی تورنومنت"
+        verbose_name_plural = "صندلی‌های تورنومنت"
+        ordering = ["group_index", "seat_number"]
+
+    def __str__(self):
+        return f"{self.player} — گروه {self.group_index} صندلی {self.seat_number}"
+

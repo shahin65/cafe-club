@@ -1,0 +1,16 @@
+{% load i18n %}
+{% if call %}
+<button type="button" class="ad-chip{% if center %} is-center{% endif %} is-call" data-call="{{ call }}">
+{% else %}
+<span class="ad-chip{% if center %} is-center{% endif %}">
+{% endif %}
+  {% include "banners/_ad_icon.html" with name=icon %}
+  <span class="ad-chip-body">
+    <span class="ad-chip-label">{% trans label %}:</span>
+    <span class="ad-chip-value">{{ text }}</span>
+  </span>
+{% if call %}
+</button>
+{% else %}
+</span>
+{% endif %}

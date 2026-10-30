@@ -3,6 +3,8 @@ from django.utils.translation import gettext_lazy as _
 
 from banners.app_source import filter_downloads
 from banners.models import Banner, LegalPage, SiteLink
+from banners.tournament import MAX_OPEN, owned_tournaments
+from scenarios.large_deal import large_scenarios
 from scenarios.models import GUEST_SCENARIO_KEY, Scenario
 from scenarios.pins import home_quick_scenarios
 
@@ -44,6 +46,7 @@ def home(request):
         for scenario in owned.prefetch_related("sizes__roles", "sizes__final_move_cards")
         if scenario.is_complete()
     ]
+    tournaments = list(owned_tournaments(request)[:MAX_OPEN])
     return render(
         request,
         "banners/home.html",
@@ -52,6 +55,9 @@ def home(request):
             "quick_scenarios": quick_scenarios,
             "show_more_scenarios": show_more_scenarios,
             "my_scenarios": mine,
+            "my_tournaments": tournaments,
+            "can_create_tournament": len(tournaments) < MAX_OPEN,
+            "large_scenarios": list(large_scenarios()),
         },
     )
 

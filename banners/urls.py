@@ -1,7 +1,9 @@
 from django.contrib.auth.views import LoginView, LogoutView
 from django.urls import path
 
-from . import ads_views, auth_views, places_views, profile_views, pwa_views, views
+from banners.accounts import ClubLoginForm
+
+from . import ads_views, auth_views, places_views, profile_views, pwa_views, tournament_views, views
 
 urlpatterns = [
     path("", views.home, name="home"),
@@ -9,7 +11,15 @@ urlpatterns = [
     path("settings/", views.app_settings, name="app_settings"),
     path("privacy/", views.legal_page, {"key": "privacy"}, name="privacy"),
     path("terms/", views.legal_page, {"key": "terms"}, name="terms"),
-    path("account/login/", LoginView.as_view(template_name="account/login.html", redirect_authenticated_user=True), name="login"),
+    path(
+        "account/login/",
+        LoginView.as_view(
+            template_name="account/login.html",
+            redirect_authenticated_user=True,
+            authentication_form=ClubLoginForm,
+        ),
+        name="login",
+    ),
     path("account/logout/", LogoutView.as_view(), name="logout"),
     path("account/register/", auth_views.register, name="register"),
     path("account/username/", auth_views.save_username, name="save_username"),
@@ -30,4 +40,14 @@ urlpatterns = [
     path("location/<int:venue_id>/", places_views.venue_detail, name="venue_detail"),
     path("location/<int:venue_id>/rate/", places_views.rate_venue, name="venue_rate"),
     path("location/<int:venue_id>/comment/", places_views.comment_venue, name="venue_comment"),
+    path("tournament/create/", tournament_views.create_name, name="tournament_create"),
+    path("tournament/create/count/", tournament_views.create_count, name="tournament_count"),
+    path("tournament/create/names/", tournament_views.create_names, name="tournament_names"),
+    path("tournament/create/prize-count/", tournament_views.create_prize_count, name="tournament_prize_count"),
+    path("tournament/create/prizes/", tournament_views.create_prizes, name="tournament_prizes"),
+    path("tournament/<int:tournament_id>/", tournament_views.manage, name="tournament_manage"),
+    path("tournament/<int:tournament_id>/delete/", tournament_views.delete_tournament, name="tournament_delete"),
+    path("tournament/<int:tournament_id>/round/<int:number>/groups/", tournament_views.groups_board, name="tournament_groups"),
+    path("tournament/<int:tournament_id>/round/<int:number>/seats/", tournament_views.seats_board, name="tournament_seats"),
+    path("tournament/<int:tournament_id>/winners/", tournament_views.winners_board, name="tournament_winners"),
 ]

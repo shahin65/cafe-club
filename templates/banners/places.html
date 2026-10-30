@@ -4,7 +4,7 @@
 {% block title %}{% trans "کجا برم؟" %} | {% trans "کافه کلاب" %}{% endblock %}
 
 {% block content %}
-  <section class="sheet places-sheet" data-places data-ask-geo{% if nearest_nav and user_lat %} data-open-nav-on-load{% endif %}>
+  <section class="sheet places-sheet places-frost" data-places data-ask-geo{% if nearest_nav and user_lat %} data-open-nav-on-load{% endif %}>
     <h1 class="places-title">{% trans "کجا برم؟" %}</h1>
     <a class="places-add-btn" href="{% url 'venue_submit' %}">
       <span aria-hidden="true">+</span>
@@ -122,5 +122,5 @@
 {% endblock %}
 
 {% block extra_js %}
-  <script src="{% static 'js/places.js' %}?v=4"></script>
+  <script src="{% static 'js/places.js' %}?v=5"></script>
 {% endblock %}

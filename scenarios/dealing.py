@@ -14,6 +14,7 @@ FINAL_CARD_IMAGE = "Card-Final-Move.webp"
 
 CARD_IMAGES = {
     "citizen": "Card-Cityzen.webp",
+    "village": "Card-Cityzen.webp",
     "mafia": "Card-Mafia.webp",
     "independent": "Card-Independent.webp",
     "werewolf": "Card-Werewolf.webp",
@@ -25,6 +26,30 @@ def shuffled(items, rng=None):
     result = list(items)
     (rng or random.SystemRandom()).shuffle(result)
     return result
+
+
+def create_large_deal(scenario, payloads, final_cards=None, mode=MODE_ORDER, rng=None):
+    rng = rng or random.SystemRandom()
+    roles = shuffled(list(payloads), rng)
+    count = len(roles)
+    announce = list(range(1, count + 1))
+    if mode == MODE_CHAIR:
+        announce = shuffled(announce, rng)
+    finals = shuffled(list(final_cards or []), rng)
+    return {
+        "scenario_id": scenario.id,
+        "player_count": count,
+        "mode": mode if mode in MODES else MODE_ORDER,
+        "large": True,
+        "slots": roles,
+        "announce": announce,
+        "revealed": [False] * count,
+        "final_slots": finals,
+        "final_revealed": [False] * len(finals),
+        "lottery_rounds": [],
+        "role_payloads": payloads,
+        "final_payloads": list(final_cards or []),
+    }
 
 
 def create_deal(size, mode, rng=None):
@@ -50,6 +75,11 @@ def create_deal(size, mode, rng=None):
 
 def ensure_host_tools(deal, size):
     changed = False
+    if deal.get("large"):
+        if "lottery_rounds" not in deal:
+            deal["lottery_rounds"] = []
+            changed = True
+        return changed
     if "final_slots" not in deal:
         cards = shuffled(list(size.final_move_cards.all()))
         deal["final_slots"] = [card.id for card in cards]

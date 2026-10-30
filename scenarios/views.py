@@ -20,6 +20,7 @@ from scenarios.dealing import (
     SESSION_KEY,
     card_static,
     create_deal,
+    create_large_deal,
     current_number,
     ensure_host_tools,
     final_card_static,
@@ -30,7 +31,16 @@ from scenarios.dealing import (
 )
 from scenarios.html_safe import plain_page_text
 from scenarios.models import FinalMoveCard, Role, Scenario, ScenarioComment, ScenarioSize
-from scenarios.pins import get_pin_ids, listed_official, official_queryset, toggle_pin as toggle_home_pin
+from scenarios.pins import (
+    MAX_HOME_SCENARIOS,
+    home_quick_scenarios,
+    listed_official,
+    official_queryset,
+    remove_from_home,
+    replace_home_scenario,
+    shown_home_ids,
+    toggle_pin as toggle_home_pin,
+)
 
 
 def _visible_scenario(request, scenario_id):
@@ -73,6 +83,8 @@ def _size_or_404(scenario, player_count):
 
 
 def _board_url(deal):
+    if deal.get("large"):
+        return redirect("large_play", scenario_id=deal["scenario_id"], mode=deal["mode"])
     return redirect(
         "deal_board",
         scenario_id=deal["scenario_id"],
@@ -83,7 +95,7 @@ def _board_url(deal):
 
 def _pin_state(request, scenario):
     return {
-        "scenario_pinned": scenario.id in get_pin_ids(request) and not scenario.is_custom(),
+        "scenario_pinned": scenario.id in shown_home_ids(request) and not scenario.is_custom(),
         "can_pin_scenario": not scenario.is_custom(),
     }
 
@@ -182,16 +194,27 @@ def reveal(request, slot):
     if mode in (MODE_ORDER, MODE_CHAIR) and not deal["revealed"][slot - 1]:
         if current_number(deal) != slot:
             return JsonResponse({"error": "wait"}, status=409)
-    role = get_object_or_404(Role, pk=deal["slots"][slot - 1], size__player_count=count)
+    payload = deal["slots"][slot - 1]
+    if isinstance(payload, dict):
+        name = payload.get("name") or ""
+        description = payload.get("description") or ""
+        icon = ""
+        side = payload.get("side") or "citizen"
+    else:
+        role = get_object_or_404(Role, pk=payload, size__player_count=count)
+        name = role.name
+        description = role.description
+        icon = role.icon.url if role.icon else ""
+        side = role.side
     deal["revealed"][slot - 1] = True
     request.session[SESSION_KEY] = deal
     request.session.modified = True
     return JsonResponse(
         {
-            "name": role.name,
-            "description": role.description,
-            "icon": role.icon.url if role.icon else "",
-            "card": card_static(role.side),
+            "name": name,
+            "description": description,
+            "icon": icon,
+            "card": card_static(side),
             "done": all(deal["revealed"]),
         }
     )
@@ -201,6 +224,16 @@ def restart(request):
     deal = request.session.get(SESSION_KEY)
     if not deal:
         return redirect("home")
+    if deal.get("large"):
+        scenario = _visible_scenario(request, deal["scenario_id"])
+        mode = deal.get("mode") if deal.get("mode") in MODES else MODE_ORDER
+        request.session[SESSION_KEY] = create_large_deal(
+            scenario,
+            deal.get("role_payloads") or deal.get("slots") or [],
+            deal.get("final_payloads") or [],
+            mode=mode,
+        )
+        return redirect("large_play", scenario_id=scenario.id, mode=mode)
     size = get_object_or_404(
         ScenarioSize,
         scenario_id=deal["scenario_id"],
@@ -230,6 +263,8 @@ def _save_deal(request, deal):
 
 def _scenario_and_size(request, deal):
     scenario = _visible_scenario(request, deal["scenario_id"])
+    if deal.get("large"):
+        return scenario, None
     size = get_object_or_404(
         ScenarioSize,
         scenario=scenario,
@@ -304,13 +339,20 @@ def final_reveal(request, slot):
     count = len(deal.get("final_slots") or [])
     if slot < 1 or slot > count:
         return JsonResponse({"error": "slot"}, status=404)
-    card = get_object_or_404(FinalMoveCard, pk=deal["final_slots"][slot - 1])
+    payload = deal["final_slots"][slot - 1]
+    if isinstance(payload, dict):
+        name = payload.get("name") or ""
+        description = payload.get("description") or ""
+    else:
+        card = get_object_or_404(FinalMoveCard, pk=payload)
+        name = card.name
+        description = card.description
     deal["final_revealed"][slot - 1] = True
     _save_deal(request, deal)
     return JsonResponse(
         {
-            "name": card.name,
-            "description": card.description,
+            "name": name,
+            "description": description,
             "card": final_card_static(),
         }
     )
@@ -498,7 +540,8 @@ def scenario_catalog(request):
     else:
         sort = "name"
         scenarios.sort(key=lambda item: (item.display_name() or "").casefold())
-    pinned = set(get_pin_ids(request))
+    home_items = home_quick_scenarios(request)[0]
+    home_ids = [item.id for item in home_items]
     return render(
         request,
         "scenarios/catalog.html",
@@ -506,7 +549,9 @@ def scenario_catalog(request):
             "scenarios": scenarios,
             "query": query,
             "sort": sort,
-            "pinned_ids": pinned,
+            "pinned_ids": set(home_ids),
+            "home_scenarios": home_items,
+            "home_full": len(home_ids) >= 6,
         },
     )
 
@@ -522,13 +567,50 @@ def pin_scenario(request, scenario_id):
     if scenario.is_custom():
         messages.error(request, _("سناریوی شخصی را نمی‌توان به صفحه اصلی اضافه کرد."))
         return redirect(next_url)
+    shown = shown_home_ids(request)
+    if scenario.id in shown:
+        remove_from_home(request, scenario.id)
+        messages.success(request, _("سناریو از صفحه اصلی برداشته شد."))
+        return redirect(next_url)
+    if len(shown) >= MAX_HOME_SCENARIOS:
+        messages.error(request, _("حداکثر ۶ سناریو در تقسیم نقش سریع صفحه اصلی جای می‌گیرد. یکی را جایگزین کنید."))
+        return redirect(next_url)
     pinned, ok = toggle_home_pin(request, scenario.id)
     if not ok:
-        messages.error(request, _("حداکثر ۶ سناریو در تقسیم نقش سریع صفحه اصلی جای می‌گیرد."))
+        messages.error(request, _("حداکثر ۶ سناریو در تقسیم نقش سریع صفحه اصلی جای می‌گیرد. یکی را جایگزین کنید."))
     elif pinned:
         messages.success(request, _("سناریو به صفحه اصلی اضافه شد."))
     else:
         messages.success(request, _("سناریو از صفحه اصلی برداشته شد."))
+    return redirect(next_url)
+
+
+def _safe_next(request):
+    next_url = request.POST.get("next") or request.META.get("HTTP_REFERER") or "/"
+    if not next_url.startswith("/") or not url_has_allowed_host_and_scheme(
+        next_url, allowed_hosts={request.get_host()}, require_https=request.is_secure()
+    ):
+        return "/"
+    return next_url
+
+
+@require_POST
+def pin_scenario_replace(request):
+    next_url = _safe_next(request)
+    try:
+        add_id = int(request.POST.get("add_id") or 0)
+        remove_id = int(request.POST.get("remove_id") or 0)
+    except (TypeError, ValueError):
+        messages.error(request, _("جایگزینی سناریو انجام نشد."))
+        return redirect(next_url)
+    add_scenario = _visible_scenario(request, add_id)
+    if add_scenario.is_custom():
+        messages.error(request, _("سناریوی شخصی را نمی‌توان به صفحه اصلی اضافه کرد."))
+        return redirect(next_url)
+    if replace_home_scenario(request, add_scenario.id, remove_id):
+        messages.success(request, _("سناریو در صفحه اصلی جایگزین شد."))
+    else:
+        messages.error(request, _("یکی از سناریوهای صفحه اصلی را برای حذف انتخاب کنید."))
     return redirect(next_url)
 
 

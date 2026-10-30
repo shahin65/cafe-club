@@ -7,7 +7,7 @@ MAX_HOME_SCENARIOS = 6
 
 
 def official_queryset():
-    return Scenario.objects.filter(owner__isnull=True, guest_key="").prefetch_related(
+    return Scenario.objects.filter(owner__isnull=True, guest_key="", is_large=False).prefetch_related(
         Prefetch("sizes", queryset=ScenarioSize.objects.prefetch_related("roles", "final_move_cards"))
     )
 
@@ -73,6 +73,36 @@ def toggle_pin(request, scenario_id):
     ids.append(scenario_id)
     set_pin_ids(request, ids)
     return True, True
+
+
+def shown_home_ids(request):
+    return [scenario.id for scenario in home_quick_scenarios(request)[0]]
+
+
+def remove_from_home(request, scenario_id):
+    current = shown_home_ids(request)
+    if scenario_id not in current:
+        return False
+    kept = [item for item in current if item != scenario_id]
+    for scenario in listed_official():
+        if scenario.id not in kept and scenario.id != scenario_id:
+            kept.append(scenario.id)
+        if len(kept) >= MAX_HOME_SCENARIOS:
+            break
+    set_pin_ids(request, kept)
+    return True
+
+
+def replace_home_scenario(request, add_id, remove_id):
+    current = shown_home_ids(request)
+    if add_id == remove_id:
+        return False
+    if add_id in current:
+        return True
+    if remove_id not in current:
+        return False
+    set_pin_ids(request, [add_id if item == remove_id else item for item in current])
+    return True
 
 
 def home_quick_scenarios(request):

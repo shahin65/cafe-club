@@ -79,7 +79,7 @@
         </button>
       </div>
       <p class="music-now">{% trans "آهنگی انتخاب نشده" %}</p>
-      <ul class="music-list" data-remove="{% trans 'حذف آهنگ' %}"></ul>
+      <ul class="music-list" data-remove="{% trans 'حذف آهنگ' %}" data-rename="{% trans 'ویرایش نام' %}" data-rename-prompt="{% trans 'نام نمایشی موسیقی' %}"></ul>
       <audio class="music-audio" preload="none"></audio>
     </section>
     <div class="choice-list">
@@ -102,9 +102,13 @@
         </a>
       {% endif %}
     </div>
+    <a class="choice deal-safe deal-restart" href="{% url 'deal_restart' %}">
+      <img src="{% static 'Icon-Refresh.png' %}" alt="" width="40" height="40">
+      <span>{% trans "تقسیم نقش مجدد" %}</span>
+    </a>
   </section>
-  <script src="{% static 'js/turn-timers.js' %}?v=3"></script>
-  <script src="{% static 'js/music-player.js' %}?v=5"></script>
+  <script src="{% static 'js/turn-timers.js' %}?v=4"></script>
+  <script src="{% static 'js/music-player.js' %}?v=7"></script>
 {% endblock %}
 
 {% block tab_bar %}

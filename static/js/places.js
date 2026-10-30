@@ -96,4 +96,17 @@
       reloadWithPoint(lat, lng, false);
     });
   }
+
+  var photoSheet = root.querySelector("[data-photo-sheet]");
+  var photoView = root.querySelector("[data-photo-view]");
+  root.querySelectorAll("[data-photo]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      if (!photoSheet || !photoView) return;
+      photoView.src = btn.getAttribute("data-photo") || "";
+      photoView.alt = (btn.querySelector("img") && btn.querySelector("img").alt) || "";
+      photoView.hidden = false;
+      if (typeof photoSheet.showModal === "function") photoSheet.showModal();
+    });
+  });
 })();
+

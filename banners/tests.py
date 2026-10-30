@@ -9,8 +9,18 @@ from django.test import TestCase
 from django.utils import timezone, translation
 from PIL import Image
 
+from django.contrib.admin.sites import AdminSite
+from django.test import RequestFactory
+
+from banners.admin import VenueSubmissionAdmin
+from banners.digits import persian_digits, persianize_html_digits
 from banners.geo import haversine_km
-from banners.models import Banner, BlueTickRequest, EventAd, SiteLink, SiteSettings, UserProfile, Venue, VenueComment, VenueRating, VenueSubmission
+from banners.models import Banner, BlueTickRequest, EventAd, SiteLink, SiteSettings, Tournament, UserProfile, Venue, VenueComment, VenueRating, VenueSubmission
+
+
+def _future_event_post(days=1, hour="22:00"):
+    day = (timezone.localtime() + timedelta(days=days)).date().isoformat()
+    return {"event_date": day, "event_hour": hour}
 
 
 class BannerSeedTests(TestCase):
@@ -250,7 +260,7 @@ class ProfileAndBlueTickTests(TestCase):
         user = User.objects.create_user("host", "host@gmail.com", "pass-word-123")
         self.client.force_login(user)
         logged = self.client.get("/account/profile/")
-        self.assertContains(logged, user.club_profile.public_id_display())
+        self.assertContains(logged, persian_digits(user.club_profile.public_id_display()))
         self.assertFalse(user.club_profile.is_verified)
         self.assertNotContains(logged, "امکانات تیک آبی")
         self.assertContains(logged, "Icon-BlueTick-Inactive.png")
@@ -329,7 +339,7 @@ class ProfileAndBlueTickTests(TestCase):
         )
         self.assertRedirects(sent, "/account/profile/")
         page = self.client.get("/account/profile/")
-        self.assertContains(page, "پس از بررسی طی 72 ساعت آینده با شما تماس حاصل خواهد شد")
+        self.assertContains(page, "پس از بررسی طی ۷۲ ساعت آینده با شما تماس حاصل خواهد شد")
         self.assertTrue(BlueTickRequest.objects.filter(user=user, full_name="علی میزبان").exists())
 
     def test_admin_dashboard_shows_red_counts_for_pending_items(self):
@@ -468,6 +478,14 @@ class PlacesTests(TestCase):
         self.assertContains(detail, "مسیریابی")
         self.assertContains(detail, "venue-nav-btn")
         self.assertContains(detail, "venue-card")
+        self.assertContains(detail, "ad-chip")
+        self.assertContains(detail, "شهر:")
+        self.assertContains(detail, "مدیر:")
+        self.assertContains(detail, "ساعات کاری:")
+        self.assertContains(detail, "آدرس:")
+        self.assertContains(detail, "تلفن:")
+        self.assertContains(detail, 'data-call="02112345678"')
+        self.assertContains(detail, "آیا می‌خواهید با این شماره تماس بگیرید؟")
         self.assertContains(detail, "جمع این دو عدد را بنویسید")
         self.assertContains(detail, "waze.com")
         captcha = self.client.session["venue_comment_captcha"]
@@ -513,6 +531,16 @@ class PlacesTests(TestCase):
         self.assertContains(board, "نظرات کاربران در رابطه با کافه کلاب‌ها")
         self.assertContains(board, "فضای بازی خوب است")
 
+    def test_venue_photos_open_in_viewer(self):
+        buffer = BytesIO()
+        Image.new("RGB", (40, 40), (10, 80, 20)).save(buffer, format="PNG")
+        photo = SimpleUploadedFile("cafe.png", buffer.getvalue(), content_type="image/png")
+        venue = make_venue(name="کافه گالری", photo_1=photo)
+        page = self.client.get(f"/location/{venue.id}/")
+        self.assertContains(page, "data-photo=")
+        self.assertContains(page, "data-photo-sheet")
+        self.assertContains(page, "venue-photo-btn")
+
     def test_owner_can_submit_a_club_for_review(self):
         page = self.client.get("/location/")
         self.assertContains(page, "ثبت کافه یا کلاب من")
@@ -533,22 +561,31 @@ class PlacesTests(TestCase):
                 "address": "انقلاب",
                 "phone": "021111",
                 "hours": "چهارشنبه و پنجشنبه ۲۰ تا ۲",
+                "city": "تهران",
                 "latitude": "35.689200",
                 "longitude": "51.389000",
                 "logo": SimpleUploadedFile("logo.png", buffer.getvalue(), content_type="image/png"),
             },
         )
         self.assertEqual(sent.status_code, 200)
-        self.assertContains(sent, "مورد ارسالی طی 72 ساعت آینده بررسی و به شما اطلاع‌رسانی خواهد شد")
+        self.assertContains(sent, "مورد ارسالی طی ۷۲ ساعت آینده بررسی و به شما اطلاع‌رسانی خواهد شد")
         item = VenueSubmission.objects.get(name="کلاب شبانه")
         self.assertFalse(item.is_reviewed)
         self.assertEqual(item.manager_name, "نیما")
+        self.assertEqual(item.city, "تهران")
         self.assertEqual(str(item.latitude), "35.689200")
         admin_user = User.objects.create_superuser("owner-admin", "owner-admin@example.com", "pass-word-123")
         self.client.force_login(admin_user)
         board = self.client.get("/admin/banners/venuesubmission/")
         self.assertContains(board, "درخواست‌های ثبت کافه و کلاب")
         self.assertContains(board, "کلاب شبانه")
+        item.is_reviewed = True
+        request = RequestFactory().post("/")
+        request.user = admin_user
+        VenueSubmissionAdmin(VenueSubmission, AdminSite()).save_model(request, item, None, True)
+        self.assertTrue(Venue.objects.filter(name="کلاب شبانه", city="تهران", is_active=True).exists())
+        listed = self.client.get("/location/")
+        self.assertContains(listed, "کلاب شبانه")
 
 
 class AppSettingsPageTests(TestCase):
@@ -620,49 +657,63 @@ class EventAdTests(TestCase):
         )
         self.assertRedirects(sent, "/ads/create/")
         again = self.client.get("/ads/create/")
-        self.assertContains(again, "پس از بررسی طی 72 ساعت آینده با شما تماس حاصل خواهد شد")
+        self.assertContains(again, "پس از بررسی طی ۷۲ ساعت آینده با شما تماس حاصل خواهد شد")
 
     def test_verified_user_can_post_ad_and_admin_is_notified(self):
         user = User.objects.create_user("star", "star@example.com", "pass-word-123")
         user.club_profile.is_verified = True
         user.club_profile.save(update_fields=["is_verified"])
         self.client.force_login(user)
-        created = self.client.post(
-            "/ads/create/",
-            {
-                "event_name": "شب مافیا",
-                "organizer_name": "علی",
-                "address": "خیابان ولیعصر",
-                "starts_at": "جمعه ۲۲:۰۰",
-                "phone": "09121234567",
-                "ticket_price": "۲۰۰ هزار تومان",
-                "cafe_bank": "کافه شب",
-                "city": "تهران",
-                "district": "ونک",
-                "scenario": "بازپرس",
-                "image": _png_upload(),
-            },
-        )
+        user.club_profile.display_name = "میزبان شب"
+        user.club_profile.save(update_fields=["display_name"])
+        payload = {
+            "event_name": "شب مافیا",
+            "organizer_name": "علی",
+            "address": "خیابان ولیعصر",
+            "phone": "09121234567",
+            "ticket_price": "۲۰۰ هزار تومان",
+            "cafe_bank": "کافه شب",
+            "city": "تهران",
+            "district": "ونک",
+            "scenario": "بازپرس",
+            "image": _png_upload(),
+        }
+        payload.update(_future_event_post(days=1, hour="22:00"))
+        created = self.client.post("/ads/create/", payload)
         self.assertRedirects(created, "/ads/")
         listing = self.client.get("/ads/")
-        self.assertContains(listing, "سناریو")
         self.assertContains(listing, "بازپرس")
-        self.assertContains(listing, "ونک")
+        self.assertContains(listing, "تهران")
+        self.assertContains(listing, "میزبان شب")
+        self.assertContains(listing, "۲۲:۰۰")
+        self.assertContains(listing, "ad-chip")
+        self.assertContains(listing, "تاریخ:")
+        self.assertContains(listing, "ساعت:")
+        self.assertContains(listing, "شهر:")
         self.assertContains(listing, "ad-avatar")
+        self.assertContains(listing, "ads-sheet")
+        self.assertContains(listing, "۰۹۱۲۱۲۳۴۵۶۷")
+        self.assertContains(listing, 'data-call="09121234567"')
+        self.assertContains(listing, "آیا می‌خواهید با این شماره تماس بگیرید؟")
         self.assertNotContains(listing, "کافه شب")
-        self.assertNotContains(listing, "09121234567")
         ad = EventAd.objects.get(event_name="شب مافیا")
         detail = self.client.get(f"/ads/{ad.id}/")
         self.assertContains(detail, "شب مافیا")
         self.assertContains(detail, "کافه شب")
+        self.assertContains(detail, "میزبان شب")
+        self.assertContains(detail, "ad-detail-grid")
+        self.assertContains(detail, "ad-chip")
+        self.assertContains(detail, "ورودی:")
+        self.assertContains(detail, "بانک کافه:")
+        self.assertContains(detail, 'data-call="09121234567"')
         liked = self.client.post(f"/ads/{ad.id}/like/", {"next": "/ads/"})
         self.assertRedirects(liked, "/ads/")
         listing = self.client.get("/ads/")
-        self.assertContains(listing, ">1</span>")
+        self.assertContains(listing, ">۱</span>")
         ad = EventAd.objects.get(event_name="شب مافیا")
         self.assertTrue(ad.is_published)
         self.assertTrue(ad.is_new)
-        self.assertGreater(ad.expires_at, timezone.now() + timedelta(days=2))
+        self.assertEqual(ad.expires_at, ad.event_at + timedelta(hours=12))
         admin_user = User.objects.create_superuser("adadmin", "adadmin@example.com", "pass-word-123")
         self.client.force_login(admin_user)
         dashboard = self.client.get("/admin/")
@@ -696,6 +747,7 @@ class EventAdTests(TestCase):
                 image=_png_upload(f"event-{index}.png"),
                 address="تهران",
                 starts_at="۲۲:۰۰",
+                event_at=now + timedelta(days=1),
                 phone="09120000000",
                 ticket_price="رایگان",
                 cafe_bank="کافه",
@@ -705,25 +757,83 @@ class EventAdTests(TestCase):
                 expires_at=now + timedelta(days=3),
             )
         self.client.force_login(user)
-        blocked = self.client.post(
-            "/ads/create/",
-            {
-                "event_name": "چهارم",
-                "organizer_name": "علی",
-                "address": "تهران",
-                "starts_at": "۲۲:۰۰",
-                "phone": "09120000000",
-                "ticket_price": "رایگان",
-                "cafe_bank": "کافه",
-                "city": "تهران",
-                "district": "مرکز",
-                "scenario": "مافیا",
-                "image": _png_upload("fourth.png"),
-            },
-        )
+        blocked_payload = {
+            "event_name": "چهارم",
+            "organizer_name": "علی",
+            "address": "تهران",
+            "phone": "09120000000",
+            "ticket_price": "رایگان",
+            "cafe_bank": "کافه",
+            "city": "تهران",
+            "district": "مرکز",
+            "scenario": "مافیا",
+            "image": _png_upload("fourth.png"),
+        }
+        blocked_payload.update(_future_event_post())
+        blocked = self.client.post("/ads/create/", blocked_payload)
         self.assertEqual(blocked.status_code, 200)
         self.assertContains(blocked, "سقف سه آگهی رایگان در این ماه پر شده است")
         self.assertEqual(EventAd.objects.filter(user=user).count(), 3)
+
+    def test_ads_sort_by_nearest_event_and_purge_after_twelve_hours(self):
+        user = User.objects.create_user("timeline", "timeline@example.com", "pass-word-123")
+        later = timezone.now() + timedelta(days=2, hours=3)
+        sooner = timezone.now() + timedelta(days=1, hours=2)
+        EventAd.objects.create(
+            user=user,
+            event_name="ایونت دور",
+            organizer_name="علی",
+            image=_png_upload("later.png"),
+            address="تهران",
+            starts_at="دیر",
+            event_at=later,
+            phone="09120000000",
+            ticket_price="رایگان",
+            cafe_bank="کافه",
+            city="تهران",
+            district="مرکز",
+            scenario="مافیا",
+            expires_at=later + timedelta(hours=12),
+        )
+        EventAd.objects.create(
+            user=user,
+            event_name="ایونت نزدیک",
+            organizer_name="علی",
+            image=_png_upload("sooner.png"),
+            address="تهران",
+            starts_at="زود",
+            event_at=sooner,
+            phone="09120000000",
+            ticket_price="رایگان",
+            cafe_bank="کافه",
+            city="تهران",
+            district="مرکز",
+            scenario="مافیا",
+            expires_at=sooner + timedelta(hours=12),
+        )
+        listing = self.client.get("/ads/").content.decode()
+        self.assertLess(listing.find("ایونت نزدیک"), listing.find("ایونت دور"))
+        expired = EventAd.objects.create(
+            user=user,
+            event_name="ایونت گذشته",
+            organizer_name="علی",
+            image=_png_upload("old.png"),
+            address="تهران",
+            starts_at="قدیم",
+            event_at=timezone.now() - timedelta(hours=13),
+            phone="09120000000",
+            ticket_price="رایگان",
+            cafe_bank="کافه",
+            city="تهران",
+            district="مرکز",
+            scenario="مافیا",
+            expires_at=timezone.now() - timedelta(minutes=1),
+        )
+        image_name = expired.image.name
+        gone = self.client.get("/ads/")
+        self.assertNotContains(gone, "ایونت گذشته")
+        self.assertFalse(EventAd.objects.filter(event_name="ایونت گذشته").exists())
+        self.assertFalse(expired.image.storage.exists(image_name))
 
 
 class AppSourceTests(TestCase):
@@ -769,11 +879,14 @@ class MaintenanceModeTests(TestCase):
         closed = self.client.post("/admin/site-maintenance/", {"maintenance_mode": "1"})
         self.assertRedirects(closed, "/admin/")
         self.assertTrue(SiteSettings.load().maintenance_mode)
-        self.assertContains(self.client.get("/"), "تقسیم نقش سریع")
+        self.assertContains(self.client.get("/"), "اپلیکیشن در دست تعمیر است", status_code=503)
+        self.assertEqual(self.client.get("/admin/").status_code, 200)
         self.client.logout()
         public = self.client.get("/")
         self.assertEqual(public.status_code, 503)
         self.assertContains(public, "اپلیکیشن در دست تعمیر است", status_code=503)
+        self.assertContains(public, "maintenance-mark", status_code=503)
+        self.assertContains(public, "<figcaption>", status_code=503)
         self.assertContains(public, "Icon-Settings1.png", status_code=503)
         self.assertNotContains(public, "تقسیم نقش سریع", status_code=503)
         self.assertNotContains(public, "نوار پایین", status_code=503)
@@ -784,4 +897,148 @@ class MaintenanceModeTests(TestCase):
         self.assertFalse(SiteSettings.load().maintenance_mode)
         self.client.logout()
         self.assertEqual(self.client.get("/").status_code, 200)
+
+
+class BlockedAccountTests(TestCase):
+    def test_blocked_user_cannot_log_in_again(self):
+        user = User.objects.create_user("locked", "locked@example.com", "pass-word-123")
+        user.club_profile.is_blocked = True
+        user.club_profile.save(update_fields=["is_blocked"])
+        failed = self.client.post("/account/login/", {"username": "locked", "password": "pass-word-123"})
+        self.assertEqual(failed.status_code, 200)
+        self.assertContains(failed, "این اکانت مسدود شده است")
+        self.client.force_login(user)
+        bounced = self.client.get("/")
+        self.assertRedirects(bounced, "/account/login/")
+        admin = User.objects.create_superuser("blocker", "blocker@example.com", "pass-word-123")
+        self.client.force_login(admin)
+        board = self.client.get("/admin/banners/userprofile/")
+        self.assertContains(board, "مسدود")
+        self.assertContains(board, "block_accounts")
+
+
+class PersianDigitsTests(TestCase):
+    def test_html_text_becomes_persian_but_attributes_stay_ascii(self):
+        html = '<p>12 آگهی</p><a href="/ads/3/">3</a><input value="12">'
+        converted = persianize_html_digits(html)
+        self.assertIn("<p>۱۲ آگهی</p>", converted)
+        self.assertIn('href="/ads/3/"', converted)
+        self.assertIn(">۳</a>", converted)
+        self.assertIn('value="12"', converted)
+        self.assertEqual(persian_digits("2026"), "۲۰۲۶")
+
+
+class TournamentTests(TestCase):
+    def test_home_shows_tournament_section_under_custom_scenarios(self):
+        home = self.client.get("/")
+        html = home.content.decode()
+        self.assertLess(html.find("favorite-scenarios"), html.find("tournament-home"))
+        self.assertContains(home, "Icon-Tournament.png")
+        self.assertContains(home, "تورنومنت مافیا بساز و همینجا مدیریتش کن")
+        self.assertContains(home, 'href="/tournament/create/?fresh=1"')
+        self.assertContains(home, "tournament-plus")
+
+    def test_create_flexible_stages_and_home_list(self):
+        start = self.client.get("/tournament/create/?fresh=1")
+        self.assertContains(start, "اسم تورنومنت")
+        named = self.client.post("/tournament/create/", {"name": "جام شب"})
+        self.assertRedirects(named, "/tournament/create/count/")
+        counted = self.client.post("/tournament/create/count/", {"count": "8"})
+        self.assertRedirects(counted, "/tournament/create/names/")
+        names = {f"name_{index}": f"بازیکن {index + 1}" for index in range(8)}
+        named_players = self.client.post("/tournament/create/names/", names)
+        self.assertRedirects(named_players, "/tournament/create/prize-count/")
+        prize_count = self.client.post("/tournament/create/prize-count/", {"count": "2"})
+        self.assertRedirects(prize_count, "/tournament/create/prizes/")
+        created = self.client.post(
+            "/tournament/create/prizes/",
+            {"prize_0": "۱۰ میلیون تومان", "prize_1": "۵ میلیون تومان"},
+        )
+        tournament = Tournament.objects.get(name="جام شب")
+        self.assertRedirects(created, f"/tournament/{tournament.id}/")
+        self.assertEqual(tournament.players.count(), 8)
+        manage = self.client.get(f"/tournament/{tournament.id}/")
+        self.assertContains(manage, "مدیریت دور اول تورنومنت")
+        self.assertContains(manage, "tournament-end")
+        self.assertContains(manage, "پایان تورنومنت")
+        self.assertContains(manage, "از فهرست تورنومنت‌های شما حذف می‌شود")
+        drawn = self.client.post(
+            f"/tournament/{tournament.id}/",
+            {"action": "draw_1", "group_count": "2", "group_size": "4"},
+        )
+        self.assertRedirects(drawn, f"/tournament/{tournament.id}/round/1/groups/")
+        groups = self.client.get(f"/tournament/{tournament.id}/round/1/groups/")
+        self.assertContains(groups, "گروه")
+        self.assertContains(groups, "صندلی")
+        self.assertContains(groups, "ذخیره")
+        self.assertContains(groups, "Icon-Share.png")
+        self.assertContains(groups, "data-share-target")
+        manage = self.client.get(f"/tournament/{tournament.id}/")
+        self.assertContains(manage, "ساخت دور دوم تورنومنت")
+        self.assertContains(manage, "ساخت نیمه نهایی")
+        self.assertContains(manage, "ساخت فینال")
+        players = list(tournament.players.order_by("id"))
+        next_round = self.client.post(
+            f"/tournament/{tournament.id}/",
+            {
+                "action": "next_stage",
+                "kind": "semi",
+                "advance": [str(players[0].id), str(players[1].id), str(players[2].id), str(players[3].id)],
+                "group_count": "2",
+                "group_size": "2",
+            },
+        )
+        self.assertRedirects(next_round, f"/tournament/{tournament.id}/round/2/groups/")
+        tournament.refresh_from_db()
+        self.assertEqual(tournament.active_players().count(), 4)
+        still = list(tournament.active_players())
+        final = self.client.post(
+            f"/tournament/{tournament.id}/",
+            {
+                "action": "next_stage",
+                "kind": "final",
+                "advance": [str(still[0].id), str(still[1].id)],
+            },
+        )
+        last = tournament.latest_round()
+        self.assertRedirects(final, f"/tournament/{tournament.id}/round/{last.number}/seats/")
+        manage = self.client.get(f"/tournament/{tournament.id}/")
+        self.assertContains(manage, "مشخص کردن نفرات برتر")
+        finalists = list(tournament.active_players())
+        winners = self.client.post(
+            f"/tournament/{tournament.id}/",
+            {"action": "set_winners", "place_0": str(finalists[0].id), "place_1": str(finalists[1].id)},
+        )
+        self.assertRedirects(winners, f"/tournament/{tournament.id}/winners/")
+        board = self.client.get(f"/tournament/{tournament.id}/winners/")
+        self.assertContains(board, "نفر اول")
+        self.assertContains(board, "۱۰ میلیون تومان")
+        self.assertContains(board, "ذخیره")
+        home = self.client.get("/")
+        self.assertContains(home, "جام شب")
+        self.assertContains(home, "۸ نفره")
+        self.assertContains(home, "Icon-List.png")
+        self.assertContains(home, f'href="/tournament/{tournament.id}/"')
+
+    def test_max_three_open_tournaments(self):
+        for index in range(3):
+            self.client.get("/tournament/create/?fresh=1")
+            self.client.post("/tournament/create/", {"name": f"جام {index}"})
+            self.client.post("/tournament/create/count/", {"count": "4"})
+            names = {f"name_{n}": f"بازیکن {n}" for n in range(4)}
+            self.client.post("/tournament/create/names/", names)
+            self.client.post("/tournament/create/prize-count/", {"count": "1"})
+            self.client.post("/tournament/create/prizes/", {"prize_0": "جام"})
+        self.assertEqual(Tournament.objects.count(), 3)
+        blocked = self.client.get("/tournament/create/?fresh=1")
+        self.assertRedirects(blocked, "/")
+        home = self.client.get("/")
+        self.assertContains(home, "تا پایان یا حذف یکی از تورنومنت‌ها")
+        first = Tournament.objects.order_by("id").first()
+        ended = self.client.post(f"/tournament/{first.id}/", {"action": "end"})
+        self.assertRedirects(ended, "/")
+        home = self.client.get("/")
+        self.assertContains(home, "tournament-plus")
+        allowed = self.client.get("/tournament/create/?fresh=1")
+        self.assertContains(allowed, "اسم تورنومنت")
 
