@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% load i18n static %}
+
+{% block title %}{% trans "پلن تبلیغاتی آگهی" %} | {% trans "کافه کلاب" %}{% endblock %}
+
+{% block content %}
+  <section class="sheet venue-sheet places-frost ad-boost-sheet">
+    <p class="doc-kicker"><a href="{% url 'ads' %}">{% trans "آگهی" %}</a></p>
+    <h1 class="places-title">{% trans "پلن تبلیغاتی" %}</h1>
+    {% if messages %}
+      <ul class="form-messages">
+        {% for message in messages %}
+          <li>{{ message }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+    <p class="venue-submit-intro">آگهی «{{ ad.event_name }}» ثبت شد. یکی از پلن‌ها را انتخاب کنید تا آگهی متمایز دیده شود.</p>
+    <p class="ad-note">اتصال به درگاه پرداخت برای نسخه‌های دایرکت، بازار و مایکت بعداً اضافه می‌شود.</p>
+    <div class="ad-plan-grid">
+      {% for plan in plans %}
+        <form class="ad-plan-card is-{{ plan.key }}" method="post">
+          {% csrf_token %}
+          <input type="hidden" name="plan" value="{{ plan.key }}">
+          <p class="ad-plan-icon" aria-hidden="true">
+            {% if plan.key == "bronze" %}
+              <svg viewBox="0 0 24 24" width="28" height="28"><path fill="currentColor" d="M5 20V8l7-5 7 5v12h-5v-6H10v6H5Z"/></svg>
+            {% elif plan.key == "silver" %}
+              <svg viewBox="0 0 24 24" width="28" height="28"><path fill="currentColor" d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7Zm0 9.5A2.5 2.5 0 1 1 12 6a2.5 2.5 0 0 1 0 5.5Z"/></svg>
+            {% else %}
+              <svg viewBox="0 0 24 24" width="28" height="28"><path fill="currentColor" d="M12 2 9.5 8.5 3 9.2l5 4.8L6.8 21 12 17.8 17.2 21 16 14l5-4.8-6.5-.7Z"/></svg>
+            {% endif %}
+          </p>
+          <h2>{{ plan.title }}</h2>
+          <p class="ad-plan-price">{{ plan.price_label }}</p>
+          <ul>
+            {% for feature in plan.features %}
+              <li>{{ feature }}</li>
+            {% endfor %}
+          </ul>
+          <button class="ad-plan-btn" type="submit">{% trans "انتخاب پلن" %}</button>
+        </form>
+      {% endfor %}
+    </div>
+    {% if ad.allows_extras %}
+      <p><a class="wizard-link" href="{% url 'ad_promo_extras' ad.id %}">{% trans "ویرایش مسیریاب و تصاویر" %}</a></p>
+    {% endif %}
+    <p><a class="wizard-link" href="{% url 'ads' %}">{% trans "الان نه؛ رفتن به فهرست آگهی‌ها" %}</a></p>
+  </section>
+{% endblock %}

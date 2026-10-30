@@ -70,6 +70,43 @@
       {% endif %}
     </section>
 
+    {% if request.user.is_authenticated %}
+      <section class="my-ads-history" aria-labelledby="my-ads-title">
+        <h2 id="my-ads-title">{% trans "آگهی‌های من" %}</h2>
+        {% if my_ads %}
+          <ul class="my-ads-list">
+            {% for ad in my_ads %}
+              <li>
+                {% if ad.is_live %}
+                  <a href="{% url 'ad_detail' ad.id %}">
+                {% else %}
+                  <div>
+                {% endif %}
+                  <img src="{{ ad.image.url }}" alt="">
+                  <span>
+                    <strong>{{ ad.event_name }}</strong>
+                    <em>{{ ad.date_display }} · {{ ad.city }}</em>
+                    {% if ad.is_live %}
+                      <small>{% trans "در حال نمایش" %}</small>
+                    {% else %}
+                      <small>{% trans "پایان‌یافته" %}</small>
+                    {% endif %}
+                    {% if ad.plan_badge %}<small>{{ ad.plan_badge }}</small>{% endif %}
+                  </span>
+                {% if ad.is_live %}
+                  </a>
+                {% else %}
+                  </div>
+                {% endif %}
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="ad-note">{% trans "هنوز آگهی ثبت نکرده‌اید." %}</p>
+        {% endif %}
+      </section>
+    {% endif %}
+
     {% if club_profile.is_verified %}
       <section class="verified-tools">
         <h2>{% trans "امکانات تیک آبی" %}</h2>

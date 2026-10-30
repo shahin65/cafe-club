@@ -32,7 +32,7 @@
               <form method="post">
                 {% csrf_token %}
                 <input type="hidden" name="parent" value="{{ comment.id }}">
-                <label>{% trans "نام" %}<input name="author_name" maxlength="40" required value="{% if profile_shown_name %}{{ profile_shown_name }}{% endif %}"></label>
+                {% include "banners/_comment_author_field.html" %}
                 <label>{% trans "پاسخ شما" %}<textarea name="body" rows="3" maxlength="1000" required></textarea></label>
                 <label>{% trans "جمع این دو عدد را بنویسید" %} ({{ captcha_left }} + {{ captcha_right }})
                   <input name="captcha" inputmode="numeric" maxlength="2" required dir="ltr">
@@ -64,7 +64,7 @@
       {% csrf_token %}
       <h2>{% trans "ارسال نظر" %}</h2>
       <p class="music-note">{% trans "نظر پس از تأیید مدیریت روی سایت دیده می‌شود." %}</p>
-      <label>{% trans "نام" %}<input name="author_name" maxlength="40" required value="{% if profile_shown_name %}{{ profile_shown_name }}{% endif %}"></label>
+      {% include "banners/_comment_author_field.html" %}
       <label>{% trans "نظر شما" %}<textarea name="body" rows="4" maxlength="1000" required></textarea></label>
       <label>{% trans "جمع این دو عدد را بنویسید" %} ({{ captcha_left }} + {{ captcha_right }})
         <input name="captcha" inputmode="numeric" maxlength="2" required dir="ltr">

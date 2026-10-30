@@ -12,6 +12,7 @@
           <img class="venue-logo" src="{{ venue.logo.url }}" alt="">
         {% endif %}
         <h1>{{ venue.name }}</h1>
+        <p class="place-id">{% trans "شناسه کافه" %}: <strong dir="ltr">{{ venue.public_id_display }}</strong></p>
         {% if nav_links %}
           <button class="venue-nav-btn" type="button" data-open-nav>
             <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7Zm0 9.5A2.5 2.5 0 1 1 12 6a2.5 2.5 0 0 1 0 5.5Z"/></svg>
@@ -91,7 +92,7 @@
           {% csrf_token %}
           <h2>{% trans "ارسال نظر" %}</h2>
           <p class="music-note">{% trans "نظر پس از تأیید مدیریت روی سایت دیده می‌شود." %}</p>
-          <label>{% trans "نام" %}<input name="author_name" maxlength="40" required value="{% if profile_shown_name %}{{ profile_shown_name }}{% endif %}"></label>
+          {% include "banners/_comment_author_field.html" %}
           <label>{% trans "نظر شما" %}<textarea name="body" rows="4" maxlength="1000" required></textarea></label>
           <label>{% trans "جمع این دو عدد را بنویسید" %} ({{ captcha_left }} + {{ captcha_right }})
             <input name="captcha" inputmode="numeric" maxlength="2" required dir="ltr">

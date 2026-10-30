@@ -1,10 +1,14 @@
+from datetime import timedelta
 from urllib.parse import urlencode
 
+from django.conf import settings
 from django.contrib import messages
+from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.db.models import Avg, Count, Q
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
 from banners.geo import (
@@ -19,8 +23,10 @@ from banners.geo import (
     navigation_links,
     parse_coord,
 )
+from banners.accounts import COMMENT_RECEIVED, comment_author_name
 from banners.images import optimize_venue_image
 from banners.models import Venue, VenueComment, VenueRating, VenueSubmission
+from banners.promo import VENUE_PLANS, venue_plan_or_none
 
 SORTS = ("name", "distance", "rating")
 PAGE_SIZE = 10
@@ -140,7 +146,11 @@ def places(request):
     if selected_city:
         queryset = queryset.filter(city=selected_city)
     if query:
-        queryset = queryset.filter(Q(name__icontains=query) | Q(address__icontains=query) | Q(manager_name__icontains=query))
+        lookup = Q(name__icontains=query) | Q(address__icontains=query) | Q(manager_name__icontains=query)
+        digits = query.translate(str.maketrans("۰۱۲۳۴۵۶۷۸۹", "0123456789"))
+        if digits.isdigit():
+            lookup |= Q(public_id=int(digits))
+        queryset = queryset.filter(lookup)
     venues = _decorate(list(queryset), lat, lng)
     if sort == "distance" and lat is None:
         sort = "rating"
@@ -239,11 +249,14 @@ def comment_venue(request, venue_id):
     venue = get_object_or_404(Venue, pk=venue_id, is_active=True)
     if (request.POST.get("website") or "").strip():
         raise Http404
-    name = (request.POST.get("author_name") or "").strip()[:40]
+    name = comment_author_name(request)
     body = (request.POST.get("body") or "").strip()[:1000]
     answer = request.POST.get("captcha") or ""
     if not name or not body:
-        messages.error(request, "نام و متن نظر را وارد کنید.")
+        messages.error(
+            request,
+            "متن نظر را وارد کنید." if request.user.is_authenticated else "نام و متن نظر را وارد کنید.",
+        )
         issue_sum_captcha(request)
         return redirect("venue_detail", venue_id=venue.id)
     if not captcha_is_valid(request, answer):
@@ -252,7 +265,7 @@ def comment_venue(request, venue_id):
         return redirect("venue_detail", venue_id=venue.id)
     VenueComment.objects.create(venue=venue, author_name=name, body=body, is_approved=False)
     consume_captcha(request)
-    messages.success(request, "نظر شما ثبت شد و پس از تأیید مدیریت دیده می‌شود.")
+    messages.success(request, COMMENT_RECEIVED)
     return redirect("venue_detail", venue_id=venue.id)
 
 
@@ -337,4 +350,133 @@ def submit_venue(request):
         request,
         "banners/venue_submit.html",
         {"submitted": False, "intro": INTRO_TEXT, "error": error, "values": values},
+    )
+
+
+def _public_id_from_text(raw):
+    translated = (raw or "").translate(str.maketrans("۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩", "01234567890123456789"))
+    digits = "".join(ch for ch in translated if ch.isdigit())
+    if not digits:
+        return None
+    return int(digits)
+
+
+def _apply_venue_plan(venue, plan_key, channel=""):
+    plan = VENUE_PLANS[plan_key]
+    now = timezone.now()
+    venue.promo_plan = plan_key
+    venue.pending_plan = ""
+    venue.promo_rank = plan["rank"]
+    venue.show_on_home = bool(plan["show_on_home"])
+    venue.boosted_at = now
+    venue.boost_requested = True
+    venue.boost_channel = (channel or "")[:12]
+    venue.promo_expires_at = now + timedelta(days=plan["days"])
+    venue.save(
+        update_fields=[
+            "promo_plan",
+            "pending_plan",
+            "promo_rank",
+            "show_on_home",
+            "boosted_at",
+            "boost_requested",
+            "boost_channel",
+            "promo_expires_at",
+        ]
+    )
+
+
+def _new_venue_from_promo(request, values):
+    lat = parse_coord(values["latitude"])
+    lng = parse_coord(values["longitude"])
+    logo = request.FILES.get("logo")
+    extras = [item for item in (request.FILES.get("photo_1"), request.FILES.get("photo_2"), request.FILES.get("photo_3")) if item]
+    required = {key: values[key] for key in ("name", "manager_name", "address", "phone", "hours", "city")}
+    if not all(required.values()) or not logo:
+        raise ValidationError("برای ثبت کافه، نام، لوگو، نام مدیر، شهر، آدرس، تلفن و ساعات کاری را کامل کنید.")
+    if lat is None or lng is None:
+        raise ValidationError("محل کافه یا کلاب را روی نقشه انتخاب کنید.")
+    if len(extras) > 3:
+        raise ValidationError("حداکثر سه تصویر می‌توانید ارسال کنید.")
+    venue = Venue(
+        name=values["name"],
+        manager_name=values["manager_name"],
+        address=values["address"],
+        phone=values["phone"],
+        hours=values["hours"],
+        city=values["city"],
+        latitude=lat,
+        longitude=lng,
+        logo=_save_upload(logo, 512),
+        is_active=True,
+    )
+    photos = [_save_upload(item, 1200) for item in extras]
+    if len(photos) > 0:
+        venue.photo_1 = photos[0]
+    if len(photos) > 1:
+        venue.photo_2 = photos[1]
+    if len(photos) > 2:
+        venue.photo_3 = photos[2]
+    venue.save()
+    return venue
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def venue_promo(request):
+    values = {
+        "promo_plan": "bronze",
+        "venue_mode": "existing",
+        "venue_id": "",
+        "name": "",
+        "manager_name": "",
+        "address": "",
+        "phone": "",
+        "hours": "",
+        "latitude": "",
+        "longitude": "",
+        "city": "",
+    }
+    error = ""
+    if request.method == "POST":
+        for key in values:
+            if key in request.POST:
+                values[key] = (request.POST.get(key) or "").strip()
+        plan_key = venue_plan_or_none(values["promo_plan"])
+        chosen = VENUE_PLANS.get(plan_key) if plan_key else None
+        if not chosen:
+            error = "یکی از پلن‌های برنزی، نقره‌ای یا طلایی را انتخاب کنید."
+        else:
+            try:
+                if values["venue_mode"] == "new":
+                    venue = _new_venue_from_promo(request, values)
+                else:
+                    public_id = _public_id_from_text(values["venue_id"])
+                    venue = Venue.objects.filter(public_id=public_id, is_active=True).first() if public_id else None
+                    if not venue:
+                        raise ValidationError("شناسه کافه پیدا نشد. اگر کافه ثبت نشده، حالت ثبت کافه جدید را انتخاب کنید.")
+                channel = getattr(request, "app_source", "") or ""
+                venue.boost_requested = True
+                venue.pending_plan = plan_key
+                venue.boost_channel = channel[:12]
+                venue.save(update_fields=["boost_requested", "pending_plan", "boost_channel"])
+                if settings.DEBUG:
+                    _apply_venue_plan(venue, plan_key, channel)
+                    messages.success(request, f"پلن {chosen['title']} برای «{venue.name}» فعال شد.")
+                    if chosen["show_on_home"]:
+                        return redirect("home")
+                    return redirect("ads")
+                messages.info(request, "درخواست پلن ثبت شد. اتصال به درگاه پرداخت بعداً اضافه می‌شود.")
+                return redirect("venue_promo")
+            except ValidationError as exc:
+                error = " ".join(exc.messages)
+    return render(
+        request,
+        "banners/venue_promo.html",
+        {
+            "values": values,
+            "error": error,
+            "plans": list(VENUE_PLANS.values()),
+            "local_checkout": settings.DEBUG,
+        },
     )

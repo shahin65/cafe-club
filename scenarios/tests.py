@@ -482,6 +482,30 @@ class ScenarioPagesAndCommentsTests(TestCase):
         self.assertEqual(reply.parent_id, hidden.id)
         self.assertFalse(reply.is_approved)
 
+    def test_logged_in_comment_uses_display_name_without_name_field(self):
+        user = get_user_model().objects.create_user("commenter", "commenter@example.com", "pass-word-123")
+        user.club_profile.display_name = "میزبان شب"
+        user.club_profile.save(update_fields=["display_name"])
+        scenario = make_complete_scenario()
+        self.client.force_login(user)
+        page = self.client.get(scenario.get_comments_url())
+        self.assertNotContains(page, 'name="author_name"')
+        self.assertContains(page, "میزبان شب")
+        captcha = self.client.session["venue_comment_captcha"]
+        posted = self.client.post(
+            scenario.get_comments_url(),
+            {
+                "author_name": "نام جعلی",
+                "body": "نظر با نام نمایشی",
+                "captcha": str(captcha["left"] + captcha["right"]),
+            },
+            follow=True,
+        )
+        self.assertContains(posted, "نظر شما با موفقیت ثبت شد و پس از بازبینی در سایت منتشر می‌شود")
+        comment = ScenarioComment.objects.get(body="نظر با نام نمایشی")
+        self.assertEqual(comment.author_name, "میزبان شب")
+        self.assertFalse(comment.is_approved)
+
     def test_rulebook_keeps_safe_html_and_strips_scripts(self):
         scenario = make_complete_scenario()
         scenario.rulebook_body_fa = (

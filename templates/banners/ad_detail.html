@@ -4,14 +4,38 @@
 {% block title %}{{ ad.event_name }} | {% trans "آگهی" %}{% endblock %}
 
 {% block content %}
-  <section class="sheet venue-sheet places-frost ad-detail-card">
+  <section class="sheet venue-sheet places-frost ad-detail-card{% if ad.promo_plan %} is-boosted is-plan-{{ ad.promo_plan }}{% elif ad.is_boosted %} is-boosted is-plan-bronze{% endif %}">
       <p class="doc-kicker"><a href="{% url 'ads' %}">{% trans "آگهی" %}</a></p>
+      {% if ad.plan_badge %}<span class="ad-ladder-badge is-static is-{{ ad.promo_plan|default:'bronze' }}">{{ ad.plan_badge }}</span>{% endif %}
+      {% if nav_links %}
+        <button class="venue-nav-btn" type="button" data-open-nav>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7Zm0 9.5A2.5 2.5 0 1 1 12 6a2.5 2.5 0 0 1 0 5.5Z"/></svg>
+          <span>{% trans "مسیریابی" %}</span>
+        </button>
+      {% endif %}
       <img class="ad-detail-photo" src="{{ ad.image.url }}" alt="{{ ad.event_name }}">
+      {% if ad.gallery %}
+        <ul class="venue-gallery">
+          {% for image in ad.gallery %}
+            <li>
+              <button class="venue-photo-btn" type="button" data-photo="{{ image.url }}">
+                <img src="{{ image.url }}" alt="{{ ad.event_name }}">
+              </button>
+            </li>
+          {% endfor %}
+        </ul>
+      {% endif %}
       <h1 class="ad-detail-title">{{ ad.event_name }}</h1>
       <div class="ad-detail-person">
         <img class="ad-avatar" src="{% if ad.user.club_profile.photo %}{{ ad.user.club_profile.photo.url }}{% else %}{% static 'Icon-profile.png' %}{% endif %}" alt="">
         <span class="ad-advertiser">{{ ad.advertiser_name }}</span>
       </div>
+      {% if ad.can_boost %}
+        <p class="ad-boost-detail"><a class="choice tournament-btn wizard-submit" href="{% url 'ad_boost' ad.id %}">{% trans "پلن تبلیغاتی" %}</a></p>
+      {% endif %}
+      {% if ad.allows_extras and request.user == ad.user %}
+        <p class="ad-boost-detail"><a class="wizard-link" href="{% url 'ad_promo_extras' ad.id %}">{% trans "ویرایش مسیریاب و تصاویر" %}</a></p>
+      {% endif %}
       <form class="ad-like ad-like-detail" method="post" action="{% url 'ad_like' ad.id %}">
         {% csrf_token %}
         <input type="hidden" name="next" value="{% url 'ad_detail' ad.id %}">
@@ -40,5 +64,33 @@
         {% include "banners/_ad_chip.html" with icon="address" label="آدرس" text=ad.address center=1 %}
         {% include "banners/_ad_chip.html" with icon="bank" label="بانک کافه" text=ad.cafe_bank center=1 %}
       </div>
+      {% if ad.gallery %}
+        <dialog class="photo-sheet" data-photo-sheet>
+          <form method="dialog">
+            <img data-photo-view alt="" hidden>
+            <button class="choice tournament-btn" type="submit">{% trans "بستن" %}</button>
+          </form>
+        </dialog>
+      {% endif %}
+      {% if nav_links %}
+        <dialog class="nav-sheet" data-nav-sheet>
+          <form method="dialog">
+            <h2>{% trans "مسیریابی با" %}</h2>
+            <p>{% trans "یکی از برنامه‌های نقشه را انتخاب کنید." %}</p>
+            <div class="nav-apps">
+              {% for link in nav_links %}
+                <a class="choice" href="{{ link.url }}" target="_blank" rel="noopener">{{ link.label }}</a>
+              {% endfor %}
+            </div>
+            <button class="choice tournament-btn" type="submit">{% trans "بستن" %}</button>
+          </form>
+        </dialog>
+      {% endif %}
   </section>
+{% endblock %}
+
+{% block extra_js %}
+  {% if ad.gallery or nav_links %}
+    <script src="{% static 'js/places.js' %}?v=5"></script>
+  {% endif %}
 {% endblock %}

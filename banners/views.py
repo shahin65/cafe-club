@@ -1,8 +1,10 @@
 from django.shortcuts import get_object_or_404, render
+from django.urls import reverse
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from banners.app_source import filter_downloads
-from banners.models import Banner, LegalPage, SiteLink
+from banners.models import Banner, EventAd, LegalPage, SiteLink, Venue
 from banners.tournament import MAX_OPEN, owned_tournaments
 from scenarios.large_deal import large_scenarios
 from scenarios.models import GUEST_SCENARIO_KEY, Scenario
@@ -47,11 +49,13 @@ def home(request):
         if scenario.is_complete()
     ]
     tournaments = list(owned_tournaments(request)[:MAX_OPEN])
+    featured_ads = _featured_home_items()
     return render(
         request,
         "banners/home.html",
         {
             "banners": banners,
+            "featured_ads": featured_ads,
             "quick_scenarios": quick_scenarios,
             "show_more_scenarios": show_more_scenarios,
             "my_scenarios": mine,
@@ -60,6 +64,45 @@ def home(request):
             "large_scenarios": list(large_scenarios()),
         },
     )
+
+
+def _featured_home_items():
+    now = timezone.now()
+    items = []
+    for ad in EventAd.objects.filter(
+        is_published=True,
+        show_on_home=True,
+        expires_at__gt=now,
+    ).order_by("-boosted_at", "-id"):
+        meta = " · ".join(part for part in (ad.scenario, ad.weekday_display(), ad.date_display()) if part)
+        items.append(
+            {
+                "key": f"ad-{ad.id}",
+                "href": reverse("ad_detail", args=[ad.id]),
+                "image_url": ad.image.url,
+                "title": ad.event_name,
+                "meta": meta,
+                "sort": ad.boosted_at or ad.created_at,
+            }
+        )
+    for venue in Venue.objects.filter(
+        is_active=True,
+        show_on_home=True,
+        promo_expires_at__gt=now,
+    ).order_by("-boosted_at", "-id"):
+        cover = venue.cover_image()
+        items.append(
+            {
+                "key": f"venue-{venue.id}",
+                "href": reverse("venue_detail", args=[venue.id]),
+                "image_url": cover.url if cover else "",
+                "title": venue.name,
+                "meta": " · ".join(part for part in ("کافه / کلاب", venue.city) if part),
+                "sort": venue.boosted_at or venue.created_at,
+            }
+        )
+    items.sort(key=lambda item: item["sort"] or now, reverse=True)
+    return items[:8]
 
 
 def page(request, page):

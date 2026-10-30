@@ -1,0 +1,6 @@
+{% load i18n %}
+{% if request.user.is_authenticated %}
+  <p class="comment-as">{% trans "نظر با نام نمایشی شما ارسال می‌شود." %} <strong>{{ profile_shown_name }}</strong></p>
+{% else %}
+  <label>{% trans "نام" %}<input name="author_name" maxlength="40" required></label>
+{% endif %}

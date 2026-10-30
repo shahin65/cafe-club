@@ -3,6 +3,7 @@ from django.contrib import admin, messages
 from django.core.files.uploadedfile import UploadedFile
 from django.shortcuts import redirect
 from django.urls import path
+from django.utils import timezone
 from django.utils.html import format_html
 from django.views.decorators.http import require_POST
 
@@ -200,15 +201,18 @@ class EventAdAdmin(admin.ModelAdmin):
         "event_at",
         "phone",
         "is_published",
+        "is_boosted",
+        "promo_plan",
+        "show_on_home",
         "is_new",
         "created_at",
         "expires_at",
     )
     list_display_links = ("event_name",)
-    list_filter = ("is_published", "is_new")
-    list_editable = ("is_published",)
+    list_filter = ("is_published", "is_boosted", "promo_plan", "show_on_home", "is_new")
+    list_editable = ("is_published", "is_boosted")
     search_fields = ("event_name", "organizer_name", "phone", "address", "cafe_bank", "city", "district", "scenario", "user__username")
-    readonly_fields = ("user", "created_at", "expires_at", "image_preview_large", "is_new")
+    readonly_fields = ("user", "created_at", "expires_at", "boosted_at", "image_preview_large", "is_new")
     actions = ("unpublish_ads", "publish_ads")
     ordering = ("-created_at",)
     fieldsets = (
@@ -232,7 +236,31 @@ class EventAdAdmin(admin.ModelAdmin):
                 )
             },
         ),
-        ("نمایش", {"fields": ("is_published", "is_new", "user", "created_at", "expires_at")}),
+        (
+            "نمایش",
+            {
+                "fields": (
+                    "is_published",
+                    "is_boosted",
+                    "promo_plan",
+                    "promo_rank",
+                    "show_on_home",
+                    "latitude",
+                    "longitude",
+                    "photo_1",
+                    "photo_2",
+                    "photo_3",
+                    "boosted_at",
+                    "boost_requested",
+                    "pending_plan",
+                    "boost_channel",
+                    "is_new",
+                    "user",
+                    "created_at",
+                    "expires_at",
+                )
+            },
+        ),
     )
 
     @admin.display(description="تصویر")
@@ -271,8 +299,26 @@ class EventAdAdmin(admin.ModelAdmin):
         return super().changeform_view(request, object_id, form_url, extra_context)
 
     def save_model(self, request, obj, form, change):
+        from banners.promo import PLANS
+
         if change:
             obj.is_new = False
+        plan = PLANS.get(obj.promo_plan)
+        if plan:
+            obj.promo_rank = plan["rank"]
+            obj.is_boosted = True
+            obj.show_on_home = bool(plan["show_on_home"])
+            obj.boost_requested = True
+            if not obj.boosted_at:
+                obj.boosted_at = timezone.now()
+        elif obj.is_boosted:
+            obj.boost_requested = True
+            if not obj.boosted_at:
+                obj.boosted_at = timezone.now()
+        else:
+            obj.boosted_at = None
+            obj.promo_rank = 0
+            obj.show_on_home = False
         super().save_model(request, obj, form, change)
 
 
@@ -297,19 +343,24 @@ class VenueAdminForm(forms.ModelForm):
         hours = self.fields.get("hours")
         if hours is not None:
             hours.widget.attrs["placeholder"] = "شنبه تا چهارشنبه ۱۶ تا ۲۴"
+        rank = self.fields.get("promo_rank")
+        if rank is not None:
+            rank.required = False
+            rank.initial = 0
 
 
 class VenueAdmin(admin.ModelAdmin):
     form = VenueAdminForm
     change_form_template = "admin/banners/venue/change_form.html"
-    list_display = ("logo_preview", "name", "city", "manager_name", "phone", "is_active", "has_map_point")
+    list_display = ("logo_preview", "public_id_display", "name", "city", "manager_name", "phone", "promo_plan", "is_active", "has_map_point")
     list_display_links = ("name",)
-    list_filter = ("city", "is_active")
-    search_fields = ("name", "city", "manager_name", "address", "phone")
+    list_filter = ("city", "is_active", "promo_plan", "show_on_home")
+    search_fields = ("public_id", "name", "city", "manager_name", "address", "phone")
     list_editable = ("is_active",)
+    readonly_fields = ("public_id",)
     ordering = ("city", "name")
     fieldsets = (
-        ("مشخصات", {"fields": ("name", "city", "logo", "manager_name", "is_active")}),
+        ("مشخصات", {"fields": ("public_id", "name", "city", "logo", "manager_name", "is_active")}),
         ("تصاویر", {"fields": ("photo_1", "photo_2", "photo_3")}),
         ("ارتباط و ساعت", {"fields": ("hours", "address", "phone")}),
         (
@@ -317,6 +368,12 @@ class VenueAdmin(admin.ModelAdmin):
             {
                 "fields": ("latitude", "longitude"),
                 "description": "روی نقشه کلیک کنید یا بکشید تا موقعیت کافه ثبت شود.",
+            },
+        ),
+        (
+            "پلن تبلیغاتی",
+            {
+                "fields": ("promo_plan", "pending_plan", "promo_rank", "show_on_home", "promo_expires_at", "boosted_at", "boost_requested", "boost_channel"),
             },
         ),
     )

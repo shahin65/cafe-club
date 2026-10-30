@@ -6,10 +6,15 @@
 {% block content %}
   <section class="sheet places-sheet places-frost" data-places data-ask-geo{% if nearest_nav and user_lat %} data-open-nav-on-load{% endif %}>
     <h1 class="places-title">{% trans "کجا برم؟" %}</h1>
-    <a class="places-add-btn" href="{% url 'venue_submit' %}">
-      <span aria-hidden="true">+</span>
-      {% trans "ثبت کافه یا کلاب من" %}
-    </a>
+    <div class="places-actions">
+      <a class="places-add-btn" href="{% url 'venue_submit' %}">
+        <span aria-hidden="true">+</span>
+        {% trans "ثبت کافه یا کلاب من" %}
+      </a>
+      <a class="places-add-btn is-promo" href="{% url 'venue_promo' %}">
+        {% trans "پلن‌های تبلیغاتی" %}
+      </a>
+    </div>
     <p class="places-geo-status" data-geo-status hidden></p>
 
     <nav class="places-bar" aria-label="{% trans 'فیلتر مکان‌ها' %}">
@@ -88,6 +93,7 @@
               {% endif %}
               <div>
                 <strong>{{ venue.name }}</strong>
+                <span class="place-id">{% trans "شناسه" %}: <b dir="ltr">{{ venue.public_id_display }}</b></span>
                 <span>{{ venue.city }}{% if venue.address %} — {{ venue.address }}{% endif %}</span>
                 <span class="place-stats">
                   {% if venue.avg_display %}★ {{ venue.avg_display }}{% else %}{% trans "بدون امتیاز" %}{% endif %}

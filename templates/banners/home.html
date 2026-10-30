@@ -45,6 +45,32 @@
     <a class="quick-more" href="{% url 'scenario_catalog' %}">{% trans "مشاهده سایر سناریوها" %}</a>
   </section>
 
+  {% if featured_ads %}
+    <section class="home-promo-ads home-frost" aria-labelledby="home-promo-title">
+      <p class="home-promo-kicker" id="home-promo-title">
+        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M12 2 9.5 8.5 3 9.2l5 4.8L6.8 21 12 17.8 17.2 21 16 14l5-4.8-6.5-.7Z"/></svg>
+        {% trans "آگهی طلایی" %}
+      </p>
+      <ul class="home-promo-list" data-interval="5000">
+        {% for ad in featured_ads %}
+          <li{% if forloop.first %} class="is-active"{% endif %}>
+            <a href="{{ ad.href }}">
+              {% if ad.image_url %}
+                <img src="{{ ad.image_url }}" alt="">
+              {% else %}
+                <img src="{% static 'Logo.png' %}" alt="">
+              {% endif %}
+              <span>
+                <strong>{{ ad.title }}</strong>
+                {% if ad.meta %}<em class="home-promo-meta">{{ ad.meta }}</em>{% endif %}
+              </span>
+            </a>
+          </li>
+        {% endfor %}
+      </ul>
+    </section>
+  {% endif %}
+
   <section class="large-roles home-frost" aria-labelledby="large-roles-title">
     <header class="quick-roles-bar">
       <span class="quick-roles-gear" aria-hidden="true"></span>
@@ -216,17 +242,24 @@
   <script src="{% static 'js/quick-settings.js' %}?v=2"></script>
   <script>
     (function () {
-      var root = document.querySelector(".ad-rotator");
-      if (!root) return;
-      var slides = Array.prototype.slice.call(root.querySelectorAll(".ad-slide"));
-      if (slides.length < 2) return;
-      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-      var index = 0;
-      window.setInterval(function () {
-        slides[index].classList.remove("is-active");
-        index = (index + 1) % slides.length;
-        slides[index].classList.add("is-active");
-      }, Number(root.getAttribute("data-interval")) || 3000);
+      function rotate(root, itemSelector, fallbackMs) {
+        if (!root) return;
+        var slides = Array.prototype.slice.call(root.querySelectorAll(itemSelector));
+        if (slides.length < 2) return;
+        if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+        var index = slides.findIndex(function (item) { return item.classList.contains("is-active"); });
+        if (index < 0) {
+          index = 0;
+          slides[0].classList.add("is-active");
+        }
+        window.setInterval(function () {
+          slides[index].classList.remove("is-active");
+          index = (index + 1) % slides.length;
+          slides[index].classList.add("is-active");
+        }, Number(root.getAttribute("data-interval")) || fallbackMs);
+      }
+      rotate(document.querySelector(".ad-rotator"), ".ad-slide", 3000);
+      rotate(document.querySelector(".home-promo-list"), "li", 5000);
     })();
   </script>
 {% endblock %}

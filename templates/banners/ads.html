@@ -10,7 +10,7 @@
       <a class="places-add-btn" href="{% url 'ad_create' %}">
         <img src="{% static 'Icon-Advertisement.png' %}" alt="" width="22" height="22">
         <span aria-hidden="true">+</span>
-        {% trans "درج آگهی رایگان" %}
+        {% trans "درج آگهی جدید" %}
       </a>
       {% if messages %}
         <ul class="form-messages">
@@ -19,11 +19,24 @@
           {% endfor %}
         </ul>
       {% endif %}
-      <p class="ad-note">{% trans "هر آگهی تا ۱۲ ساعت پس از زمان برگزاری نمایش داده می‌شود." %}</p>
-      {% if ads %}
+      <p class="ad-note">{% trans "مدت نمایش آگهی رایگان ۱۲ ساعت پس از زمان برگزاری است. پلن‌های نردبان این مدت را افزایش می‌دهند." %}</p>
+      {% if club_bronze or club_gold or club_silver or ads %}
         <ul class="ad-list">
+          {% for venue in club_bronze %}
+            {% include "banners/_club_ad.html" with venue=venue %}
+          {% endfor %}
+          {% for venue in club_gold %}
+            {% include "banners/_club_ad.html" with venue=venue %}
+          {% endfor %}
+          {% if club_silver %}
+            <li class="ad-section-title">{% trans "قسمت نقره‌ای" %}</li>
+            {% for venue in club_silver %}
+              {% include "banners/_club_ad.html" with venue=venue %}
+            {% endfor %}
+          {% endif %}
           {% for ad in ads %}
-            <li class="ad-banner">
+            <li class="ad-banner{% if ad.promo_plan %} is-boosted is-plan-{{ ad.promo_plan }}{% elif ad.is_boosted %} is-boosted is-plan-bronze{% endif %}">
+              {% if ad.plan_badge %}<span class="ad-ladder-badge is-{{ ad.promo_plan|default:'bronze' }}">{{ ad.plan_badge }}</span>{% endif %}
               <a class="ad-banner-link" href="{% url 'ad_detail' ad.id %}">
                 <img class="ad-banner-photo" src="{{ ad.image.url }}" alt="{{ ad.event_name }}">
                 <div class="ad-banner-person">
@@ -38,6 +51,9 @@
                 {% include "banners/_ad_chip.html" with icon="city" label="شهر" text=ad.city %}
                 {% include "banners/_ad_chip.html" with icon="phone" label="تلفن" text=ad.phone call=ad.phone %}
               </div>
+              {% if ad.can_boost %}
+                <a class="ad-boost-link" href="{% url 'ad_boost' ad.id %}">{% trans "پلن تبلیغاتی" %}</a>
+              {% endif %}
               <form class="ad-like" method="post" action="{% url 'ad_like' ad.id %}">
                 {% csrf_token %}
                 <input type="hidden" name="next" value="{% url 'ads' %}">

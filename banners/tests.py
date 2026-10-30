@@ -5,7 +5,7 @@ from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from datetime import timedelta
 
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.utils import timezone, translation
 from PIL import Image
 
@@ -437,6 +437,10 @@ class PlacesTests(TestCase):
         self.assertNotContains(asked, "نمایش شعب")
         self.assertContains(asked, "بدون امتیاز")
         self.assertContains(asked, "نظر")
+        self.assertTrue(near.public_id)
+        self.assertContains(asked, persian_digits(near.public_id_display()))
+        venue_page = self.client.get(f"/location/{near.id}/")
+        self.assertContains(venue_page, persian_digits(near.public_id_display()))
 
         tehran = self.client.get("/location/", {"city": "تهران"})
         self.assertContains(tehran, "کافه نزدیک")
@@ -505,7 +509,9 @@ class PlacesTests(TestCase):
                 "captcha": str(captcha["left"] + captcha["right"]),
             },
         )
-        self.assertRedirects(ok, f"/location/{near.id}/")
+        self.assertRedirects(ok, f"/location/{near.id}/", fetch_redirect_response=False)
+        followed = self.client.get(f"/location/{near.id}/")
+        self.assertContains(followed, "نظر شما با موفقیت ثبت شد و پس از بازبینی در سایت منتشر می‌شود")
         comment = VenueComment.objects.get()
         self.assertFalse(comment.is_approved)
         hidden = self.client.get(f"/location/{near.id}/")
@@ -587,6 +593,57 @@ class PlacesTests(TestCase):
         listed = self.client.get("/location/")
         self.assertContains(listed, "کلاب شبانه")
 
+    @override_settings(DEBUG=True)
+    def test_venue_promo_plans_existing_id_and_new_gold_on_home(self):
+        venue = make_venue(name="کلاب نردبان برنز")
+        places = self.client.get("/location/")
+        self.assertContains(places, "پلن‌های تبلیغاتی")
+        self.assertContains(places, 'href="/location/promo/"')
+        guest = self.client.get("/location/promo/")
+        self.assertRedirects(guest, "/account/login/?next=/location/promo/")
+        user = User.objects.create_user("clubads", "clubads@example.com", "pass-word-123")
+        self.client.force_login(user)
+        form = self.client.get("/location/promo/")
+        self.assertContains(form, "۲۵۰ هزار تومان")
+        self.assertContains(form, "۴۵۰ هزار تومان")
+        self.assertContains(form, "۸۰۰ هزار تومان")
+        bronze = self.client.post(
+            "/location/promo/",
+            {
+                "promo_plan": "bronze",
+                "venue_mode": "existing",
+                "venue_id": venue.public_id_display(),
+            },
+        )
+        self.assertRedirects(bronze, "/ads/")
+        venue.refresh_from_db()
+        self.assertEqual(venue.promo_plan, "bronze")
+        listing = self.client.get("/ads/")
+        self.assertContains(listing, "کلاب نردبان برنز")
+        self.assertContains(listing, "نردبان برنزی کلاب")
+        gold = self.client.post(
+            "/location/promo/",
+            {
+                "promo_plan": "gold",
+                "venue_mode": "new",
+                "name": "کلاب طلایی صفحه اول",
+                "manager_name": "سارا",
+                "address": "ونک",
+                "phone": "021222",
+                "hours": "هر شب ۲۰ تا ۲",
+                "city": "تهران",
+                "latitude": "35.689200",
+                "longitude": "51.389000",
+                "logo": _png_upload("club-gold.png"),
+            },
+        )
+        self.assertRedirects(gold, "/")
+        home = self.client.get("/")
+        self.assertContains(home, "کلاب طلایی صفحه اول")
+        self.assertContains(home, "کافه / کلاب")
+        ads = self.client.get("/ads/")
+        self.assertContains(ads, "کلاب طلایی صفحه اول")
+
 
 class AppSettingsPageTests(TestCase):
     def test_header_opens_settings_page_with_downloads_socials_and_language_last(self):
@@ -633,7 +690,7 @@ def _png_upload(name="event.png"):
 class EventAdTests(TestCase):
     def test_ads_page_has_green_create_button(self):
         page = self.client.get("/ads/")
-        self.assertContains(page, "درج آگهی رایگان")
+        self.assertContains(page, "درج آگهی جدید")
         self.assertContains(page, 'href="/ads/create/"')
         self.assertContains(page, "places-add-btn")
         self.assertContains(page, "ایوینت مافیا، پانتومیم، گل یا پوچ داری یا تورنومنت برگذار میکنی رایگان آگهی بده")
@@ -680,6 +737,7 @@ class EventAdTests(TestCase):
         }
         payload.update(_future_event_post(days=1, hour="22:00"))
         created = self.client.post("/ads/create/", payload)
+        ad = EventAd.objects.get(event_name="شب مافیا")
         self.assertRedirects(created, "/ads/")
         listing = self.client.get("/ads/")
         self.assertContains(listing, "بازپرس")
@@ -779,6 +837,145 @@ class EventAdTests(TestCase):
         self.assertContains(blocked, "سقف سه آگهی رایگان در این ماه پر شده است")
         self.assertEqual(EventAd.objects.filter(user=user).count(), 3)
 
+    def test_staff_user_is_not_limited_to_three_ads(self):
+        admin_user = User.objects.create_superuser("adtester", "adtester@example.com", "pass-word-123")
+        admin_user.club_profile.is_verified = True
+        admin_user.club_profile.save(update_fields=["is_verified"])
+        now = timezone.now()
+        for index in range(3):
+            EventAd.objects.create(
+                user=admin_user,
+                event_name=f"آگهی ادمین {index}",
+                organizer_name="علی",
+                image=_png_upload(f"admin-event-{index}.png"),
+                address="تهران",
+                starts_at="۲۲:۰۰",
+                event_at=now + timedelta(days=1),
+                phone="09120000000",
+                ticket_price="رایگان",
+                cafe_bank="کافه",
+                city="تهران",
+                district="مرکز",
+                scenario="مافیا",
+                expires_at=now + timedelta(days=3),
+            )
+        self.client.force_login(admin_user)
+        form = self.client.get("/ads/create/")
+        self.assertContains(form, "محدودیت سه آگهی در ماه اعمال نمی‌شود")
+        payload = {
+            "event_name": "آگهی چهارم ادمین",
+            "organizer_name": "علی",
+            "address": "تهران",
+            "phone": "09120000000",
+            "ticket_price": "رایگان",
+            "cafe_bank": "کافه",
+            "city": "تهران",
+            "district": "مرکز",
+            "scenario": "مافیا",
+            "image": _png_upload("admin-fourth.png"),
+        }
+        payload.update(_future_event_post())
+        created = self.client.post("/ads/create/", payload)
+        ad = EventAd.objects.get(event_name="آگهی چهارم ادمین")
+        self.assertRedirects(created, "/ads/")
+        self.assertEqual(EventAd.objects.filter(user=admin_user).count(), 4)
+
+    @override_settings(DEBUG=True)
+    def test_create_form_has_four_plans_and_paid_plan_extends_display(self):
+        user = User.objects.create_user("planhost", "planhost@example.com", "pass-word-123")
+        user.club_profile.is_verified = True
+        user.club_profile.save(update_fields=["is_verified"])
+        self.client.force_login(user)
+        form = self.client.get("/ads/create/")
+        self.assertContains(form, "رایگان")
+        self.assertContains(form, "برنزی")
+        self.assertContains(form, "نقره‌ای")
+        self.assertContains(form, "طلایی")
+        self.assertContains(form, 'value="free"')
+        self.assertContains(form, "ثبت آگهی برای نمایش")
+        payload = {
+            "promo_plan": "bronze",
+            "event_name": "ایونت برنزی چهارروزه",
+            "organizer_name": "علی",
+            "address": "تهران",
+            "phone": "09120000000",
+            "ticket_price": "رایگان",
+            "cafe_bank": "کافه",
+            "city": "تهران",
+            "district": "مرکز",
+            "scenario": "مافیا",
+            "image": _png_upload("bronze-create.png"),
+        }
+        payload.update(_future_event_post())
+        created = self.client.post("/ads/create/", payload)
+        ad = EventAd.objects.get(event_name="ایونت برنزی چهارروزه")
+        self.assertRedirects(created, f"/ads/{ad.id}/")
+        self.assertEqual(ad.promo_plan, "bronze")
+        self.assertEqual(ad.expires_at, ad.event_at + timedelta(days=4))
+        gold_payload = {
+            "promo_plan": "gold",
+            "event_name": "ایونت طلایی از فرم",
+            "organizer_name": "علی",
+            "address": "تهران",
+            "phone": "09120000000",
+            "ticket_price": "رایگان",
+            "cafe_bank": "کافه",
+            "city": "تهران",
+            "district": "مرکز",
+            "scenario": "مافیا",
+            "image": _png_upload("gold-create.png"),
+        }
+        gold_payload.update(_future_event_post())
+        gold_created = self.client.post("/ads/create/", gold_payload)
+        gold = EventAd.objects.get(event_name="ایونت طلایی از فرم")
+        self.assertRedirects(gold_created, f"/ads/{gold.id}/promo/")
+        self.assertEqual(gold.expires_at, gold.event_at + timedelta(days=7))
+        self.assertTrue(gold.show_on_home)
+
+    @override_settings(DEBUG=True)
+    def test_paid_plan_skips_monthly_free_quota(self):
+        user = User.objects.create_user("paidquota", "paidquota@example.com", "pass-word-123")
+        user.club_profile.is_verified = True
+        user.club_profile.save(update_fields=["is_verified"])
+        now = timezone.now()
+        for index in range(3):
+            EventAd.objects.create(
+                user=user,
+                event_name=f"ایونت سهمیه {index}",
+                organizer_name="علی",
+                image=_png_upload(f"quota-paid-{index}.png"),
+                address="تهران",
+                starts_at="۲۲:۰۰",
+                event_at=now + timedelta(days=1),
+                phone="09120000000",
+                ticket_price="رایگان",
+                cafe_bank="کافه",
+                city="تهران",
+                district="مرکز",
+                scenario="مافیا",
+                expires_at=now + timedelta(days=3),
+            )
+        self.client.force_login(user)
+        payload = {
+            "promo_plan": "silver",
+            "event_name": "آگهی نقره‌ای بعد سهمیه",
+            "organizer_name": "علی",
+            "address": "تهران",
+            "phone": "09120000000",
+            "ticket_price": "رایگان",
+            "cafe_bank": "کافه",
+            "city": "تهران",
+            "district": "مرکز",
+            "scenario": "مافیا",
+            "image": _png_upload("silver-quota.png"),
+        }
+        payload.update(_future_event_post())
+        created = self.client.post("/ads/create/", payload)
+        ad = EventAd.objects.get(event_name="آگهی نقره‌ای بعد سهمیه")
+        self.assertRedirects(created, f"/ads/{ad.id}/promo/")
+        self.assertEqual(EventAd.objects.filter(user=user).count(), 4)
+        self.assertEqual(ad.expires_at, ad.event_at + timedelta(days=5))
+
     def test_ads_sort_by_nearest_event_and_purge_after_twelve_hours(self):
         user = User.objects.create_user("timeline", "timeline@example.com", "pass-word-123")
         later = timezone.now() + timedelta(days=2, hours=3)
@@ -817,6 +1014,14 @@ class EventAdTests(TestCase):
         )
         listing = self.client.get("/ads/").content.decode()
         self.assertLess(listing.find("ایونت نزدیک"), listing.find("ایونت دور"))
+        boosted = EventAd.objects.get(event_name="ایونت دور")
+        boosted.is_boosted = True
+        boosted.boosted_at = timezone.now()
+        boosted.save(update_fields=["is_boosted", "boosted_at"])
+        boosted_listing = self.client.get("/ads/").content.decode()
+        self.assertLess(boosted_listing.find("ایونت دور"), boosted_listing.find("ایونت نزدیک"))
+        self.assertIn("نردبان‌شده", boosted_listing)
+        self.assertIn("is-boosted", boosted_listing)
         expired = EventAd.objects.create(
             user=user,
             event_name="ایونت گذشته",
@@ -833,11 +1038,178 @@ class EventAdTests(TestCase):
             scenario="مافیا",
             expires_at=timezone.now() - timedelta(minutes=1),
         )
-        image_name = expired.image.name
         gone = self.client.get("/ads/")
         self.assertNotContains(gone, "ایونت گذشته")
-        self.assertFalse(EventAd.objects.filter(event_name="ایونت گذشته").exists())
-        self.assertFalse(expired.image.storage.exists(image_name))
+        self.assertTrue(EventAd.objects.filter(event_name="ایونت گذشته").exists())
+        self.client.force_login(user)
+        profile = self.client.get("/account/profile/")
+        self.assertContains(profile, "آگهی‌های من")
+        self.assertContains(profile, "ایونت نزدیک")
+        self.assertContains(profile, "ایونت گذشته")
+        self.assertContains(profile, "پایان‌یافته")
+        self.assertContains(profile, "در حال نمایش")
+
+    @override_settings(DEBUG=True)
+    def test_owner_can_boost_ad_to_the_top(self):
+        user = User.objects.create_user("ladder", "ladder@example.com", "pass-word-123")
+        user.club_profile.is_verified = True
+        user.club_profile.save(update_fields=["is_verified"])
+        now = timezone.now()
+        later = EventAd.objects.create(
+            user=user,
+            event_name="ایونت بدون نردبان نزدیک",
+            organizer_name="علی",
+            image=_png_upload("near-boost.png"),
+            address="تهران",
+            starts_at="زود",
+            event_at=now + timedelta(days=1),
+            phone="09120000000",
+            ticket_price="رایگان",
+            cafe_bank="کافه",
+            city="تهران",
+            district="مرکز",
+            scenario="مافیا",
+            expires_at=now + timedelta(days=2),
+        )
+        sooner = EventAd.objects.create(
+            user=user,
+            event_name="ایونت نردبان دور",
+            organizer_name="علی",
+            image=_png_upload("far-boost.png"),
+            address="تهران",
+            starts_at="دیر",
+            event_at=now + timedelta(days=4),
+            phone="09120000000",
+            ticket_price="رایگان",
+            cafe_bank="کافه",
+            city="تهران",
+            district="مرکز",
+            scenario="مافیا",
+            expires_at=now + timedelta(days=5),
+        )
+        self.client.force_login(user)
+        offer = self.client.get(f"/ads/{sooner.id}/boost/")
+        self.assertContains(offer, "پلن تبلیغاتی")
+        self.assertContains(offer, "برنزی")
+        self.assertContains(offer, "نقره‌ای")
+        self.assertContains(offer, "طلایی")
+        self.assertContains(offer, "۱۰۰ هزار تومان")
+        self.assertContains(offer, "۲۰۰ هزار تومان")
+        self.assertContains(offer, "۲۵۰ هزار تومان")
+        paid = self.client.post(f"/ads/{sooner.id}/boost/", {"plan": "bronze"})
+        self.assertRedirects(paid, "/ads/")
+        sooner.refresh_from_db()
+        self.assertTrue(sooner.is_boosted)
+        self.assertEqual(sooner.promo_plan, "bronze")
+        self.assertTrue(sooner.boost_requested)
+        listing = self.client.get("/ads/")
+        self.assertContains(listing, "نردبان برنزی")
+        self.assertContains(listing, "is-plan-bronze")
+        html = listing.content.decode()
+        self.assertLess(html.find("ایونت نردبان دور"), html.find("ایونت بدون نردبان نزدیک"))
+        detail = self.client.get(f"/ads/{sooner.id}/")
+        self.assertContains(detail, "نردبان برنزی")
+        stranger = User.objects.create_user("otherboost", "otherboost@example.com", "pass-word-123")
+        self.client.force_login(stranger)
+        self.assertEqual(self.client.post(f"/ads/{later.id}/boost/").status_code, 404)
+
+    @override_settings(DEBUG=False)
+    def test_boost_without_gateway_only_records_the_request(self):
+        user = User.objects.create_user("pendingboost", "pendingboost@example.com", "pass-word-123")
+        user.club_profile.is_verified = True
+        user.club_profile.save(update_fields=["is_verified"])
+        now = timezone.now()
+        ad = EventAd.objects.create(
+            user=user,
+            event_name="آگهی منتظر درگاه",
+            organizer_name="علی",
+            image=_png_upload("pending-boost.png"),
+            address="تهران",
+            starts_at="۲۲:۰۰",
+            event_at=now + timedelta(days=1),
+            phone="09120000000",
+            ticket_price="رایگان",
+            cafe_bank="کافه",
+            city="تهران",
+            district="مرکز",
+            scenario="مافیا",
+            expires_at=now + timedelta(days=2),
+        )
+        self.client.force_login(user)
+        response = self.client.post(f"/ads/{ad.id}/boost/", {"plan": "bronze"})
+        self.assertRedirects(response, f"/ads/{ad.id}/boost/")
+        ad.refresh_from_db()
+        self.assertTrue(ad.boost_requested)
+        self.assertEqual(ad.pending_plan, "bronze")
+        self.assertFalse(ad.is_boosted)
+
+    @override_settings(DEBUG=True)
+    def test_gold_plan_appears_on_home_and_silver_gets_navigation_extras(self):
+        user = User.objects.create_user("goldhost", "goldhost@example.com", "pass-word-123")
+        user.club_profile.is_verified = True
+        user.club_profile.save(update_fields=["is_verified"])
+        now = timezone.now()
+        gold = EventAd.objects.create(
+            user=user,
+            event_name="ایونت طلایی صفحه اول",
+            organizer_name="علی",
+            image=_png_upload("gold-home.png"),
+            address="تهران",
+            starts_at="۲۲:۰۰",
+            event_at=now + timedelta(days=1),
+            phone="09120000000",
+            ticket_price="رایگان",
+            cafe_bank="کافه",
+            city="تهران",
+            district="مرکز",
+            scenario="مافیا",
+            expires_at=now + timedelta(days=2),
+        )
+        silver = EventAd.objects.create(
+            user=user,
+            event_name="ایونت نقره‌ای",
+            organizer_name="علی",
+            image=_png_upload("silver-nav.png"),
+            address="تهران",
+            starts_at="۲۲:۰۰",
+            event_at=now + timedelta(days=1),
+            phone="09120000000",
+            ticket_price="رایگان",
+            cafe_bank="کافه",
+            city="تهران",
+            district="مرکز",
+            scenario="مافیا",
+            expires_at=now + timedelta(days=2),
+        )
+        self.client.force_login(user)
+        gold_paid = self.client.post(f"/ads/{gold.id}/boost/", {"plan": "gold"})
+        self.assertRedirects(gold_paid, f"/ads/{gold.id}/promo/")
+        gold.refresh_from_db()
+        self.assertTrue(gold.show_on_home)
+        self.assertEqual(gold.promo_plan, "gold")
+        home = self.client.get("/")
+        self.assertContains(home, "آگهی طلایی")
+        self.assertContains(home, "ایونت طلایی صفحه اول")
+        self.assertContains(home, "مافیا")
+        self.assertContains(home, "home-promo-meta")
+        self.assertContains(home, 'data-interval="5000"')
+        self.assertContains(home, 'class="is-active"')
+        html = home.content.decode()
+        self.assertLess(html.find("تقسیم نقش سریع"), html.find("ایونت طلایی صفحه اول"))
+        self.assertLess(html.find("ایونت طلایی صفحه اول"), html.find("تقسیم نقش سناریو تعداد بالا"))
+        silver_paid = self.client.post(f"/ads/{silver.id}/boost/", {"plan": "silver"})
+        self.assertRedirects(silver_paid, f"/ads/{silver.id}/promo/")
+        extras = self.client.post(
+            f"/ads/{silver.id}/promo/",
+            {"latitude": "35.6892", "longitude": "51.3890", "photo_1": _png_upload("extra-1.png")},
+        )
+        self.assertRedirects(extras, f"/ads/{silver.id}/")
+        silver.refresh_from_db()
+        self.assertTrue(silver.has_nav())
+        self.assertTrue(silver.photo_1)
+        detail = self.client.get(f"/ads/{silver.id}/")
+        self.assertContains(detail, "مسیریابی")
+        self.assertContains(detail, "venue-gallery")
 
 
 class AppSourceTests(TestCase):

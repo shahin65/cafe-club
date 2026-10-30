@@ -1,0 +1,24 @@
+{% load i18n static %}
+<li class="ad-banner is-boosted is-plan-{{ venue.promo_plan }} is-club">
+  {% if venue.promo_badge %}<span class="ad-ladder-badge is-{{ venue.promo_plan }}">{{ venue.promo_badge }}</span>{% endif %}
+  <a class="ad-banner-link" href="{% url 'venue_detail' venue.id %}">
+    {% if venue.cover_image %}
+      <img class="ad-banner-photo" src="{{ venue.cover_image.url }}" alt="{{ venue.name }}">
+    {% else %}
+      <img class="ad-banner-photo" src="{% static 'Logo.png' %}" alt="{{ venue.name }}">
+    {% endif %}
+    <div class="ad-banner-person">
+      <span class="ad-advertiser">{{ venue.name }}</span>
+    </div>
+  </a>
+  <div class="ad-chip-grid">
+    {% include "banners/_ad_chip.html" with icon="city" label="شهر" text=venue.city %}
+    {% include "banners/_ad_chip.html" with icon="address" label="آدرس" text=venue.address %}
+    {% if venue.hours %}
+      {% include "banners/_ad_chip.html" with icon="time" label="ساعات" text=venue.hours %}
+    {% endif %}
+    {% if venue.phone %}
+      {% include "banners/_ad_chip.html" with icon="phone" label="تلفن" text=venue.phone call=venue.phone %}
+    {% endif %}
+  </div>
+</li>

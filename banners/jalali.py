@@ -2,6 +2,16 @@ from datetime import datetime, timedelta
 
 from django.utils import timezone
 
+WEEKDAYS = (
+    "دوشنبه",
+    "سه‌شنبه",
+    "چهارشنبه",
+    "پنجشنبه",
+    "جمعه",
+    "شنبه",
+    "یکشنبه",
+)
+
 JALALI_MONTHS = (
     "فروردین",
     "اردیبهشت",
@@ -38,6 +48,13 @@ def gregorian_to_jalali(gy, gm, gd):
         jm = 7 + (days - 186) // 30
         jd = 1 + ((days - 186) % 30)
     return jy, jm, jd
+
+
+def format_jalali_weekday(value):
+    if not value:
+        return ""
+    local = timezone.localtime(value)
+    return WEEKDAYS[local.weekday()]
 
 
 def format_jalali_date(value):

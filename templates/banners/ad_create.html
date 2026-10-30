@@ -1,12 +1,16 @@
 {% extends "base.html" %}
 {% load i18n static %}
 
-{% block title %}{% trans "درج آگهی رایگان" %} | {% trans "کافه کلاب" %}{% endblock %}
+{% block title %}{% trans "درج آگهی جدید" %} | {% trans "کافه کلاب" %}{% endblock %}
+
+{% block extrahead %}
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+{% endblock %}
 
 {% block content %}
   <section class="sheet venue-sheet places-frost">
       <p class="doc-kicker"><a href="{% url 'ads' %}">{% trans "آگهی" %}</a></p>
-      <h1 class="places-title">{% trans "درج آگهی رایگان" %}</h1>
+      <h1 class="places-title">{% trans "درج آگهی جدید" %}</h1>
       {% if messages %}
         <ul class="form-messages">
           {% for message in messages %}
@@ -43,12 +47,32 @@
           {% endif %}
         </section>
       {% else %}
-        <p class="venue-submit-intro">{% trans "هر آگهی تا ۱۲ ساعت پس از زمان برگزاری نمایش داده می‌شود. در هر ماه حداکثر سه آگهی رایگان می‌توانید ثبت کنید." %}</p>
-        <p class="ad-note">{% trans "آگهی‌های باقی‌مانده این ماه" %}: {{ remaining }}</p>
+        {% if ads_unlimited %}
+          <p class="venue-submit-intro">{% trans "پلن رایگان تا ۱۲ ساعت پس از زمان برگزاری نمایش داده می‌شود. برای حساب مدیریت محدودیت سه آگهی در ماه اعمال نمی‌شود." %}</p>
+        {% else %}
+          <p class="venue-submit-intro">{% trans "پلن رایگان تا ۱۲ ساعت پس از زمان برگزاری نمایش داده می‌شود. در هر ماه حداکثر سه آگهی رایگان می‌توانید ثبت کنید." %}</p>
+          <p class="ad-note">{% trans "آگهی‌های رایگان باقی‌مانده این ماه" %}: {{ remaining }}</p>
+        {% endif %}
         {% if error %}<p class="wizard-error">{{ error }}</p>{% endif %}
-        {% if remaining %}
-          <form class="wizard-form" method="post" enctype="multipart/form-data">
+          <form class="wizard-form" method="post" enctype="multipart/form-data" data-ad-create>
             {% csrf_token %}
+            <fieldset class="ad-create-plans">
+              <legend>{% trans "پلن تبلیغاتی" %}</legend>
+              <div class="ad-plan-grid is-create">
+                {% for plan in create_plans %}
+                  <label class="ad-plan-card is-{{ plan.key }}{% if values.promo_plan == plan.key or not values.promo_plan and plan.key == 'free' %} is-selected{% endif %}">
+                    <input type="radio" name="promo_plan" value="{{ plan.key }}"{% if values.promo_plan == plan.key or not values.promo_plan and plan.key == 'free' %} checked{% endif %} data-price="{{ plan.price_label }}" data-paid="{% if plan.price %}1{% else %}0{% endif %}" data-extras="{% if plan.needs_extras %}1{% else %}0{% endif %}">
+                    <h2>{{ plan.title }}</h2>
+                    <p class="ad-plan-price">{{ plan.price_label }}</p>
+                    <ul>
+                      {% for feature in plan.features %}
+                        <li>{{ feature }}</li>
+                      {% endfor %}
+                    </ul>
+                  </label>
+                {% endfor %}
+              </div>
+            </fieldset>
             <label>{% trans "نام ایونت" %}
               <input type="text" name="event_name" maxlength="120" required value="{{ values.event_name }}">
             </label>
@@ -98,12 +122,29 @@
             <label>{% trans "بانک کافه" %}
               <input type="text" name="cafe_bank" maxlength="120" required value="{{ values.cafe_bank }}">
             </label>
-            <button class="choice tournament-btn wizard-submit" type="submit">
+            <div class="ad-create-extras" data-plan-extras hidden>
+              <div class="venue-map-public">
+                <p>{% trans "روی نقشه محل برگزاری را انتخاب کنید." %}</p>
+                <div id="venue-map" data-default-lat="35.6892" data-default-lng="51.3890"></div>
+                <input type="hidden" name="latitude" id="id_latitude" value="{{ values.latitude }}">
+                <input type="hidden" name="longitude" id="id_longitude" value="{{ values.longitude }}">
+              </div>
+              <label>{% trans "تصویر ۱" %}<input type="file" name="photo_1" accept="image/*"></label>
+              <label>{% trans "تصویر ۲" %}<input type="file" name="photo_2" accept="image/*"></label>
+              <label>{% trans "تصویر ۳" %}<input type="file" name="photo_3" accept="image/*"></label>
+              <p class="music-note">{% trans "مسیریاب و تصاویر اضافه برای پلن نقره‌ای و طلایی فعال است." %}</p>
+            </div>
+            <button class="choice tournament-btn wizard-submit" type="submit" data-ad-submit>
               <img src="{% static 'Icon-Advertisement.png' %}" alt="" width="22" height="22">
-              <span>{% trans "ثبت آگهی برای نمایش" %}</span>
+              <span data-ad-submit-label>{% trans "ثبت آگهی برای نمایش" %}</span>
             </button>
           </form>
-        {% endif %}
       {% endif %}
   </section>
+{% endblock %}
+
+{% block extra_js %}
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="{% static 'admin/js/venue-map.js' %}?v=1"></script>
+  <script src="{% static 'js/ad-create.js' %}?v=1"></script>
 {% endblock %}

@@ -131,13 +131,23 @@ class Banner(models.Model):
         return path
 
 
-def allocate_public_id():
-    used = set(UserProfile.objects.values_list("public_id", flat=True))
+def allocate_six_digit_id(used):
+    used = set(used)
     for _ in range(200):
         candidate = random.randint(100000, 999999)
         if candidate not in used:
             return candidate
-    raise ValidationError("شناسه جدیدی برای کاربر ساخته نشد.")
+    raise ValidationError("شناسه جدیدی ساخته نشد.")
+
+
+def allocate_public_id():
+    used = set(UserProfile.objects.values_list("public_id", flat=True))
+    return allocate_six_digit_id(used)
+
+
+def allocate_venue_public_id():
+    used = set(Venue.objects.exclude(public_id=None).values_list("public_id", flat=True))
+    return allocate_six_digit_id(used)
 
 
 class UserProfile(models.Model):
@@ -260,6 +270,24 @@ class EventAd(models.Model):
     expires_at = models.DateTimeField("پایان نمایش رایگان")
     is_published = models.BooleanField("منتشر شده", default=True)
     is_new = models.BooleanField("جدید برای ادمین", default=True)
+    is_boosted = models.BooleanField("نردبان‌شده", default=False, db_index=True)
+    boosted_at = models.DateTimeField("زمان نردبان", null=True, blank=True, db_index=True)
+    boost_requested = models.BooleanField("درخواست نردبان", default=False)
+    boost_channel = models.CharField(
+        "منبع پرداخت نردبان",
+        max_length=12,
+        blank=True,
+        help_text="برای اتصال بعدی درگاه بر اساس رفرال دایرکت، بازار یا مایکت.",
+    )
+    promo_plan = models.CharField("پلن تبلیغاتی", max_length=12, blank=True, db_index=True)
+    pending_plan = models.CharField("پلن در انتظار پرداخت", max_length=12, blank=True)
+    promo_rank = models.PositiveSmallIntegerField("رتبه پلن", default=0, db_index=True)
+    show_on_home = models.BooleanField("نمایش در صفحه اصلی", default=False, db_index=True)
+    latitude = models.DecimalField("عرض جغرافیایی", max_digits=9, decimal_places=6, null=True, blank=True)
+    longitude = models.DecimalField("طول جغرافیایی", max_digits=9, decimal_places=6, null=True, blank=True)
+    photo_1 = models.ImageField("تصویر اضافه ۱", upload_to="event_ads/gallery", blank=True)
+    photo_2 = models.ImageField("تصویر اضافه ۲", upload_to="event_ads/gallery", blank=True)
+    photo_3 = models.ImageField("تصویر اضافه ۳", upload_to="event_ads/gallery", blank=True)
 
     class Meta:
         verbose_name = "آگهی"
@@ -294,12 +322,45 @@ class EventAd(models.Model):
             return format_jalali_date(self.event_at)
         return self.starts_at
 
+    def weekday_display(self):
+        from banners.jalali import format_jalali_weekday
+
+        if self.event_at:
+            return format_jalali_weekday(self.event_at)
+        return ""
+
     def time_display(self):
         from banners.jalali import format_jalali_time
 
         if self.event_at:
             return format_jalali_time(self.event_at)
         return ""
+
+    def is_laddered(self):
+        return bool(self.is_boosted)
+
+    def plan_label(self):
+        from banners.promo import PLANS
+
+        plan = PLANS.get(self.promo_plan) or {}
+        return plan.get("title") or ""
+
+    def plan_badge(self):
+        title = self.plan_label()
+        if title:
+            return f"نردبان {title}"
+        if self.is_boosted:
+            return "نردبان‌شده"
+        return ""
+
+    def has_nav(self):
+        return self.promo_rank >= 2 and self.latitude is not None and self.longitude is not None
+
+    def allows_extras(self):
+        return self.promo_rank >= 2
+
+    def gallery(self):
+        return [image for image in (self.photo_1, self.photo_2, self.photo_3) if image]
 
 
 class EventAdLike(models.Model):
@@ -325,6 +386,7 @@ class EventAdLike(models.Model):
 
 class Venue(models.Model):
     name = models.CharField("اسم کلاب", max_length=120)
+    public_id = models.PositiveIntegerField("شناسه شش‌رقمی", unique=True, db_index=True)
     city = models.CharField("شهر", max_length=80, db_index=True)
     logo = models.ImageField("لوگو", upload_to="venues/logos", blank=True)
     manager_name = models.CharField("نام مدیر یا سوپروایزر", max_length=80, blank=True)
@@ -343,6 +405,14 @@ class Venue(models.Model):
     longitude = models.DecimalField("طول جغرافیایی", max_digits=9, decimal_places=6, null=True, blank=True)
     is_active = models.BooleanField("فعال", default=True)
     created_at = models.DateTimeField("زمان ثبت", auto_now_add=True)
+    promo_plan = models.CharField("پلن تبلیغاتی", max_length=12, blank=True, db_index=True)
+    pending_plan = models.CharField("پلن در انتظار پرداخت", max_length=12, blank=True)
+    promo_rank = models.PositiveSmallIntegerField("رتبه پلن", default=0, db_index=True)
+    show_on_home = models.BooleanField("نمایش در صفحه اصلی", default=False, db_index=True)
+    promo_expires_at = models.DateTimeField("پایان پلن تبلیغاتی", null=True, blank=True, db_index=True)
+    boosted_at = models.DateTimeField("زمان نردبان", null=True, blank=True, db_index=True)
+    boost_requested = models.BooleanField("درخواست نردبان", default=False)
+    boost_channel = models.CharField("منبع پرداخت نردبان", max_length=12, blank=True)
 
     class Meta:
         verbose_name = "کافه / کلاب"
@@ -351,6 +421,16 @@ class Venue(models.Model):
 
     def __str__(self):
         return self.name
+
+    def public_id_display(self):
+        return f"{self.public_id:06d}"
+
+    public_id_display.short_description = "شناسه"
+
+    def save(self, *args, **kwargs):
+        if not self.public_id:
+            self.public_id = allocate_venue_public_id()
+        super().save(*args, **kwargs)
 
     def has_point(self):
         return self.latitude is not None and self.longitude is not None
@@ -362,6 +442,31 @@ class Venue(models.Model):
 
     def gallery(self):
         return [image for image in (self.photo_1, self.photo_2, self.photo_3) if image]
+
+    def cover_image(self):
+        if self.logo:
+            return self.logo
+        photos = self.gallery()
+        return photos[0] if photos else None
+
+    def is_promo_live(self):
+        from django.utils import timezone
+
+        return bool(
+            self.is_active
+            and self.promo_plan
+            and self.promo_expires_at
+            and self.promo_expires_at > timezone.now()
+        )
+
+    def promo_badge(self):
+        from banners.promo import VENUE_PLANS
+
+        plan = VENUE_PLANS.get(self.promo_plan) or {}
+        title = plan.get("title") or ""
+        if title:
+            return f"نردبان {title} کلاب"
+        return ""
 
 
 class VenueRating(models.Model):

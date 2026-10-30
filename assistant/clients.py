@@ -1,9 +1,19 @@
 import json
 import re
+import ssl
 import urllib.error
 import urllib.request
 
 from django.conf import settings
+
+
+def _ssl_context():
+    try:
+        import certifi
+
+        return ssl.create_default_context(cafile=certifi.where())
+    except Exception:
+        return ssl.create_default_context()
 
 
 class AssistantClientError(Exception):
@@ -50,7 +60,7 @@ def complete_chat(messages, timeout=40):
         },
     )
     try:
-        with urllib.request.urlopen(request, timeout=timeout) as response:
+        with urllib.request.urlopen(request, timeout=timeout, context=_ssl_context()) as response:
             body = json.loads(response.read().decode("utf-8"))
     except urllib.error.HTTPError as exc:
         try:
@@ -83,7 +93,7 @@ def send_bale_message(text, timeout=30):
         headers={"Content-Type": "application/json"},
     )
     try:
-        with urllib.request.urlopen(request, timeout=timeout) as response:
+        with urllib.request.urlopen(request, timeout=timeout, context=_ssl_context()) as response:
             body = json.loads(response.read().decode("utf-8"))
     except urllib.error.HTTPError as exc:
         try:

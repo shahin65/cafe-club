@@ -20,7 +20,7 @@ from banners.gmail import (
 )
 from banners.images import optimize_profile_photo
 from banners.accounts import user_is_blocked
-from banners.models import BlueTickRequest, UserProfile
+from banners.models import BlueTickRequest, EventAd, UserProfile
 
 
 def _safe_next(request, fallback="profile"):
@@ -111,14 +111,17 @@ def _link_gmail(user, email, google_sub=""):
 def profile_page(request):
     profile = request.user.club_profile if request.user.is_authenticated else None
     pending_request = None
+    my_ads = []
     if request.user.is_authenticated:
         pending_request = BlueTickRequest.objects.filter(user=request.user, is_reviewed=False).first()
+        my_ads = list(request.user.event_ads.all().order_by("-created_at", "-id"))
     return render(
         request,
         "account/profile.html",
         {
             "club_profile": profile,
             "pending_blue_tick": pending_request,
+            "my_ads": my_ads,
         },
     )
 

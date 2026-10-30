@@ -9,6 +9,7 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils.translation import get_language, gettext as _, override
 from django.views.decorators.http import require_POST
 
+from banners.accounts import COMMENT_RECEIVED, comment_author_name
 from banners.geo import captcha_is_valid, captcha_prompt, consume_captcha, issue_sum_captcha
 
 from scenarios.dealing import (
@@ -478,7 +479,7 @@ def scenario_comments(request, scenario_id):
     if request.method == "POST":
         if request.POST.get("website"):
             return redirect(scenario.get_comments_url())
-        name = (request.POST.get("author_name") or "").strip()[:40]
+        name = comment_author_name(request)
         body = (request.POST.get("body") or "").strip()[:1000]
         answer = request.POST.get("captcha") or ""
         parent = None
@@ -490,7 +491,10 @@ def scenario_comments(request, scenario_id):
                 is_approved=True,
             ).first()
         if not name or not body:
-            messages.error(request, _("نام و متن نظر را وارد کنید."))
+            messages.error(
+                request,
+                _("متن نظر را وارد کنید.") if request.user.is_authenticated else _("نام و متن نظر را وارد کنید."),
+            )
             issue_sum_captcha(request)
             return redirect(scenario.get_comments_url())
         if not captcha_is_valid(request, answer):
@@ -504,7 +508,7 @@ def scenario_comments(request, scenario_id):
             body=body,
         )
         consume_captcha(request)
-        messages.success(request, _("نظر شما ثبت شد و پس از تأیید مدیریت نمایش داده می‌شود."))
+        messages.success(request, _(COMMENT_RECEIVED))
         return redirect(scenario.get_comments_url())
     roots = scenario.comments.filter(is_approved=True, parent__isnull=True).prefetch_related(
         Prefetch(

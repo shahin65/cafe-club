@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% load i18n static %}
+
+{% block title %}{% trans "پلن‌های تبلیغاتی کلاب" %} | {% trans "کجا برم؟" %}{% endblock %}
+
+{% block extrahead %}
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+{% endblock %}
+
+{% block content %}
+  <section class="sheet venue-sheet places-frost">
+    <p class="doc-kicker"><a href="{% url 'location' %}">{% trans "کجا برم؟" %}</a></p>
+    <h1 class="places-title">{% trans "پلن‌های تبلیغاتی" %}</h1>
+    <p class="venue-submit-intro">{% trans "اگر کافه در لیست ثبت شده، شناسه آن را وارد کنید. اگر ثبت نشده، همزمان با پرداخت کافه را ثبت کنید." %}</p>
+    {% if messages %}
+      <ul class="form-messages">
+        {% for message in messages %}
+          <li>{{ message }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+    {% if error %}<p class="wizard-error">{{ error }}</p>{% endif %}
+    <form class="wizard-form" method="post" enctype="multipart/form-data" data-venue-promo>
+      {% csrf_token %}
+      <fieldset class="ad-create-plans">
+        <legend>{% trans "انتخاب پلن" %}</legend>
+        <div class="ad-plan-grid">
+          {% for plan in plans %}
+            <label class="ad-plan-card is-{{ plan.key }}{% if values.promo_plan == plan.key %} is-selected{% endif %}">
+              <input type="radio" name="promo_plan" value="{{ plan.key }}"{% if values.promo_plan == plan.key %} checked{% endif %} data-price="{{ plan.price_label }}">
+              <h2>{{ plan.title }}</h2>
+              <p class="ad-plan-price">{{ plan.price_label }}</p>
+              <ul>
+                {% for feature in plan.features %}
+                  <li>{{ feature }}</li>
+                {% endfor %}
+              </ul>
+            </label>
+          {% endfor %}
+        </div>
+      </fieldset>
+      <fieldset class="ad-create-plans">
+        <legend>{% trans "کافه یا کلاب" %}</legend>
+        <label class="ad-plan-card is-free{% if values.venue_mode != 'new' %} is-selected{% endif %}">
+          <input type="radio" name="venue_mode" value="existing"{% if values.venue_mode != 'new' %} checked{% endif %}>
+          <h2>{% trans "کافه ثبت‌شده" %}</h2>
+          <p class="ad-plan-price">{% trans "ورود شناسه" %}</p>
+        </label>
+        <label class="ad-plan-card{% if values.venue_mode == 'new' %} is-selected{% endif %}">
+          <input type="radio" name="venue_mode" value="new"{% if values.venue_mode == 'new' %} checked{% endif %}>
+          <h2>{% trans "ثبت کافه جدید" %}</h2>
+          <p class="ad-plan-price">{% trans "همزمان با پرداخت" %}</p>
+        </label>
+      </fieldset>
+      <div data-existing-venue>
+        <label>{% trans "شناسه کافه" %}
+          <input type="text" name="venue_id" maxlength="6" dir="ltr" inputmode="numeric" value="{{ values.venue_id }}" placeholder="123456">
+        </label>
+      </div>
+      <div data-new-venue hidden>
+        <label>{% trans "نام کلاب" %}
+          <input type="text" name="name" maxlength="120" value="{{ values.name }}">
+        </label>
+        <label>{% trans "لوگو" %}
+          <input type="file" name="logo" accept="image/*">
+        </label>
+        <label>{% trans "تصویر ۱" %}<input type="file" name="photo_1" accept="image/*"></label>
+        <label>{% trans "تصویر ۲" %}<input type="file" name="photo_2" accept="image/*"></label>
+        <label>{% trans "تصویر ۳" %}<input type="file" name="photo_3" accept="image/*"></label>
+        <label>{% trans "نام مدیر یا سوپروایزر مجموعه" %}
+          <input type="text" name="manager_name" maxlength="80" value="{{ values.manager_name }}">
+        </label>
+        <label>{% trans "شهر" %}
+          <input type="text" name="city" maxlength="80" value="{{ values.city }}">
+        </label>
+        <label>{% trans "آدرس" %}
+          <input type="text" name="address" maxlength="300" value="{{ values.address }}">
+        </label>
+        <label>{% trans "تلفن" %}
+          <input type="tel" name="phone" maxlength="30" dir="ltr" value="{{ values.phone }}">
+        </label>
+        <label>{% trans "روزها و ساعات کاری" %}
+          <input type="text" name="hours" maxlength="200" value="{{ values.hours }}">
+        </label>
+        <div class="venue-map-public">
+          <p>{% trans "روی نقشه محل کافه یا کلاب را انتخاب کنید." %}</p>
+          <div id="venue-map" data-default-lat="35.6892" data-default-lng="51.3890"></div>
+          <input type="hidden" name="latitude" id="id_latitude" value="{{ values.latitude }}">
+          <input type="hidden" name="longitude" id="id_longitude" value="{{ values.longitude }}">
+        </div>
+      </div>
+      <button class="choice tournament-btn wizard-submit" type="submit">
+        <span data-promo-submit-label>{% trans "پرداخت هزینه" %}</span>
+      </button>
+    </form>
+  </section>
+{% endblock %}
+
+{% block extra_js %}
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="{% static 'admin/js/venue-map.js' %}?v=1"></script>
+  <script src="{% static 'js/venue-promo.js' %}?v=1"></script>
+{% endblock %}
