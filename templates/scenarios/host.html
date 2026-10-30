@@ -4,9 +4,25 @@
 {% block title %}{% trans "مدیریت بازی" %}{% endblock %}
 
 {% block content %}
-  <section class="deal-sheet">
-    <h1>{% trans "مدیریت بازی" %}</h1>
+  <section class="deal-sheet host-sheet places-frost">
+    <h1 class="places-title">{% trans "مدیریت بازی" %}</h1>
     <p>{{ scenario.name }}</p>
+    <section class="host-notes" aria-labelledby="host-notes-title">
+      <button class="choice tournament-btn" type="button" data-host-notes-open>
+        <img src="{% static 'Icon-List.png' %}" alt="" width="40" height="40">
+        <span><strong>{% trans "دفترچه یادداشت" %}</strong></span>
+      </button>
+      <dialog class="nav-sheet host-notes-sheet" data-host-notes>
+        <h2 id="host-notes-title">{% trans "دفترچه یادداشت" %}</h2>
+        <p>{% trans "اقدامات شب را اینجا بنویسید. با خروج از این صفحه یا تازه‌سازی، نوشته‌ها پاک می‌شوند." %}</p>
+        <label class="host-notes-label">
+          <textarea name="host_notes" rows="8" aria-label="{% trans 'یادداشت' %}" placeholder="{% trans 'یادداشت شب' %}"></textarea>
+        </label>
+        <div class="nav-apps">
+          <button class="choice tournament-btn" type="button" data-host-notes-close>{% trans "بستن" %}</button>
+        </div>
+      </dialog>
+    </section>
     <section class="turn-timers" aria-labelledby="turn-timers-title">
       <header class="turn-timers-bar">
         <div class="turn-timers-title">
@@ -84,31 +100,45 @@
     </section>
     <div class="choice-list">
       {% if show_final %}
-        <a class="choice" href="{% url 'deal_final' %}">
-          <img src="{% static 'Icon-Endmove.png' %}" alt="" width="56" height="56">
+        <a class="choice tournament-btn" href="{% url 'deal_final' %}">
+          <img src="{% static 'Icon-Endmove.png' %}" alt="" width="40" height="40">
           <span><strong>{% trans "حرکت آخر" %}</strong></span>
         </a>
       {% endif %}
       {% if show_lottery %}
-        <a class="choice" href="{% url 'deal_lottery' %}">
-          <img src="{% static 'Icon-Lot.png' %}" alt="" width="56" height="56">
+        <a class="choice tournament-btn" href="{% url 'deal_lottery' %}">
+          <img src="{% static 'Icon-Lot.png' %}" alt="" width="40" height="40">
           <span><strong>{% trans "قرعه مرگ" %}</strong></span>
         </a>
       {% endif %}
       {% if not is_custom %}
-        <a class="choice" href="{{ scenario.get_comments_url }}">
-          <img src="{% static 'Icon-Comment.png' %}" alt="" width="56" height="56">
+        <a class="choice tournament-btn" href="{{ scenario.get_comments_url }}">
+          <img src="{% static 'Icon-Comment.png' %}" alt="" width="40" height="40">
           <span><strong>{% trans "نظر کاربران" %}</strong></span>
         </a>
       {% endif %}
     </div>
-    <a class="choice deal-safe deal-restart" href="{% url 'deal_restart' %}">
+    <a class="choice tournament-btn deal-safe deal-restart" href="{% url 'deal_restart' %}" data-deal-refresh>
       <img src="{% static 'Icon-Refresh.png' %}" alt="" width="40" height="40">
       <span>{% trans "تقسیم نقش مجدد" %}</span>
     </a>
   </section>
   <script src="{% static 'js/turn-timers.js' %}?v=4"></script>
   <script src="{% static 'js/music-player.js' %}?v=7"></script>
+  <script>
+    (function () {
+      var openBtn = document.querySelector("[data-host-notes-open]");
+      var sheet = document.querySelector("[data-host-notes]");
+      var closeBtn = document.querySelector("[data-host-notes-close]");
+      if (!openBtn || !sheet || !sheet.showModal) return;
+      openBtn.addEventListener("click", function () {
+        sheet.showModal();
+        var box = sheet.querySelector("textarea");
+        if (box) box.focus();
+      });
+      if (closeBtn) closeBtn.addEventListener("click", function () { sheet.close(); });
+    })();
+  </script>
 {% endblock %}
 
 {% block tab_bar %}

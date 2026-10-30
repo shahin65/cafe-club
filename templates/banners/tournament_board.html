@@ -8,7 +8,7 @@
 {% block content %}
   <section class="tournament-share-page">
     <div class="tournament-frost tournament-share-head">
-      <p class="tournament-share-kicker">{% trans "کافه کلاب" %}</p>
+      <p class="tournament-share-kicker"><bdi>{% trans "کافه کلاب" %}</bdi></p>
       <h1>{{ tournament.name }}</h1>
       <p class="tournament-share-round">{{ round.title }}</p>
     </div>
@@ -25,7 +25,7 @@
                 <li>
                   <span class="tournament-person">
                     <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M12 4a4 4 0 1 1 0 8 4 4 0 0 1 0-8Zm0 10c4 0 8 2 8 4.5V20H4v-1.5C4 16 8 14 12 14Z"/></svg>
-                    <strong>{{ seat.player.name }}</strong>
+                    <strong class="tournament-name"><bdi dir="auto">{{ seat.player.name }}</bdi></strong>
                   </span>
                   <span class="tournament-seat">
                     <img src="{% static 'Icon-Chair.png' %}" alt="" width="16" height="16">
@@ -49,5 +49,5 @@
     </div>
   </section>
   <script src="{% static 'js/html2canvas.min.js' %}"></script>
-  <script src="{% static 'js/tournament-share.js' %}?v=2"></script>
+  <script src="{% static 'js/tournament-share.js' %}?v=3"></script>
 {% endblock %}

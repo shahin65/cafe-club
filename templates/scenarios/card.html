@@ -40,11 +40,13 @@
       </form>
     </dialog>
     <p class="card-hint"{% if auto_reveal %} hidden{% endif %}>{% trans "برای دیدن نقش، کارت را لمس کنید." %}</p>
-    <a class="choice deal-safe deal-next" href="{{ board_url }}" hidden>{{ continue_label }}</a>
-    <a class="choice deal-safe deal-host" href="{% url 'deal_host' %}" hidden>
-      <img src="{% static 'Icon-Opreator.png' %}" alt="" width="40" height="40">
-      <span>{% trans "مدیریت بازی" %}</span>
-    </a>
+    <div class="card-actions">
+      <a class="choice deal-safe deal-next" href="{{ board_url }}" hidden>{{ continue_label }}</a>
+      <a class="choice deal-safe deal-host" href="{% url 'deal_host' %}" hidden>
+        <img src="{% static 'Icon-Opreator.png' %}" alt="" width="28" height="28">
+        <span>{% trans "مدیریت بازی" %}</span>
+      </a>
+    </div>
   </section>
   <script>
     (function () {
@@ -72,7 +74,6 @@
         }
         hint.hidden = true;
         if (data.done) {
-          document.querySelector(".card-sheet").classList.add("is-finished");
           host.hidden = false;
         } else {
           next.hidden = false;

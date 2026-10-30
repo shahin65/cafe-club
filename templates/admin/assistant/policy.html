@@ -1,0 +1,30 @@
+{% extends "admin/assistant/base.html" %}
+
+{% block assistant %}
+<h1>معیارهای بررسی: {{ title }}</h1>
+<form method="post">
+  {% csrf_token %}
+  <p>
+    <label><input type="checkbox" name="auto_enabled" {% if policy.auto_enabled %}checked{% endif %}> بررسی خودکار فعال باشد</label>
+  </p>
+  {% if scope == "comments" %}
+    <p>
+      <label><input type="checkbox" name="auto_reply_enabled" {% if policy.auto_reply_enabled %}checked{% endif %}> پاسخ‌دهی خودکار پس از تأیید (پاسخ ابتدا در پنل دیده می‌شود مگر اقدام تأیید فعال باشد)</label>
+    </p>
+  {% endif %}
+  <p>
+    <label>دستورالعمل‌ها و معیارها</label>
+    <textarea name="instructions" rows="10" required>{{ policy.instructions }}</textarea>
+  </p>
+  <p>
+    <label>آستانه اطمینان برای اقدام خودکار (۰ تا ۱)</label>
+    <input type="text" name="confidence_threshold" value="{{ policy.confidence_threshold }}">
+  </p>
+  <p>اقدام خودکار مجاز:</p>
+  {% for value, label in action_choices %}
+    <label><input type="checkbox" name="allowed_actions" value="{{ value }}" {% if value in policy.allowed_actions %}checked{% endif %}> {{ label }}</label>
+  {% endfor %}
+  <p><button type="submit">ذخیره معیارها</button></p>
+</form>
+<p><a href="{% url 'assistant_queue' scope %}">فهرست موارد این بخش</a></p>
+{% endblock %}

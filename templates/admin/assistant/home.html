@@ -1,0 +1,20 @@
+{% extends "admin/assistant/base.html" %}
+
+{% block assistant %}
+<h1>دستیار هوش مصنوعی</h1>
+<p>بررسی نظرات، آگهی‌ها، درخواست کافه و تیک آبی بر اساس معیارهای مدیر.</p>
+<ul class="assistant-cards">
+  {% for section in sections %}
+    <li>
+      <strong>{{ section.label }}</strong>
+      <p>در انتظار {{ section.pending }} — بازبینی مدیر {{ section.review }} — کل {{ section.total }}</p>
+      <a class="button" href="{% url 'assistant_queue' section.key %}">فهرست موارد</a>
+      <a class="button" href="{% url 'assistant_policy' section.key %}">معیارهای بررسی</a>
+    </li>
+  {% endfor %}
+</ul>
+<p>
+  <a class="button" href="{% url 'assistant_reports' %}">گزارش‌ها و وضعیت اجرا</a>
+  <a class="button" href="{% url 'assistant_settings' %}">تنظیمات دستیار</a>
+</p>
+{% endblock %}

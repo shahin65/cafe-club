@@ -32,6 +32,7 @@ def robots_txt(request):
 
 
 urlpatterns = [
+    path("admin/ai-assistant/", include("assistant.urls")),
     path("admin/", admin.site.urls),
     path("i18n/setlang/", auth_views.set_language, name="set_language"),
     path("account/google/start/", profile_views.google_start, name="google_start"),

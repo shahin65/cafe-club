@@ -9,7 +9,7 @@
   <section class="tournament-share-page">
     <div class="tournament-share-wrap">
       <div class="tournament-frost tournament-share-board is-winners" id="winners-board" data-share-board>
-        <p class="tournament-share-kicker">{% trans "کافه کلاب" %}</p>
+        <p class="tournament-share-kicker"><bdi>{% trans "کافه کلاب" %}</bdi></p>
         <img class="tournament-share-icon" src="{% static 'Icon-Tournament.png' %}" alt="">
         <h1>{{ tournament.name }}</h1>
         <p class="tournament-share-round">{% trans "نفرات برتر و جوایز" %}</p>
@@ -28,7 +28,7 @@
                 {% endif %}
               </span>
               <span class="tournament-place">{{ row.label }}</span>
-              <strong>{{ row.player.name }}</strong>
+              <strong class="tournament-name"><bdi dir="auto">{{ row.player.name }}</bdi></strong>
               <span class="tournament-prize">{{ row.prize }}</span>
             </li>
           {% endfor %}
@@ -55,5 +55,5 @@
     </div>
   </section>
   <script src="{% static 'js/html2canvas.min.js' %}"></script>
-  <script src="{% static 'js/tournament-share.js' %}?v=2"></script>
+  <script src="{% static 'js/tournament-share.js' %}?v=3"></script>
 {% endblock %}

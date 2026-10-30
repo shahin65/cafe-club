@@ -53,6 +53,31 @@ preloaded. Django may report advisory HSTS include-subdomain/preload warnings;
 these deliberate choices avoid committing to a broader policy during rollout.
 Do not trust forwarded protocol headers without verifying the proxy configuration.
 
+## دستیار هوش مصنوعی و زمان‌بندی هاست
+
+کلید سرویس هوش مصنوعی و توکن بات بله را فقط در محیط سرور یا `production.json` بگذارید؛ داخل گیت نگذارید. نام متغیرها: `GAPGPT_API_KEY`، `GAPGPT_BASE_URL`، `GAPGPT_MODEL`، `BALE_BOT_TOKEN`، `BALE_ADMIN_CHAT_ID`. مقدار واقعی مدل و آدرس را حدس نزنید؛ همان را که ارائه‌دهنده داده وارد کنید.
+
+Celery در این پروژه استفاده نمی‌شود. دو cron جدا در cPanel بسازید که از همان Python محیط برنامه اجرا شوند:
+
+```text
+0 * * * * cd /home/exmykvwq/cafe-club-app && /home/exmykvwq/virtualenv/cafe-club-app/3.12/bin/python manage.py run_assistant --settings=config.production
+0 0,12 * * * cd /home/exmykvwq/cafe-club-app && /home/exmykvwq/virtualenv/cafe-club-app/3.12/bin/python manage.py run_assistant --report --settings=config.production
+```
+
+اگر مسیر virtualenv در cPanel فرق دارد، همان دستوری را بگذارید که برای `migrate` استفاده می‌کنید. برای تلاش مجدد گزارش‌های ارسال‌نشده:
+
+```text
+python manage.py run_assistant --retry-reports --settings=config.production
+```
+
+پس از استقرار کد جدید:
+
+```text
+python manage.py migrate --settings=config.production --noinput
+```
+
+دسترسی بخش دستیار فقط برای کاربران staff پنل ادمین است: `/admin/ai-assistant/`.
+
 Restart only this Python application. Verify HTTPS home, Persian and English
 pages, static images, admin login, database migrations and a role-dealing flow.
 Create a new administrator interactively; the bundle excludes existing users,

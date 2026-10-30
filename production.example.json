@@ -5,5 +5,10 @@
   "DB_USER": "exmykvwq_cafeclub",
   "DB_PASSWORD": "REPLACE_WITH_THE_NEW_DATABASE_PASSWORD",
   "DB_HOST": "localhost",
-  "DB_PORT": "3306"
+  "DB_PORT": "3306",
+  "GAPGPT_API_KEY": "",
+  "GAPGPT_BASE_URL": "",
+  "GAPGPT_MODEL": "",
+  "BALE_BOT_TOKEN": "",
+  "BALE_ADMIN_CHAT_ID": ""
 }

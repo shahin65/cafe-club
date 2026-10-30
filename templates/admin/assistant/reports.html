@@ -1,0 +1,53 @@
+{% extends "admin/assistant/base.html" %}
+
+{% block assistant %}
+<h1>گزارش‌ها و وضعیت اجرای دستیار</h1>
+{% if last_hourly %}
+  <p>آخرین اجرای ساعتی: {{ last_hourly.finished_at|default:last_hourly.started_at }} — {{ last_hourly.status }} — {{ last_hourly.summary }}</p>
+  {% if last_hourly.error %}<p>{{ last_hourly.error }}</p>{% endif %}
+{% else %}
+  <p>هنوز اجرای ساعتی ثبت نشده است.</p>
+{% endif %}
+{% if last_report_run %}
+  <p>آخرین تلاش گزارش ۱۲ساعته: {{ last_report_run.finished_at|default:last_report_run.started_at }} — {{ last_report_run.status }}</p>
+{% endif %}
+
+<h2>گزارش‌های بله</h2>
+<table class="assistant-table">
+  <thead>
+    <tr><th>بازه</th><th>وضعیت</th><th>تلاش</th><th>خطا</th></tr>
+  </thead>
+  <tbody>
+    {% for report in reports %}
+      <tr>
+        <td>{{ report.period_start }} تا {{ report.period_end }}</td>
+        <td>{% if report.sent_at %}ارسال شد{% else %}در انتظار ارسال{% endif %}</td>
+        <td>{{ report.retry_count }}</td>
+        <td>{{ report.last_error }}</td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="4">گزارشی نیست.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<h2>سابقه اجرا</h2>
+<table class="assistant-table">
+  <thead>
+    <tr><th>نوع</th><th>شروع</th><th>وضعیت</th><th>پردازش</th><th>خطا</th></tr>
+  </thead>
+  <tbody>
+    {% for run in runs %}
+      <tr>
+        <td>{{ run.get_kind_display }}</td>
+        <td>{{ run.started_at }}</td>
+        <td>{{ run.status }}</td>
+        <td>{{ run.summary }}</td>
+        <td>{{ run.error }}</td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="5">اجرایی نیست.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

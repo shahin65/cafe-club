@@ -183,7 +183,7 @@
     <div class="settings-panel" data-panel="logo" hidden>
       <button class="settings-back" type="button" data-panel-target="menu">{% trans "بازگشت" %}</button>
       <h2>{% trans "تغییر لوگو" %}</h2>
-      <p>{% trans "یک لوگوی آماده انتخاب کنید." %}</p>
+      <p>{% trans "یک لوگوی آماده انتخاب کنید. لوگوی آپلودشده هم در همین فهرست می‌ماند." %}</p>
       <form class="logo-presets" method="post" action="{% url 'card_logo' %}">
         {% csrf_token %}
         {% for preset in card_logo_presets %}
@@ -192,9 +192,15 @@
             <span>{{ preset.label }}</span>
           </button>
         {% endfor %}
+        {% if card_logo_custom %}
+          <button class="logo-choice{% if card_logo_choice.key == card_logo_custom.key %} is-selected{% endif %}" type="submit" name="preset" value="{{ card_logo_custom.key }}">
+            <img src="{{ card_logo_custom.url }}" alt="{{ card_logo_custom.label }}">
+            <span>{{ card_logo_custom.label }}</span>
+          </button>
+        {% endif %}
       </form>
       {% if club_profile.is_verified %}
-        <p>{% trans "یک تصویر لوگوی کافه یا کلاب می‌توانید آپلود کنید. تصویر جدید جایگزین تصویر قبلی می‌شود." %}</p>
+        <p>{% trans "لوگوی کافه یا کلاب را آپلود کنید تا به فهرست اضافه شود و پشت کارت دیده شود." %}</p>
         <form class="logo-upload" method="post" action="{% url 'card_logo' %}" enctype="multipart/form-data">
           {% csrf_token %}
           <label>
@@ -207,7 +213,7 @@
       {% endif %}
     </div>
   </dialog>
-  <script src="{% static 'js/quick-settings.js' %}?v=1"></script>
+  <script src="{% static 'js/quick-settings.js' %}?v=2"></script>
   <script>
     (function () {
       var root = document.querySelector(".ad-rotator");

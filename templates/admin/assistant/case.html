@@ -1,0 +1,66 @@
+{% extends "admin/assistant/base.html" %}
+
+{% block assistant %}
+<h1>مورد {{ case.get_source_display }} #{{ case.object_id }}</h1>
+<p>وضعیت فعلی: <strong>{{ case.get_status_display }}</strong> — ثبت: {{ case.submitted_at }}</p>
+{% if obj_missing %}<p class="assistant-warn">رکورد اصلی پیدا نشد.</p>{% endif %}
+
+<h2>اطلاعات مرتبط</h2>
+<pre class="assistant-payload">{{ payload_pretty }}</pre>
+
+<h2>نتیجه پیشنهادی هوش مصنوعی</h2>
+<p>پیشنهاد: {{ case.get_ai_decision_display|default:"—" }} | اطمینان: {{ case.ai_confidence|default:"—" }} | نسخه معیار: {{ case.policy_version|default:"—" }}</p>
+<p>دلیل: {{ case.ai_reason|default:"—" }}</p>
+{% if case.ai_reply %}
+  <p>پاسخ پیشنهادی:</p>
+  <pre>{{ case.ai_reply }}</pre>
+{% endif %}
+
+<h2>تصمیم مدیر</h2>
+<form method="post">
+  {% csrf_token %}
+  <input type="hidden" name="action" value="decide">
+  <p>
+    <label>وضعیت نهایی</label>
+    <select name="status">
+      {% for value, label in status_choices %}
+        {% if value != "pending" %}
+          <option value="{{ value }}" {% if case.status == value %}selected{% endif %}>{{ label }}</option>
+        {% endif %}
+      {% endfor %}
+    </select>
+  </p>
+  <p>
+    <label>توضیح مدیر</label>
+    <textarea name="note" rows="3">{{ case.manager_note }}</textarea>
+  </p>
+  {% if case.source == "comments" %}
+    <p>
+      <label>پاسخ (قابل ویرایش قبل از ارسال)</label>
+      <textarea name="reply" rows="4">{{ case.ai_reply }}</textarea>
+    </p>
+    <p><label><input type="checkbox" name="send_reply" {% if case.reply_sent %}disabled{% endif %}> ارسال پاسخ به کاربر</label></p>
+    {% if case.reply_sent %}<p>پاسخ قبلاً ارسال شده است.</p>{% endif %}
+  {% endif %}
+  <button type="submit">ثبت تصمیم</button>
+</form>
+
+<form method="post" class="assistant-inline">
+  {% csrf_token %}
+  <input type="hidden" name="action" value="run">
+  <button type="submit">اجرای دستی بررسی</button>
+</form>
+<form method="post" class="assistant-inline">
+  {% csrf_token %}
+  <input type="hidden" name="action" value="dry">
+  <button type="submit">اجرای آزمایشی بدون اعمال</button>
+</form>
+
+<h2>سابقه</h2>
+<ul>
+  {% for event in events %}
+    <li>{{ event.created_at }} — {{ event.actor }}{% if event.actor_user %} ({{ event.actor_user }}){% endif %} — {{ event.decision }} — {{ event.reason }} — اطمینان {{ event.confidence }} — معیار v{{ event.policy_version }} — اقدام {{ event.action }}{% if event.dry_run %} (آزمایشی){% endif %}</li>
+  {% endfor %}
+</ul>
+<p><a href="{% url 'assistant_queue' case.source %}">بازگشت به فهرست</a></p>
+{% endblock %}

@@ -271,7 +271,12 @@ def _manage_context(request, tournament, error=""):
         "has_winners": tournament.winners().exists(),
         "error": error,
         "prize_fields": [
-            {"index": index, "label": place_label(index + 1), "prize": prize}
+            {
+                "index": index,
+                "label": place_label(index + 1),
+                "prize": prize,
+                "selected": request.POST.get(f"place_{index}") or "",
+            }
             for index, prize in enumerate(tournament.prizes or [])
         ],
     }
@@ -331,8 +336,12 @@ def _set_winners(request, tournament):
     chosen = []
     for index in range(tournament.prize_count()):
         value = read_int(request.POST.get(f"place_{index}"), 1, 10**9)
-        if value is None or value not in remaining_ids or value in chosen:
-            return _("نفرات برتر را بدون تکرار انتخاب کنید.")
+        if value is None:
+            return _("برای هر رتبه یک نفر انتخاب کنید.")
+        if value not in remaining_ids:
+            return _("بازیکن انتخاب‌شده در فهرست افراد حاضر نیست.")
+        if value in chosen:
+            return _("نمی‌توان یک نفر را در دو رتبه ثبت کرد. نام تکراری را عوض کنید.")
         chosen.append(value)
     lookup = {player.id: player for player in remaining}
     winners = []

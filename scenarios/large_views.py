@@ -94,7 +94,7 @@ def _count_rows(scenario, draft):
             "label": _("تعداد بازیکن"),
             "min": MIN_PLAYERS,
             "max": MAX_PLAYERS,
-            "value": draft.get("player_count", ""),
+            "value": draft.get("player_count", MIN_PLAYERS),
         }
     ]
     for side in side_steps(scenario.large_kind):
@@ -104,7 +104,7 @@ def _count_rows(scenario, draft):
                 "label": _("تعداد %(side)s") % {"side": SIDE_LABELS[side]},
                 "min": 0,
                 "max": MAX_PLAYERS,
-                "value": draft.get(COUNT_FIELDS[side], ""),
+                "value": draft.get(COUNT_FIELDS[side], 0),
             }
         )
     return rows

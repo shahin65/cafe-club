@@ -208,7 +208,7 @@ class EventAdAdmin(admin.ModelAdmin):
     list_filter = ("is_published", "is_new")
     list_editable = ("is_published",)
     search_fields = ("event_name", "organizer_name", "phone", "address", "cafe_bank", "city", "district", "scenario", "user__username")
-    readonly_fields = ("user", "created_at", "expires_at", "image_preview_large")
+    readonly_fields = ("user", "created_at", "expires_at", "image_preview_large", "is_new")
     actions = ("unpublish_ads", "publish_ads")
     ordering = ("-created_at",)
     fieldsets = (
@@ -256,6 +256,14 @@ class EventAdAdmin(admin.ModelAdmin):
     def publish_ads(self, request, queryset):
         updated = queryset.update(is_published=True, is_new=False)
         self.message_user(request, f"{updated} آگهی منتشر شد.")
+
+    def changelist_view(self, request, extra_context=None):
+        if request.method == "GET":
+            if request.GET.get("is_new__exact") == "1":
+                EventAd.objects.filter(is_new=True).update(is_new=False)
+                return redirect("admin:banners_eventad_changelist")
+            EventAd.objects.filter(is_new=True).update(is_new=False)
+        return super().changelist_view(request, extra_context)
 
     def changeform_view(self, request, object_id=None, form_url="", extra_context=None):
         if object_id:

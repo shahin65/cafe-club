@@ -94,15 +94,17 @@
     {% if last_round and last_round.is_final %}
       <div class="tournament-tool">
         <h2>{% trans "مشخص کردن نفرات برتر" %}</h2>
-        <form method="post">
+        <form method="post" data-winners-form>
           {% csrf_token %}
           <input type="hidden" name="action" value="set_winners">
+          {% if error %}<p class="wizard-error">{{ error }}</p>{% endif %}
+          <p class="wizard-error" data-winners-hint hidden></p>
           {% for field in prize_fields %}
             <label class="tournament-select">{{ field.label }} — {{ field.prize }}
               <select name="place_{{ field.index }}" required>
                 <option value="">{% trans "انتخاب کنید" %}</option>
                 {% for player in active_players %}
-                  <option value="{{ player.id }}">{{ player.name }}</option>
+                  <option value="{{ player.id }}"{% if field.selected == player.id|stringformat:"s" %} selected{% endif %}>{{ player.name }}</option>
                 {% endfor %}
               </select>
             </label>
@@ -130,4 +132,29 @@
       </button>
     </form>
   </section>
+{% endblock %}
+
+{% block extra_js %}
+  <script>
+    (function () {
+      var form = document.querySelector("[data-winners-form]");
+      if (!form) return;
+      var hint = form.querySelector("[data-winners-hint]");
+      var message = "{% trans 'نمی‌توان یک نفر را در دو رتبه ثبت کرد. نام تکراری را عوض کنید.' %}";
+      form.addEventListener("submit", function (event) {
+        var values = Array.prototype.map.call(form.querySelectorAll("select"), function (field) {
+          return field.value;
+        }).filter(Boolean);
+        var unique = new Set(values);
+        if (values.length && unique.size !== values.length) {
+          event.preventDefault();
+          if (hint) {
+            hint.hidden = false;
+            hint.textContent = message;
+            hint.scrollIntoView({ behavior: "smooth", block: "center" });
+          }
+        }
+      });
+    })();
+  </script>
 {% endblock %}

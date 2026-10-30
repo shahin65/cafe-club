@@ -84,6 +84,12 @@ SECURE_CONTENT_TYPE_NOSNIFF = True
 SESSION_COOKIE_NAME = "cafeclub_sessionid"
 CSRF_COOKIE_NAME = "cafeclub_csrftoken"
 
+GAPGPT_API_KEY = config_value("GAPGPT_API_KEY", "") or ""
+GAPGPT_BASE_URL = config_value("GAPGPT_BASE_URL", "") or ""
+GAPGPT_MODEL = config_value("GAPGPT_MODEL", "") or ""
+BALE_BOT_TOKEN = config_value("BALE_BOT_TOKEN", "") or ""
+BALE_ADMIN_CHAT_ID = str(config_value("BALE_ADMIN_CHAT_ID", "") or "")
+
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,

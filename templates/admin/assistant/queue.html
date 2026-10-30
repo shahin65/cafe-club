@@ -1,0 +1,50 @@
+{% extends "admin/assistant/base.html" %}
+
+{% block assistant %}
+<h1>{{ title }}</h1>
+<p><a class="button" href="{% url 'assistant_policy' scope %}">معیارهای این بخش</a></p>
+<form method="get" class="assistant-filters">
+  <select name="status">
+    <option value="">همه وضعیت‌ها</option>
+    {% for value, label in status_choices %}
+      <option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ label }}</option>
+    {% endfor %}
+  </select>
+  <button type="submit">فیلتر</button>
+</form>
+<table class="assistant-table">
+  <thead>
+    <tr>
+      <th>شناسه</th>
+      <th>وضعیت</th>
+      <th>تاریخ ثبت</th>
+      <th>خلاصه</th>
+      <th>پیشنهاد هوش مصنوعی</th>
+      <th>اطمینان</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for case in cases %}
+      <tr>
+        <td>{{ case.object_id }}</td>
+        <td>{{ case.get_status_display }}</td>
+        <td>{{ case.submitted_at }}</td>
+        <td>{{ case.title|truncatechars:80 }}</td>
+        <td>{{ case.get_ai_decision_display }}</td>
+        <td>{{ case.ai_confidence }}</td>
+        <td><a href="{% url 'assistant_case' case.pk %}">بررسی</a></td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="7">موردی نیست.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% if page.has_other_pages %}
+  <p>
+    {% if page.has_previous %}<a href="?status={{ status }}&page={{ page.previous_page_number }}">قبلی</a>{% endif %}
+    صفحه {{ page.number }} از {{ page.paginator.num_pages }}
+    {% if page.has_next %}<a href="?status={{ status }}&page={{ page.next_page_number }}">بعدی</a>{% endif %}
+  </p>
+{% endif %}
+{% endblock %}

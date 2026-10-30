@@ -143,7 +143,9 @@ class ScenarioRulesTests(TestCase):
         named = self.client.get("/scenarios/", {"sort": "name"})
         self.assertLess(named.content.decode().find("آلفا"), named.content.decode().find("بتا"))
         mode = self.client.get(f"/deal/{extra.id}/", follow=True)
-        self.assertContains(mode, "اضافه به صفحه اصلی")
+        self.assertNotContains(mode, "اضافه به صفحه اصلی")
+        catalog_pin = self.client.get("/scenarios/", {"q": "هفتم"})
+        self.assertContains(catalog_pin, "اضافه به صفحه اصلی")
         dropped = Scenario.objects.get(name="سناریو 0")
         pinned = self.client.post(
             "/scenarios/pin/replace/",
@@ -258,6 +260,13 @@ class RoleDealTests(TestCase):
         self.assertContains(response, "Card-Background.webp")
         self.assertContains(response, "Logo.png")
         self.assertContains(response, "مدیریت بازی")
+        self.assertContains(response, "Icon-Home.png")
+        self.assertContains(response, "Icon-Refresh.png")
+        self.assertContains(response, "آیا از تقسیم نقش منصرف شدید؟")
+        self.assertContains(response, "آیا قصد تقسیم نقش مجدد دارید؟")
+        self.assertContains(response, "data-deal-play")
+        self.assertNotContains(response, "Icon-Advertisement.png")
+        self.assertNotContains(response, "Icon-Location.png")
         self.assertNotContains(response, "برای دیدن نقش، شماره را لمس کنید.")
         deal = self.client.session["role_deal"]
         role_ids = list(scenario.sizes.get(player_count=2).roles.values_list("id", flat=True))
@@ -326,6 +335,10 @@ class HostToolsTests(TestCase):
         self.assertContains(response, "نظر کاربران")
         self.assertContains(response, "تقسیم نقش مجدد")
         self.assertContains(response, 'href="/deal/restart/"')
+        self.assertContains(response, "دفترچه یادداشت")
+        self.assertContains(response, "Icon-List.png")
+        self.assertContains(response, "host-sheet")
+        self.assertContains(response, "places-frost")
         self.assertContains(response, "data-rename")
         self.assertContains(response, "music-player.js?v=7")
         self.assertContains(response, f'href="{iri_to_uri(scenario.get_rulebook_url())}"')
@@ -601,7 +614,7 @@ class CustomScenarioTests(TestCase):
 class CardLogoTests(TestCase):
     def test_preset_logo_is_used_on_final_move_card_back(self):
         scenario = make_complete_scenario()
-        self.assertRedirects(self.client.post("/settings/logo/", {"preset": "win"}), "/")
+        self.assertRedirects(self.client.post("/settings/logo/", {"preset": "win"}), "/?logo=1")
         finish_two_player_deal(self.client, scenario)
         card = self.client.get("/deal/final/1/")
         self.assertContains(card, "Logo-Win.jpg")
@@ -630,8 +643,23 @@ class CardLogoTests(TestCase):
             "/settings/logo/",
             {"logo": SimpleUploadedFile("cafe.png", buffer.getvalue(), content_type="image/png")},
         )
-        self.assertRedirects(response, "/")
+        self.assertRedirects(response, "/?logo=1")
         self.assertTrue(CardBranding.objects.get(user=user).image)
+        home = self.client.get("/")
+        self.assertContains(home, "/media/card_logos/")
+        self.assertContains(home, "لوگوی من")
+        self.assertContains(home, 'name="preset" value="custom"')
+        self.assertContains(home, "is-selected")
+        self.client.post("/settings/logo/", {"preset": "win"})
+        branding = CardBranding.objects.get(user=user)
+        self.assertTrue(branding.image)
+        self.assertEqual(branding.preset, "win")
+        listed = self.client.get("/")
+        self.assertContains(listed, "لوگوی من")
+        self.assertContains(listed, "Logo-Win.jpg")
+        self.client.post("/settings/logo/", {"preset": "custom"})
+        branding.refresh_from_db()
+        self.assertEqual(branding.preset, "")
         scenario = make_complete_scenario()
         finish_two_player_deal(self.client, scenario)
         card = self.client.get("/deal/final/1/")
@@ -842,6 +870,8 @@ class LargeScenarioDealTests(TestCase):
         self.assertContains(start, "تعداد بازیکن")
         self.assertContains(start, "گرگینه")
         self.assertContains(start, "روستا")
+        self.assertContains(start, "count-stepper")
+        self.assertContains(start, "data-count-step")
         counts = self.client.post(
             f"/large/{scenario.id}/",
             {"player_count": "5", "werewolf_count": "2", "village_count": "2", "independent_count": "1"},

@@ -9,11 +9,19 @@
     });
   }
 
-  openButton.addEventListener("click", function () {
-    showPanel("menu");
+  function openSettings(panel) {
+    showPanel(panel || "menu");
     if (dialog.showModal) dialog.showModal();
     else dialog.setAttribute("open", "open");
+  }
+
+  openButton.addEventListener("click", function () {
+    openSettings("menu");
   });
+
+  if (new URLSearchParams(window.location.search).get("logo") === "1") {
+    openSettings("logo");
+  }
 
   dialog.addEventListener("click", function (event) {
     if (event.target === dialog && dialog.close) dialog.close();

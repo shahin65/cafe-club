@@ -54,6 +54,44 @@ a {
     color: inherit;
 }
 
+body[data-deal-play] .app-bar {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.deal-chrome-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    direction: ltr;
+}
+
+.deal-chrome-btn {
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    background: rgba(10, 12, 18, 0.72);
+    border: 1px solid rgba(230, 194, 122, 0.32);
+    text-decoration: none;
+}
+
+.deal-chrome-btn img {
+    width: 26px;
+    height: 26px;
+    object-fit: contain;
+    display: block;
+    filter: drop-shadow(0 0 6px rgba(212, 180, 131, 0.35));
+}
+
+body[data-deal-play] main {
+    padding-bottom: 16px;
+}
+
+body[data-deal-play] .tab-bar {
+    display: none;
+}
+
 .app-bar {
     position: sticky;
     top: 0;
@@ -1285,6 +1323,20 @@ h1, h2 {
     font-size: 0.9rem;
 }
 
+.card-actions {
+    flex: none;
+    display: grid;
+    place-items: center;
+    min-height: 52px;
+    width: min(78vw, 260px);
+}
+
+.card-actions .choice {
+    width: 100%;
+    min-height: 48px;
+    margin: 0;
+}
+
 .role-note {
     max-width: min(92vw, 420px);
     padding: 18px;
@@ -1317,14 +1369,8 @@ h1, h2 {
     background: rgba(12, 12, 16, 0.94);
 }
 
-.card-sheet.is-finished {
-    --deal-meta: 12.5rem;
-    overflow: visible;
-}
-
-.card-sheet.is-finished .card-scene {
-    flex: 0 1 auto;
-    width: min(72vw, 280px, calc((100dvh - var(--deal-chrome) - var(--deal-meta)) * 2 / 3));
+body[data-deal-play] .card-sheet {
+    --deal-chrome: calc(56px + 32px + env(safe-area-inset-bottom, 0px));
 }
 
 .host-back {
@@ -2066,10 +2112,8 @@ dialog.settings-dialog:not([open]) {
         min-height: 0;
     }
 
-    .card-sheet.is-finished {
-        --deal-meta: 11.5rem;
-        height: auto;
-        max-height: none;
+    body[data-deal-play] .card-sheet {
+        --deal-chrome: calc(56px + 32px + env(safe-area-inset-bottom, 0px));
     }
 
     .ad-chip-grid,
@@ -2433,6 +2477,87 @@ html[dir="rtl"] .places-frost select {
     border-radius: 16px;
 }
 
+.host-sheet {
+    display: grid;
+    gap: 14px;
+    padding: 16px 14px 20px;
+}
+
+.host-sheet > p {
+    margin: 0;
+}
+
+.host-sheet .turn-timer,
+.host-sheet .music-player,
+.host-sheet .host-notes,
+.host-sheet .choice {
+    background: rgba(10, 12, 18, 0.78);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(230, 194, 122, 0.28);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+}
+
+.host-sheet .turn-timers-bar {
+    padding: 8px 4px;
+}
+
+.host-sheet .timer-step,
+.host-sheet .timer-run,
+.host-sheet .phase-toggle,
+.host-sheet .music-add,
+.host-sheet .music-play,
+.host-sheet .music-track,
+.host-sheet .music-rename,
+.host-sheet .music-remove {
+    background: rgba(8, 10, 16, 0.62);
+    border: 1px solid rgba(230, 194, 122, 0.28);
+    color: #f4f0e8;
+}
+
+.host-sheet .music-list {
+    max-height: 220px;
+    overflow: auto;
+    padding-inline-end: 4px;
+    scrollbar-width: thin;
+    scrollbar-color: #d4b483 rgba(8, 10, 16, 0.85);
+}
+
+.host-sheet .music-list::-webkit-scrollbar {
+    width: 8px;
+}
+
+.host-sheet .music-list::-webkit-scrollbar-track {
+    background: rgba(8, 10, 16, 0.9);
+    border-radius: 999px;
+}
+
+.host-sheet .music-list::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #e0c48a, #a88452);
+    border-radius: 999px;
+}
+
+.host-notes-sheet {
+    max-width: min(92vw, 420px);
+}
+
+.host-notes-sheet textarea {
+    width: 100%;
+    min-height: 180px;
+    resize: vertical;
+    font: inherit;
+    color: #f4f0e8;
+    border: 1px solid rgba(230, 194, 122, 0.42);
+    background-color: #161822;
+    border-radius: 12px;
+    padding: 10px 12px;
+}
+
+.host-notes-label {
+    display: block;
+    margin: 10px 0 14px;
+}
+
 .venue-card {
     background: rgba(0, 0, 0, 0.58);
     border: 1px solid rgba(255, 255, 255, 0.08);
@@ -2560,6 +2685,22 @@ dialog.photo-sheet:not([open]) {
 .photo-sheet button {
     width: 100%;
     margin-top: 10px;
+}
+
+.photo-sheet .choice,
+.nav-sheet .choice,
+.call-sheet .choice {
+    justify-content: center;
+    background: rgba(10, 12, 18, 0.82);
+    border: 1px solid rgba(230, 194, 122, 0.38);
+    color: #f4f0e8;
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.28);
+}
+
+.photo-sheet .choice img,
+.nav-sheet .choice img {
+    width: 22px;
+    height: 22px;
 }
 
 .call-number {
@@ -3293,6 +3434,16 @@ button.ad-chip {
     border-radius: 20px;
 }
 
+.count-field {
+    display: grid;
+    gap: 8px;
+}
+
+.count-field-label {
+    color: #f4f0e8;
+    font-weight: 600;
+}
+
 .tournament-tool {
     display: grid;
     gap: 10px;
@@ -3357,6 +3508,63 @@ button.ad-chip {
     height: 28px;
     margin-inline: 4px;
     filter: sepia(1) saturate(3) hue-rotate(2deg) brightness(1.05);
+}
+
+.count-stepper {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 8px;
+    direction: ltr;
+}
+
+.count-step {
+    flex: none;
+    width: 48px;
+    min-width: 48px;
+    height: 48px;
+    padding: 0;
+    border-radius: 14px;
+    border: 1px solid rgba(244, 224, 180, 0.55);
+    background: linear-gradient(180deg, #e0c48a, #b48a4a);
+    color: #1a140c;
+    font: inherit;
+    font-size: 1.6rem;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.28);
+}
+
+.count-step:active {
+    background: linear-gradient(180deg, #c9ad72, #9a733c);
+}
+
+.tournament-frost .count-step-value,
+.wizard-form .count-step-value {
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+    text-align: center;
+    font-size: 1.15rem;
+    font-weight: 700;
+    appearance: textfield;
+    -moz-appearance: textfield;
+    padding-inline: 8px;
+}
+
+.tournament-frost .count-step-value::-webkit-outer-spin-button,
+.tournament-frost .count-step-value::-webkit-inner-spin-button,
+.wizard-form .count-step-value::-webkit-outer-spin-button,
+.wizard-form .count-step-value::-webkit-inner-spin-button {
+    -webkit-appearance: none !important;
+    display: none;
+    width: 0;
+    height: 0;
+    margin: 0;
+    opacity: 0;
+    filter: none;
 }
 
 .tournament-frost select {
@@ -3513,7 +3721,10 @@ button.choice.tournament-end,
 .tournament-share-kicker {
     margin: 0 0 6px;
     color: var(--gold);
-    letter-spacing: 0.08em;
+    letter-spacing: 0;
+    font-family: Vazirmatn, Tahoma, sans-serif;
+    unicode-bidi: isolate;
+    direction: rtl;
 }
 
 .tournament-share-board h1 {
@@ -3562,6 +3773,18 @@ button.choice.tournament-end,
     display: inline-flex;
     align-items: center;
     gap: 6px;
+    min-width: 0;
+}
+
+.tournament-name,
+.tournament-name bdi {
+    display: inline-block;
+    max-width: 100%;
+    unicode-bidi: isolate;
+    direction: rtl;
+    letter-spacing: 0;
+    overflow-wrap: anywhere;
+    line-height: 1.5;
 }
 
 .tournament-card-share {

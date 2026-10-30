@@ -1,0 +1,22 @@
+{% extends "admin/assistant/base.html" %}
+
+{% block assistant %}
+<h1>تنظیمات دستیار هوش مصنوعی</h1>
+<form method="post">
+  {% csrf_token %}
+  <p>
+    <label><input type="checkbox" name="auto_paused" {% if config.auto_paused %}checked{% endif %}> توقف تمام اقدامات خودکار</label>
+  </p>
+  <p>
+    <label>یادداشت داخلی مدیر (بدون توکن یا کلید)</label>
+    <textarea name="notes" rows="4">{{ config.notes }}</textarea>
+  </p>
+  <button type="submit">ذخیره</button>
+</form>
+<h2>اتصال سرویس‌ها</h2>
+<ul>
+  <li>هوش مصنوعی: {% if gapgpt_ok %}پیکربندی شده{% else %}نیاز به تنظیم GAPGPT_API_KEY، GAPGPT_BASE_URL و GAPGPT_MODEL روی سرور{% endif %}</li>
+  <li>بات بله: {% if bale_ok %}پیکربندی شده{% else %}نیاز به تنظیم BALE_BOT_TOKEN و BALE_ADMIN_CHAT_ID روی سرور{% endif %}</li>
+</ul>
+<p>توکن و کلید در این پنل نمایش داده نمی‌شود.</p>
+{% endblock %}

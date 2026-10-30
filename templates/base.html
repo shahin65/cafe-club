@@ -20,13 +20,24 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Lalezar&family=Vazirmatn:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{% static 'css/site.css' %}?v=62">
+  <link rel="stylesheet" href="{% static 'css/site.css' %}?v=66">
 </head>
-<body{% if role_deal_active %} data-deal-active="1" data-deal-cancel="{% url 'deal_cancel' %}"{% endif %}>
+<body{% if role_deal_active %} data-deal-active="1" data-deal-cancel="{% url 'deal_cancel' %}"{% endif %}{% if deal_play_chrome %} data-deal-play="1"{% endif %}>
   <header class="app-bar">
+    {% if deal_play_chrome %}
+      <div class="deal-chrome-actions">
+        <a class="deal-chrome-btn deal-safe" href="{% url 'deal_cancel' %}" data-deal-home aria-label="{% trans 'خانه' %}">
+          <img src="{% static 'Icon-Home.png' %}" alt="" width="28" height="28">
+        </a>
+        <a class="deal-chrome-btn deal-safe" href="{% url 'deal_restart' %}" data-deal-refresh aria-label="{% trans 'تازه‌سازی' %}">
+          <img src="{% static 'Icon-Refresh.png' %}" alt="" width="28" height="28">
+        </a>
+      </div>
+    {% else %}
     <a class="app-settings" href="{% url 'app_settings' %}" aria-label="{% trans 'تنظیمات' %}">
       <img src="{% static 'Icon-Settings1.png' %}" alt="" width="32" height="32">
     </a>
+    {% endif %}
     <a class="app-name" href="{% url 'home' %}">{% trans "کافه کلاب" %}</a>
     <a class="profile-button" href="{% url 'profile' %}">
       <img src="{% if club_profile and club_profile.photo %}{{ club_profile.photo.url }}{% else %}{% static 'Icon-profile.png' %}{% endif %}" alt="" width="36" height="36">
@@ -42,7 +53,9 @@
     {% block content %}{% endblock %}
   </main>
   {% block tab_bar %}
-    {% include "_default_tabs.html" %}
+    {% if not deal_play_chrome %}
+      {% include "_default_tabs.html" %}
+    {% endif %}
   {% endblock %}
   {% block extra_js %}{% endblock %}
   <dialog class="nav-sheet call-sheet" data-call-sheet>
@@ -51,30 +64,76 @@
       <p>{% trans "آیا می‌خواهید با این شماره تماس بگیرید؟" %}</p>
       <p class="call-number" data-call-display dir="ltr"></p>
       <div class="nav-apps">
-        <button class="choice" type="button" data-call-confirm>{% trans "تماس" %}</button>
-        <button type="submit">{% trans "انصراف" %}</button>
+        <button class="choice tournament-btn" type="button" data-call-confirm>{% trans "تماس" %}</button>
+        <button class="choice tournament-btn" type="submit">{% trans "انصراف" %}</button>
+      </div>
+    </form>
+  </dialog>
+  <dialog class="nav-sheet deal-confirm-sheet" data-deal-home-sheet>
+    <form method="dialog">
+      <h2>{% trans "خانه" %}</h2>
+      <p>{% trans "آیا از تقسیم نقش منصرف شدید؟" %}</p>
+      <div class="nav-apps">
+        <button class="choice tournament-btn" value="yes" type="submit">{% trans "بله" %}</button>
+        <button class="choice tournament-btn" value="no" type="submit">{% trans "انصراف" %}</button>
+      </div>
+    </form>
+  </dialog>
+  <dialog class="nav-sheet deal-confirm-sheet" data-deal-refresh-sheet>
+    <form method="dialog">
+      <h2>{% trans "تازه‌سازی" %}</h2>
+      <p>{% trans "آیا قصد تقسیم نقش مجدد دارید؟" %}</p>
+      <div class="nav-apps">
+        <button class="choice tournament-btn" value="yes" type="submit">{% trans "بله" %}</button>
+        <button class="choice tournament-btn" value="no" type="submit">{% trans "انصراف" %}</button>
       </div>
     </form>
   </dialog>
   <script src="{% static 'js/call.js' %}?v=1"></script>
   <script src="{% static 'js/pwa.js' %}?v=2"></script>
   <script>
-    if (document.body.dataset.dealActive) {
-      var leaveMessage = "با بستن این صفحه تقسیم نقش لغو می‌شود. آیا می‌خواهید به خانه برگردید؟";
-      var cancelUrl = document.body.dataset.dealCancel;
-      history.replaceState({dealGuard: 1}, "", location.href);
-      history.pushState({dealGuard: 1}, "", location.href);
-      window.addEventListener("popstate", function () {
-        if (window.confirm(leaveMessage)) {
-          window.location.replace(cancelUrl);
-        } else {
-          history.pushState({dealGuard: 1}, "", location.href);
+    (function () {
+      var pendingDealHref = "";
+      var homeSheet = document.querySelector("[data-deal-home-sheet]");
+      var refreshSheet = document.querySelector("[data-deal-refresh-sheet]");
+      function openDealSheet(sheet, href) {
+        pendingDealHref = href;
+        if (sheet && sheet.showModal) {
+          sheet.returnValue = "no";
+          sheet.showModal();
+        } else if (window.confirm(sheet ? sheet.querySelector("p").textContent : "")) {
+          window.location.replace(href);
         }
-      });
+      }
+      if (homeSheet) {
+        homeSheet.addEventListener("close", function () {
+          if (homeSheet.returnValue === "yes" && pendingDealHref) window.location.replace(pendingDealHref);
+          pendingDealHref = "";
+        });
+      }
+      if (refreshSheet) {
+        refreshSheet.addEventListener("close", function () {
+          if (refreshSheet.returnValue === "yes" && pendingDealHref) window.location.replace(pendingDealHref);
+          pendingDealHref = "";
+        });
+      }
       document.addEventListener("click", function (event) {
+        var home = event.target.closest("[data-deal-home]");
+        if (home) {
+          event.preventDefault();
+          openDealSheet(homeSheet, home.getAttribute("href"));
+          return;
+        }
+        var refresh = event.target.closest("[data-deal-refresh], a.deal-restart");
+        if (refresh) {
+          event.preventDefault();
+          openDealSheet(refreshSheet, refresh.getAttribute("href"));
+          return;
+        }
+        if (!document.body.dataset.dealActive) return;
         var link = event.target.closest("a");
         if (!link || link.target === "_blank") return;
-        if (link.classList.contains("deal-next") || link.classList.contains("deal-host") || link.classList.contains("deal-restart")) {
+        if (link.classList.contains("deal-next") || link.classList.contains("deal-host")) {
           event.preventDefault();
           window.location.replace(link.href);
           return;
@@ -82,9 +141,18 @@
         if (link.classList.contains("deal-safe")) return;
         if (link.origin !== location.origin) return;
         event.preventDefault();
-        if (window.confirm(leaveMessage)) window.location.replace(cancelUrl);
+        openDealSheet(homeSheet, document.body.dataset.dealCancel);
       });
-    }
+      if (document.body.dataset.dealActive) {
+        var cancelUrl = document.body.dataset.dealCancel;
+        history.replaceState({dealGuard: 1}, "", location.href);
+        history.pushState({dealGuard: 1}, "", location.href);
+        window.addEventListener("popstate", function () {
+          openDealSheet(homeSheet, cancelUrl);
+          history.pushState({dealGuard: 1}, "", location.href);
+        });
+      }
+    })();
   </script>
 </body>
 </html>

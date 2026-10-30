@@ -721,6 +721,10 @@ class EventAdTests(TestCase):
         self.assertContains(dashboard, "admin-alarm-count")
         board = self.client.get("/admin/banners/eventad/")
         self.assertContains(board, "شب مافیا")
+        ad.refresh_from_db()
+        self.assertFalse(ad.is_new)
+        reviewed = self.client.get("/admin/")
+        self.assertNotContains(reviewed, "آگهی جدید")
         unpublished = self.client.post(
             "/admin/banners/eventad/",
             {
@@ -970,6 +974,8 @@ class TournamentTests(TestCase):
         groups = self.client.get(f"/tournament/{tournament.id}/round/1/groups/")
         self.assertContains(groups, "گروه")
         self.assertContains(groups, "صندلی")
+        self.assertContains(groups, "tournament-name")
+        self.assertContains(groups, "<bdi dir=\"auto\">")
         self.assertContains(groups, "ذخیره")
         self.assertContains(groups, "Icon-Share.png")
         self.assertContains(groups, "data-share-target")
@@ -1005,6 +1011,12 @@ class TournamentTests(TestCase):
         manage = self.client.get(f"/tournament/{tournament.id}/")
         self.assertContains(manage, "مشخص کردن نفرات برتر")
         finalists = list(tournament.active_players())
+        duplicate = self.client.post(
+            f"/tournament/{tournament.id}/",
+            {"action": "set_winners", "place_0": str(finalists[0].id), "place_1": str(finalists[0].id)},
+        )
+        self.assertContains(duplicate, "نمی‌توان یک نفر را در دو رتبه ثبت کرد")
+        self.assertContains(duplicate, "نام تکراری")
         winners = self.client.post(
             f"/tournament/{tournament.id}/",
             {"action": "set_winners", "place_0": str(finalists[0].id), "place_1": str(finalists[1].id)},

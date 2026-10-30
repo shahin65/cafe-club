@@ -105,7 +105,7 @@
     <dialog class="photo-sheet" data-photo-sheet>
       <form method="dialog">
         <img data-photo-view alt="" hidden>
-        <button type="submit">{% trans "بستن" %}</button>
+        <button class="choice tournament-btn" type="submit">{% trans "بستن" %}</button>
       </form>
     </dialog>
     <dialog class="nav-sheet" data-nav-sheet>
@@ -117,7 +117,7 @@
             <a class="choice" href="{{ link.url }}" target="_blank" rel="noopener">{{ link.label }}</a>
           {% endfor %}
         </div>
-        <button type="submit">{% trans "بستن" %}</button>
+        <button class="choice tournament-btn" type="submit">{% trans "بستن" %}</button>
       </form>
     </dialog>
   </article>

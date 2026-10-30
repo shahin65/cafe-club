@@ -17,7 +17,20 @@
 
   function capture(board) {
     if (!board || typeof html2canvas !== "function") return Promise.reject(new Error("html2canvas"));
-    return html2canvas(board, { backgroundColor: "#12141c", scale: 2, useCORS: true });
+    return html2canvas(board, {
+      backgroundColor: "#12141c",
+      scale: 2,
+      useCORS: true,
+      onclone: function (doc) {
+        var clone = doc.getElementById(board.id) || doc.querySelector("[data-share-board]");
+        if (!clone) return;
+        clone.querySelectorAll(".tournament-share-kicker, .tournament-name, bdi").forEach(function (el) {
+          el.style.letterSpacing = "0px";
+          el.style.unicodeBidi = "isolate";
+          el.style.direction = "rtl";
+        });
+      }
+    });
   }
 
   function fileNameFor(board) {

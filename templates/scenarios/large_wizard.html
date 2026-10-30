@@ -20,7 +20,14 @@
         {% if side %}<input type="hidden" name="side" value="{{ side }}">{% endif %}
         {% if mode == "counts" %}
           {% for field in fields %}
-            <label>{{ field.label }}<input type="number" name="{{ field.field }}" min="{{ field.min }}" max="{{ field.max }}" value="{{ field.value }}" required></label>
+            <div class="count-field">
+              <span class="count-field-label">{{ field.label }}</span>
+              <div class="count-stepper">
+                <button class="count-step" type="button" data-count-step="-1" aria-label="{% trans 'کم کردن' %}">−</button>
+                <input class="count-step-value" type="number" name="{{ field.field }}" min="{{ field.min }}" max="{{ field.max }}" value="{{ field.value }}" required inputmode="numeric">
+                <button class="count-step" type="button" data-count-step="1" aria-label="{% trans 'زیاد کردن' %}">+</button>
+              </div>
+            </div>
           {% endfor %}
         {% elif mode == "roles" %}
           <p>{% trans "باید" %} {{ needed }} {% trans "نقش انتخاب شود." %}</p>
@@ -69,4 +76,24 @@
       </form>
     {% endif %}
   </section>
+  <script>
+    (function () {
+      document.querySelectorAll(".count-step").forEach(function (button) {
+        button.addEventListener("click", function () {
+          var wrap = button.closest(".count-stepper");
+          var input = wrap && wrap.querySelector(".count-step-value");
+          if (!input) return;
+          var min = parseInt(input.min, 10);
+          var max = parseInt(input.max, 10);
+          var step = parseInt(button.getAttribute("data-count-step"), 10) || 0;
+          var value = parseInt(input.value, 10);
+          if (isNaN(value)) value = isNaN(min) ? 0 : min;
+          value += step;
+          if (!isNaN(min)) value = Math.max(min, value);
+          if (!isNaN(max)) value = Math.min(max, value);
+          input.value = value;
+        });
+      });
+    })();
+  </script>
 {% endblock %}

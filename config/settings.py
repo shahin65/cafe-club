@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     "django.contrib.sitemaps",
     "banners.apps.BannersConfig",
     "scenarios.apps.ScenariosConfig",
+    "assistant.apps.AssistantAppConfig",
 ]
 
 MIDDLEWARE = [
@@ -133,3 +134,8 @@ EMAIL_BACKEND = os.environ.get(
 GOOGLE_OAUTH_CLIENT_ID = os.environ.get("GOOGLE_OAUTH_CLIENT_ID", "")
 GOOGLE_OAUTH_CLIENT_SECRET = os.environ.get("GOOGLE_OAUTH_CLIENT_SECRET", "")
 GOOGLE_OAUTH_REDIRECT_URI = os.environ.get("GOOGLE_OAUTH_REDIRECT_URI", "")
+GAPGPT_API_KEY = os.environ.get("GAPGPT_API_KEY", "")
+GAPGPT_BASE_URL = os.environ.get("GAPGPT_BASE_URL", "")
+GAPGPT_MODEL = os.environ.get("GAPGPT_MODEL", "")
+BALE_BOT_TOKEN = os.environ.get("BALE_BOT_TOKEN", "")
+BALE_ADMIN_CHAT_ID = os.environ.get("BALE_ADMIN_CHAT_ID", "")
