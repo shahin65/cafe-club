@@ -2016,6 +2016,9 @@ dialog.settings-dialog:not([open]) {
 .profile-sheet {
     display: grid;
     gap: 18px;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
     padding: 16px 14px 20px;
     border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: 20px;
@@ -2024,6 +2027,57 @@ dialog.settings-dialog:not([open]) {
     -webkit-backdrop-filter: blur(14px);
     box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
     color: #f4f0e8;
+    overflow-x: hidden;
+}
+
+.profile-sheet .wizard-form,
+.profile-sheet .wizard-form label,
+.profile-sheet .gmail-box,
+.profile-sheet .verified-tools,
+.profile-sheet .blue-tick-request,
+.profile-sheet .my-ads-history {
+    min-width: 0;
+    max-width: 100%;
+}
+
+.profile-sheet .wizard-form input[type="text"],
+.profile-sheet .wizard-form input[type="tel"],
+.profile-sheet .wizard-form input[type="file"],
+.profile-sheet .wizard-form textarea,
+.profile-sheet .choice {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+.profile-sheet .gmail-box h2,
+.profile-sheet .profile-hero,
+.profile-sheet .profile-hero > div,
+.profile-sheet .profile-hero h1 {
+    min-width: 0;
+    max-width: 100%;
+}
+
+.profile-sheet .gmail-box h2 {
+    flex-wrap: wrap;
+    overflow-wrap: anywhere;
+}
+
+.profile-sheet .profile-hero h1 {
+    overflow-wrap: anywhere;
+}
+
+.profile-sheet .gmail-button {
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 12px;
+    white-space: normal;
+}
+
+.profile-sheet .gmail-button span {
+    min-width: 0;
+    overflow-wrap: anywhere;
 }
 
 .profile-hero {
@@ -2043,6 +2097,7 @@ dialog.settings-dialog:not([open]) {
 .profile-hero h1 {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: 8px;
     margin: 0 0 4px;
 }
@@ -2056,6 +2111,7 @@ dialog.settings-dialog:not([open]) {
 .profile-id strong {
     color: var(--gold);
     letter-spacing: 0.08em;
+    overflow-wrap: anywhere;
 }
 
 .gmail-box,
@@ -2216,6 +2272,7 @@ dialog.settings-dialog:not([open]) {
     font-weight: 600;
     font-size: 0.92rem;
     text-decoration: none;
+    white-space: nowrap;
 }
 
 .places-add-btn span {
@@ -2398,6 +2455,15 @@ dialog.settings-dialog:not([open]) {
 .place-card span {
     color: var(--muted);
     font-size: 0.88rem;
+}
+
+.place-card .ad-ladder-badge {
+    color: #2a1c10;
+    font-size: 0.78rem;
+}
+
+.place-card .ad-ladder-badge.is-silver {
+    color: #1c242c;
 }
 
 .place-stats {

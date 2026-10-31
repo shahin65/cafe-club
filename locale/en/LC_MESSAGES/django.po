@@ -25,6 +25,9 @@ msgstr "Where to?"
 msgid "ثبت کافه یا کلاب من"
 msgstr "List my cafe or club"
 
+msgid "ثبت کلاب من"
+msgstr "List my club"
+
 msgid "نام کلاب"
 msgstr "Club name"
 

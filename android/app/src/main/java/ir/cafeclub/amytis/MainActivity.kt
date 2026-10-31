@@ -5,8 +5,12 @@ import android.content.Context
 import android.content.Intent
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
+import android.net.Uri
 import android.os.Bundle
+import android.view.View
 import android.webkit.JavascriptInterface
+import android.webkit.ValueCallback
+import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
@@ -14,11 +18,16 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import org.json.JSONObject
 
 class MainActivity : AppCompatActivity() {
     private lateinit var webView: WebView
     private lateinit var storeBilling: StoreBilling
+    private lateinit var fileChooser: WebFileChooser
     private var lastUrl: String = BuildConfig.START_URL
     private var showingOffline = false
 
@@ -31,8 +40,10 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+        configureFullscreen()
         lastUrl = prefs.getString(KEY_LAST_URL, BuildConfig.START_URL) ?: BuildConfig.START_URL
         webView = findViewById(R.id.web_view)
+        fileChooser = WebFileChooser(this)
         storeBilling = StoreBilling(this) { token, error ->
             deliverPurchase(token, error)
         }
@@ -57,6 +68,13 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun configureWebView() {
+        webView.webChromeClient = object : WebChromeClient() {
+            override fun onShowFileChooser(
+                view: WebView,
+                callback: ValueCallback<Array<Uri>>,
+                params: FileChooserParams,
+            ): Boolean = fileChooser.show(callback, params)
+        }
         webView.settings.javaScriptEnabled = true
         webView.settings.domStorageEnabled = true
         webView.settings.databaseEnabled = true
@@ -103,6 +121,36 @@ class MainActivity : AppCompatActivity() {
         return if (prefs.getBoolean(KEY_SOURCE_BOUND, false)) lastUrl else BuildConfig.START_URL
     }
 
+    private fun configureFullscreen() {
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        val root = findViewById<View>(R.id.root_container)
+        ViewCompat.setOnApplyWindowInsetsListener(root) { view, insets ->
+            val cutout = insets.getInsets(WindowInsetsCompat.Type.displayCutout())
+            val keyboard = insets.getInsets(WindowInsetsCompat.Type.ime())
+            view.setPadding(cutout.left, cutout.top, cutout.right, maxOf(cutout.bottom, keyboard.bottom))
+            insets
+        }
+        ViewCompat.requestApplyInsets(root)
+        hideSystemBars()
+    }
+
+    private fun hideSystemBars() {
+        WindowCompat.getInsetsController(window, window.decorView).apply {
+            systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            hide(WindowInsetsCompat.Type.systemBars())
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        hideSystemBars()
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) hideSystemBars()
+    }
+
     private fun loadSite(url: String) {
         showingOffline = false
         webView.loadUrl(url, extraHeaders)
@@ -146,6 +194,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        if (::fileChooser.isInitialized) {
+            fileChooser.cancel()
+        }
         if (::storeBilling.isInitialized) {
             storeBilling.destroy()
         }

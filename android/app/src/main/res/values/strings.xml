@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">کافه کلاب</string>
+    <string name="select_upload_file">انتخاب فایل یا گرفتن عکس</string>
+    <string name="file_chooser_unavailable">انتخاب فایل باز نشد. لطفاً دوباره تلاش کنید.</string>
 </resources>
