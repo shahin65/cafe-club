@@ -22,6 +22,7 @@ urlpatterns = [
     ),
     path("account/logout/", LogoutView.as_view(), name="logout"),
     path("account/register/", auth_views.register, name="register"),
+    path("account/username/available/", auth_views.username_available, name="username_available"),
     path("account/username/", auth_views.save_username, name="save_username"),
     path("account/profile/", profile_views.profile_page, name="profile"),
     path("account/gmail/send/", profile_views.send_gmail_code, name="gmail_send"),

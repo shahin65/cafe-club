@@ -1,13 +1,28 @@
-from collections import Counter
+import os
+from collections import Counter, defaultdict
 
 from django import forms
 from django.contrib import admin, messages
 from django.core.exceptions import ValidationError
+from django.core.files.base import ContentFile
+from django.db.models import Q
 from django.forms.models import BaseInlineFormSet, inlineformset_factory
 from django.utils.html import format_html, format_html_join
 
-from .models import SIDE_FIELDS, CardBranding, CatalogFinalCard, CatalogRole, FinalMoveCard, Role, Scenario, ScenarioComment, ScenarioSize
-from .widgets import PageHtmlWidget
+from .models import (
+    KIND_SIDES,
+    SIDE_CHOICES,
+    SIDE_FIELDS,
+    CardBranding,
+    CatalogFinalCard,
+    CatalogRole,
+    FinalMoveCard,
+    Role,
+    Scenario,
+    ScenarioComment,
+    ScenarioSize,
+)
+from .widgets import ClearableAdminImageWidget, PageHtmlWidget
 
 SIDE_LABELS = dict(Role._meta.get_field("side").choices)
 
@@ -44,6 +59,124 @@ def _posted_count(formset, field):
         except (TypeError, ValueError):
             return 0
     return int(getattr(formset.instance, field, 0) or 0)
+
+
+def _copy_image(src_file, dest, field_name):
+    if not src_file:
+        return
+    src_file.open("rb")
+    try:
+        content = src_file.read()
+    finally:
+        src_file.close()
+    getattr(dest, field_name).save(os.path.basename(src_file.name), ContentFile(content), save=True)
+
+
+def _source_size_for(size, player_count=None):
+    scenario_id = getattr(size, "scenario_id", None)
+    if not scenario_id:
+        return None
+    count = player_count if player_count is not None else size.player_count
+    qs = ScenarioSize.objects.filter(scenario_id=scenario_id)
+    if size.pk:
+        qs = qs.exclude(pk=size.pk)
+    smaller = qs.filter(player_count__lt=count).order_by("-player_count").first()
+    if smaller:
+        return smaller
+    return qs.order_by("player_count").first()
+
+
+def _source_size_for_formset(formset):
+    size = formset.instance
+    parent = _parent_prefix(formset.prefix)
+    raw_scenario = (formset.data or {}).get(f"{parent}-scenario" if parent else "scenario")
+    if raw_scenario and not getattr(size, "scenario_id", None):
+        try:
+            size.scenario_id = int(raw_scenario)
+        except (TypeError, ValueError):
+            pass
+    return _source_size_for(size, player_count=_posted_count(formset, "player_count"))
+
+
+def inherit_size_content(size):
+    source = _source_size_for(size)
+    if not source:
+        return
+    dest_roles = defaultdict(list)
+    for role in size.roles.order_by("id"):
+        dest_roles[role.side].append(role)
+    src_roles = defaultdict(list)
+    for role in source.roles.order_by("id"):
+        src_roles[role.side].append(role)
+    for side, field in SIDE_FIELDS.items():
+        needed = getattr(size, field) or 0
+        dest = dest_roles.get(side, [])
+        src = src_roles.get(side, [])
+        dest_names = [role.name for role in dest]
+        src_names = [role.name for role in src]
+        extras_only = dest and src_names and not set(dest_names) & set(src_names)
+        if extras_only:
+            room = max(needed - len(dest), 0)
+            for src_role in src[:room]:
+                cloned = Role(
+                    size=size,
+                    side=side,
+                    name=src_role.name,
+                    description=src_role.description,
+                )
+                cloned.save()
+                if src_role.icon:
+                    _copy_image(src_role.icon, cloned, "icon")
+            continue
+        for index in range(needed):
+            if index < len(dest):
+                current = dest[index]
+                if not current.icon and index < len(src) and src[index].icon:
+                    _copy_image(src[index].icon, current, "icon")
+                continue
+            if index >= len(src):
+                continue
+            cloned = Role(
+                size=size,
+                side=side,
+                name=src[index].name,
+                description=src[index].description,
+            )
+            cloned.save()
+            if src[index].icon:
+                _copy_image(src[index].icon, cloned, "icon")
+    dest_finals = list(size.final_move_cards.order_by("id"))
+    src_finals = list(source.final_move_cards.order_by("id"))
+    needed_finals = size.final_move_count or 0
+    dest_final_names = [card.name for card in dest_finals]
+    src_final_names = [card.name for card in src_finals]
+    extras_only_finals = dest_finals and src_final_names and not set(dest_final_names) & set(src_final_names)
+    if extras_only_finals:
+        to_clone = src_finals[: max(needed_finals - len(dest_finals), 0)]
+    else:
+        to_clone = src_finals[len(dest_finals) : needed_finals]
+    for src_card in to_clone:
+        FinalMoveCard.objects.create(
+            size=size,
+            name=src_card.name,
+            description=src_card.description,
+            sort_order=src_card.sort_order,
+        )
+
+
+def _ordered_posted_names(formset, side):
+    names = []
+    for form in formset.forms:
+        cleaned = getattr(form, "cleaned_data", None) or {}
+        if cleaned.get("DELETE"):
+            continue
+        name = (cleaned.get("name") or "").strip()
+        form_side = cleaned.get("side") or ""
+        if not form_side and not name:
+            continue
+        if form_side == side:
+            names.append(name)
+    return names
 
 
 class ScenarioSizeFormSet(BaseInlineFormSet):
@@ -96,15 +229,25 @@ class RoleFormSet(BaseInlineFormSet):
             return
         if not _posted_count(self, "player_count"):
             return
-        actual = Counter()
-        for cleaned in _filled_forms(self):
-            actual[cleaned["side"]] += 1
+        source = _source_size_for_formset(self)
+        src_names = defaultdict(list)
+        if source:
+            for role in source.roles.order_by("id"):
+                src_names[role.side].append(role.name)
         errors = []
         for side, field in SIDE_FIELDS.items():
             expected = _posted_count(self, field)
-            if actual[side] != expected:
+            posted_named = [name for name in _ordered_posted_names(self, side) if name]
+            if len(posted_named) >= expected:
+                continue
+            combined = list(src_names.get(side, []))
+            for name in posted_named:
+                if name not in combined:
+                    combined.append(name)
+            if len(combined) < expected:
                 errors.append(
-                    f"برای ساید {SIDE_LABELS[side]} باید {expected} نقش وارد شود؛ الان {actual[side]} نقش ثبت شده است."
+                    f"برای ساید {SIDE_LABELS[side]} باید {expected} نقش وارد شود؛ "
+                    f"نقش‌های قبلی کپی می‌شوند و فقط نقش‌های اضافه را بنویسید. الان {len(combined)} نقش آماده است."
                 )
         if errors:
             raise ValidationError(errors)
@@ -120,10 +263,17 @@ class FinalMoveFormSet(BaseInlineFormSet):
         if not _posted_count(self, "player_count"):
             return
         expected = _posted_count(self, "final_move_count")
-        actual = len(_filled_forms(self))
-        if actual != expected:
+        posted_named = [item["name"] for item in _filled_forms(self)]
+        if len(posted_named) >= expected:
+            return
+        source = _source_size_for_formset(self)
+        combined = [card.name for card in source.final_move_cards.order_by("id")] if source else []
+        for name in posted_named:
+            if name not in combined:
+                combined.append(name)
+        if len(combined) < expected:
             raise ValidationError(
-                f"باید {expected} کارت حرکت آخر وارد شود؛ الان {actual} کارت ثبت شده است."
+                f"باید {expected} کارت حرکت آخر وارد شود؛ کارت‌های حالت قبلی کپی می‌شوند و فقط کارت‌های اضافه را بنویسید."
             )
 
 
@@ -131,7 +281,10 @@ class RoleEditForm(forms.ModelForm):
     class Meta:
         model = Role
         fields = ("side", "name", "description", "icon")
-        widgets = {"description": forms.Textarea(attrs={"rows": 2, "cols": 40})}
+        widgets = {
+            "description": forms.Textarea(attrs={"rows": 2, "cols": 40}),
+            "icon": ClearableAdminImageWidget,
+        }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -216,6 +369,7 @@ class ScenarioSizeForm(forms.ModelForm):
             return
         self._save_named(self.nested_roles, instance, instance.roles)
         self._save_named(self.nested_finals, instance, instance.final_move_cards)
+        inherit_size_content(instance)
 
     def _save_named(self, formset, instance, queryset):
         formset.instance = instance
@@ -225,7 +379,18 @@ class ScenarioSizeForm(forms.ModelForm):
             if not cleaned or not cleaned.get("name"):
                 continue
             form.instance.size = instance
-            kept.append(form.save())
+            saved = form.save()
+            if "icon" in getattr(form, "fields", {}):
+                clear_key = f"{form.add_prefix('icon')}-clear"
+                posted = form.data if form.data is not None else formset.data
+                uploaded = form.files.get(form.add_prefix("icon")) if form.files else None
+                should_clear = cleaned.get("icon") is False or (posted and posted.get(clear_key) and not uploaded)
+                if should_clear:
+                    if saved.icon:
+                        saved.icon.delete(save=False)
+                    saved.icon = ""
+                    saved.save(update_fields=["icon"])
+            kept.append(saved)
         queryset.exclude(pk__in=[item.pk for item in kept]).delete()
 
 
@@ -235,6 +400,7 @@ class ScenarioSizeInline(admin.StackedInline):
     formset = ScenarioSizeFormSet
     extra = 1
     max_num = 5
+    classes = ["collapse"]
     show_change_link = False
     template = "admin/scenarios/size_stacked.html"
     fields = (
@@ -246,26 +412,20 @@ class ScenarioSizeInline(admin.StackedInline):
         "final_move_count",
     )
     verbose_name = "حالت تعداد نفرات"
-    verbose_name_plural = "حالت‌های اجرا (حداکثر ۵)"
+    verbose_name_plural = "حالت‌های اجرا (حداکثر ۵؛ نقش‌های قبلی خودکار کپی می‌شوند)"
 
 
 class RoleInline(admin.TabularInline):
     model = Role
+    form = RoleEditForm
     formset = RoleFormSet
     extra = 0
-    fields = ("side", "name", "description", "icon", "icon_preview")
-    readonly_fields = ("icon_preview",)
+    fields = ("side", "name", "description", "icon")
 
     def get_extra(self, request, obj=None, **kwargs):
         if obj is None:
             return 0
         return max(obj.side_total() - obj.roles.count(), 0)
-
-    @admin.display(description="پیش‌نمایش آیکون")
-    def icon_preview(self, obj):
-        if getattr(obj, "icon", None) and getattr(obj.icon, "name", ""):
-            return format_html('<img src="{}" alt="" class="banner-preview">', obj.icon.url)
-        return "—"
 
 
 class FinalMoveCardInline(admin.TabularInline):
@@ -390,10 +550,39 @@ class ScenarioCommentAdmin(admin.ModelAdmin):
         self.message_user(request, "پاسخ مدیریت ثبت شد و زیر نظر کاربر نمایش داده می‌شود.")
 
 
-class CatalogRoleInline(admin.TabularInline):
-    model = CatalogRole
-    extra = 4
-    fields = ("side", "name", "allows_quantity", "description", "sort_order")
+def _catalog_role_inline_for(side):
+    label = SIDE_LABELS[side]
+
+    class CatalogSideRoleFormSet(BaseInlineFormSet):
+        @classmethod
+        def get_default_prefix(cls):
+            return f"catalog_{side}_roles"
+
+        def save_new(self, form, commit=True):
+            form.instance.side = side
+            return super().save_new(form, commit=commit)
+
+        def save_existing(self, form, instance, commit=True):
+            form.instance.side = side
+            return super().save_existing(form, instance, commit=commit)
+
+    class CatalogSideRoleInline(admin.TabularInline):
+        model = CatalogRole
+        extra = 2
+        fields = ("name", "allows_quantity", "description", "sort_order")
+        formset = CatalogSideRoleFormSet
+        verbose_name = f"نقش {label}"
+        verbose_name_plural = f"نقش‌های ساید {label} (هر تعداد اضافه کنید)"
+
+        def get_queryset(self, request):
+            return super().get_queryset(request).filter(side=side)
+
+    CatalogSideRoleFormSet.__name__ = f"Catalog{side.capitalize()}RoleFormSet"
+    CatalogSideRoleInline.__name__ = f"Catalog{side.capitalize()}RoleInline"
+    return CatalogSideRoleInline
+
+
+CATALOG_ROLE_INLINES = {side: _catalog_role_inline_for(side) for side, _label in SIDE_CHOICES}
 
 
 class CatalogFinalInline(admin.TabularInline):
@@ -402,15 +591,37 @@ class CatalogFinalInline(admin.TabularInline):
     fields = ("name", "description", "sort_order")
 
 
+class ScenarioCatalogFilter(admin.SimpleListFilter):
+    title = "گروه سناریو"
+    parameter_name = "catalog"
+
+    def lookups(self, request, model_admin):
+        return (
+            ("quick", "تقسیم نقش سریع"),
+            ("large", "سناریوهای تعداد بالا"),
+            ("custom", "سناریوهای دلخواه من"),
+        )
+
+    def queryset(self, request, queryset):
+        custom = Q(owner__isnull=False) | ~Q(guest_key="")
+        if self.value() == "quick":
+            return queryset.filter(is_large=False).exclude(custom)
+        if self.value() == "large":
+            return queryset.filter(is_large=True).exclude(custom)
+        if self.value() == "custom":
+            return queryset.filter(custom)
+        return queryset
+
+
 class ScenarioAdmin(admin.ModelAdmin):
-    list_display = ("name", "slug", "is_large", "large_kind", "owner", "player_modes", "has_final_move", "has_death_lottery", "is_featured", "home_order")
-    list_filter = ("is_large", "large_kind", "is_featured", "has_final_move", "has_death_lottery", "owner")
+    change_list_template = "admin/scenarios/scenario/change_list.html"
+    list_display = ("name", "catalog_group", "slug", "is_large", "large_kind", "owner", "player_modes", "has_final_move", "has_death_lottery", "is_featured", "home_order")
+    list_filter = (ScenarioCatalogFilter, "is_large", "large_kind", "is_featured", "has_final_move", "has_death_lottery", "owner")
     search_fields = ("name", "name_en", "slug")
     ordering = ("home_order", "id")
     inlines = (ScenarioSizeInline,)
-    readonly_fields = ("icon_preview",)
     fieldsets = (
-        ("سناریو", {"fields": ("name", "name_en", "slug", "owner", "guest_key", "icon", "icon_preview", "is_large", "large_kind", "has_final_move", "has_death_lottery")}),
+        ("سناریو", {"fields": ("name", "name_en", "slug", "owner", "guest_key", "icon", "is_large", "large_kind", "has_final_move", "has_death_lottery")}),
         (
             "صفحه اول",
             {
@@ -418,10 +629,20 @@ class ScenarioAdmin(admin.ModelAdmin):
                 "description": "تعداد ردیف اسم و توضیح نقش برابر تعداد نفرات همان حالت است. کارت‌های حرکت آخر هم به همان تعداد وارد می‌شوند.",
             },
         ),
-        ("رول‌بوک فارسی", {"fields": ("rulebook_title_fa", "rulebook_body_fa")}),
-        ("رول‌بوک انگلیسی", {"fields": ("rulebook_title_en", "rulebook_body_en")}),
-        ("قوانین فارسی", {"fields": ("rules_title_fa", "rules_body_fa")}),
-        ("قوانین انگلیسی", {"fields": ("rules_title_en", "rules_body_en")}),
+        (
+            "رول‌بوک‌ها",
+            {
+                "classes": ("collapse",),
+                "fields": ("rulebook_title_fa", "rulebook_body_fa", "rulebook_title_en", "rulebook_body_en"),
+            },
+        ),
+        (
+            "قوانین",
+            {
+                "classes": ("collapse",),
+                "fields": ("rules_title_fa", "rules_body_fa", "rules_title_en", "rules_body_en"),
+            },
+        ),
     )
 
     class Media:
@@ -430,24 +651,21 @@ class ScenarioAdmin(admin.ModelAdmin):
 
     def get_inlines(self, request, obj=None):
         if obj and obj.is_large:
-            items = [CatalogRoleInline]
+            sides = KIND_SIDES.get(obj.large_kind) or [side for side, _label in SIDE_CHOICES]
+            items = [CATALOG_ROLE_INLINES[side] for side in sides]
             if obj.large_kind == "night" or obj.has_final_move:
                 items.append(CatalogFinalInline)
             return items
         return (ScenarioSizeInline,)
 
     def formfield_for_dbfield(self, db_field, request, **kwargs):
+        if db_field.name == "icon":
+            kwargs["widget"] = ClearableAdminImageWidget
         if db_field.name in {"rulebook_body_fa", "rules_body_fa"}:
             kwargs["widget"] = PageHtmlWidget(language="fa")
         elif db_field.name in {"rulebook_body_en", "rules_body_en"}:
             kwargs["widget"] = PageHtmlWidget(language="en")
         return super().formfield_for_dbfield(db_field, request, **kwargs)
-
-    @admin.display(description="آیکون")
-    def icon_preview(self, obj):
-        if getattr(obj, "icon", None) and getattr(obj.icon, "name", ""):
-            return format_html('<img src="{}" alt="" class="banner-preview">', obj.icon.url)
-        return "—"
 
     def save_related(self, request, form, formsets, change):
         super().save_related(request, form, formsets, change)
@@ -468,6 +686,36 @@ class ScenarioAdmin(admin.ModelAdmin):
                     request,
                     "تأیید صفحه اول ذخیره نشد چون نقش‌ها هنوز کامل نیستند. این محدودیت سه سناریو نیست؛ هر سناریوی کامل تا سقف ۶ تا قابل تأیید است.",
                 )
+
+    @admin.display(description="گروه")
+    def catalog_group(self, obj):
+        if obj.is_custom():
+            return "سناریوهای دلخواه من"
+        if obj.is_large:
+            return "سناریوهای تعداد بالا"
+        return "تقسیم نقش سریع"
+
+    def changelist_view(self, request, extra_context=None):
+        response = super().changelist_view(request, extra_context=extra_context)
+        context = getattr(response, "context_data", None)
+        if not context or "cl" not in context:
+            return response
+        qs = context["cl"].queryset
+        custom = Q(owner__isnull=False) | ~Q(guest_key="")
+        groups = (
+            ("تقسیم نقش سریع", qs.filter(is_large=False).exclude(custom)),
+            ("سناریوهای تعداد بالا", qs.filter(is_large=True).exclude(custom)),
+            ("سناریوهای دلخواه من", qs.filter(custom)),
+        )
+        context["scenario_groups"] = [
+            {
+                "title": title,
+                "items": list(items.select_related("owner").prefetch_related("sizes").order_by("home_order", "id")[:300]),
+                "count": items.count(),
+            }
+            for title, items in groups
+        ]
+        return response
 
     @admin.display(description="حالت‌های نفرات")
     def player_modes(self, obj):

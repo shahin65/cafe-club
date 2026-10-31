@@ -16,6 +16,8 @@ html {
     min-height: 100%;
     background-color: #05060c;
     overflow-x: hidden;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
 }
 
 body {
@@ -85,7 +87,7 @@ body[data-deal-play] .app-bar {
 }
 
 body[data-deal-play] main {
-    padding-bottom: 16px;
+    padding-bottom: max(16px, env(safe-area-inset-bottom, 0px));
 }
 
 body[data-deal-play] .tab-bar {
@@ -100,8 +102,9 @@ body[data-deal-play] .tab-bar {
     grid-template-columns: 48px minmax(0, 1fr) auto;
     align-items: center;
     direction: ltr;
-    height: 56px;
-    padding: 0 16px;
+    box-sizing: border-box;
+    height: calc(56px + env(safe-area-inset-top, 0px));
+    padding: env(safe-area-inset-top, 0px) max(16px, env(safe-area-inset-right, 0px)) 0 max(16px, env(safe-area-inset-left, 0px));
     background: #000;
     color: #fff;
     overflow: visible;
@@ -267,7 +270,7 @@ body[data-deal-play] .tab-bar {
 }
 
 main {
-    padding: 16px 16px calc(92px + env(safe-area-inset-bottom));
+    padding: 16px max(16px, env(safe-area-inset-right, 0px)) calc(96px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
     min-width: 0;
     max-width: 100%;
     overflow-x: hidden;
@@ -282,9 +285,11 @@ main {
     direction: ltr;
     display: grid;
     grid-template-columns: 1fr 1fr 1fr;
-    align-items: end;
-    height: calc(76px + env(safe-area-inset-bottom));
-    padding: 8px 18px calc(8px + env(safe-area-inset-bottom));
+    align-items: center;
+    box-sizing: border-box;
+    min-height: 64px;
+    height: auto;
+    padding: 8px max(12px, env(safe-area-inset-right, 0px)) max(10px, env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px));
     background: #000;
     border-top: 1px solid #222;
 }
@@ -298,21 +303,23 @@ a.tab {
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: flex-end;
-    gap: 2px;
-    min-height: 60px;
+    justify-content: center;
+    gap: 4px;
+    min-height: 52px;
     border: 0;
     background: transparent;
     color: #9a9a9a;
     font: inherit;
-    font-size: 0.75rem;
+    font-size: 0.78rem;
+    line-height: 1.2;
     text-decoration: none;
     opacity: 0.5;
 }
 
 .tab img {
-    width: 34px;
-    height: 34px;
+    width: 32px;
+    height: 32px;
+    flex: none;
     object-fit: contain;
 }
 
@@ -327,8 +334,9 @@ a.tab {
 }
 
 .tab.is-active img {
-    width: 46px;
-    height: 46px;
+    width: 40px;
+    height: 40px;
+    flex: none;
     filter: drop-shadow(0 0 10px rgba(230, 194, 122, 0.55));
 }
 
@@ -732,6 +740,68 @@ h1, h2 {
 .deal-sheet h1 {
     margin: 0 0 8px;
     font-size: clamp(1.3rem, 4vw, 1.8rem);
+}
+
+.player-count-sheet,
+.deal-mode-sheet {
+    display: grid;
+    gap: 16px;
+    padding: 16px 14px 20px;
+}
+
+.player-count-sheet .places-title,
+.player-count-sheet > p,
+.deal-mode-sheet .places-title,
+.deal-mode-sheet > p,
+.deal-mode-sheet h2 {
+    margin: 0;
+    padding: 10px 12px;
+    border-radius: 14px;
+    background: rgba(8, 10, 16, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.player-count-sheet .choice-list,
+.deal-mode-sheet .choice-list {
+    gap: 16px;
+}
+
+.player-count-sheet .choice,
+.deal-mode-sheet .choice {
+    min-height: 56px;
+    padding: 16px 18px;
+    background: rgba(10, 12, 18, 0.78);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(230, 194, 122, 0.28);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+}
+
+.player-count-sheet .choice svg {
+    width: 28px;
+    height: 28px;
+    flex: none;
+    color: var(--gold);
+}
+
+.player-count-sheet .choice span,
+.deal-mode-sheet .choice span {
+    min-width: 0;
+}
+
+@media (max-width: 380px) {
+    .player-count-sheet .choice,
+    .deal-mode-sheet .choice {
+        min-height: 52px;
+        padding: 14px;
+        gap: 12px;
+    }
+
+    .player-count-sheet .choice svg,
+    .deal-mode-sheet .choice img {
+        width: 24px;
+        height: 24px;
+    }
 }
 
 .turn-timers {
@@ -1202,15 +1272,20 @@ h1, h2 {
 }
 
 .card-sheet {
-    --deal-chrome: calc(56px + 32px + 92px + env(safe-area-inset-bottom, 0px));
+    --deal-chrome: calc(56px + env(safe-area-inset-top, 0px) + 24px + 80px + env(safe-area-inset-bottom, 0px));
     --deal-meta: 7.6rem;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: flex-start;
     gap: 8px;
+    min-height: 0;
+    height: calc(100vh - var(--deal-chrome));
+    max-height: calc(100vh - var(--deal-chrome));
     height: calc(100dvh - var(--deal-chrome));
     max-height: calc(100dvh - var(--deal-chrome));
+    height: calc(100svh - var(--deal-chrome));
+    max-height: calc(100svh - var(--deal-chrome));
     overflow: hidden;
 }
 
@@ -1234,18 +1309,26 @@ h1, h2 {
     align-items: center;
     justify-content: center;
     min-height: 0;
-    width: min(92vw, 420px, calc((100dvh - var(--deal-chrome) - var(--deal-meta)) * 2 / 3));
-    container-type: inline-size;
+    width: min(100%, 420px);
+    container-type: size;
     perspective: 1200px;
     animation: card-rock 2.6s ease-in-out infinite;
 }
 
 .card-inner {
     position: relative;
-    width: 100%;
+    width: min(100%, 420px);
+    max-height: 100%;
     aspect-ratio: 2 / 3;
     transform-style: preserve-3d;
     transition: transform 0.7s cubic-bezier(0.4, 0.2, 0.2, 1);
+}
+
+@supports (width: 1cqh) {
+    .card-inner {
+        width: min(100cqw, calc(100cqh * 2 / 3));
+        height: auto;
+    }
 }
 
 .card-inner.is-flipped {
@@ -1344,11 +1427,11 @@ h1, h2 {
 }
 
 .card-footer {
-    flex: none;
+    flex: 0 0 auto;
     display: grid;
     place-items: center;
-    width: min(78vw, 280px);
-    min-height: 72px;
+    width: min(92%, 320px);
+    min-height: 52px;
 }
 
 .card-footer > * {
@@ -1366,7 +1449,7 @@ h1, h2 {
     display: grid;
     place-items: center;
     width: 100%;
-    min-height: 72px;
+    min-height: 52px;
 }
 
 .card-actions .choice {
@@ -1397,8 +1480,13 @@ h1, h2 {
     z-index: 8;
     flex: none;
     justify-content: center;
-    min-width: min(78vw, 240px);
-    padding: 8px 14px;
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    min-height: 48px;
+    padding: 12px 16px;
+    font-size: 1rem;
+    font-weight: 700;
 }
 
 .card-sheet .deal-host,
@@ -1408,7 +1496,7 @@ h1, h2 {
 }
 
 body[data-deal-play] .card-sheet {
-    --deal-chrome: calc(56px + 32px + env(safe-area-inset-bottom, 0px));
+    --deal-chrome: calc(56px + env(safe-area-inset-top, 0px) + 20px + env(safe-area-inset-bottom, 0px));
 }
 
 .host-back {
@@ -1528,6 +1616,35 @@ button.choice {
     padding-top: 8px;
 }
 
+.scenario-doc.places-frost {
+    padding: 52px 14px 20px;
+    border-radius: 22px;
+}
+
+.scenario-doc.places-frost .doc-kicker,
+.scenario-doc.places-frost h1 {
+    padding: 10px 12px;
+    border-radius: 14px;
+    background: rgba(8, 10, 16, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.scenario-doc.places-frost .scenario-html,
+.scenario-doc.places-frost .doc-empty {
+    margin-top: 12px;
+    padding: 14px 12px;
+    border-radius: 16px;
+    background: rgba(10, 12, 18, 0.78);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(230, 194, 122, 0.28);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+}
+
+.scenario-doc.places-frost .doc-empty {
+    color: #fff;
+}
+
 .doc-kicker {
     margin: 0 0 6px;
     color: var(--gold);
@@ -1560,6 +1677,45 @@ button.choice {
 .scenario-html h3,
 .scenario-html h4 {
     color: var(--gold);
+}
+
+.comments-sheet.places-frost {
+    padding: 16px 14px 20px;
+    border-radius: 22px;
+}
+
+.comments-sheet.places-frost .doc-kicker,
+.comments-sheet.places-frost h1,
+.comments-sheet.places-frost > p,
+.comments-sheet.places-frost .form-messages {
+    padding: 10px 12px;
+    border-radius: 14px;
+    background: rgba(8, 10, 16, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.comments-sheet.places-frost .comment,
+.comments-sheet.places-frost .comment-form,
+.comments-sheet.places-frost .reply-box {
+    background: rgba(10, 12, 18, 0.78);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(230, 194, 122, 0.28);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+}
+
+.comments-sheet.places-frost .comment-form,
+.comments-sheet.places-frost .reply-box {
+    padding: 14px 12px;
+    border-radius: 16px;
+}
+
+.comments-sheet.places-frost .comment.is-admin {
+    border-color: rgba(212, 180, 131, 0.7);
+}
+
+.comments-sheet.places-frost .comment-replies .comment {
+    background: rgba(8, 10, 16, 0.62);
 }
 
 .comments-sheet .form-messages {
@@ -2154,6 +2310,176 @@ dialog.settings-dialog:not([open]) {
     font-weight: 700;
 }
 
+.profile-register-btn,
+.profile-method-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    min-height: 48px;
+    padding: 10px 16px;
+    border: 1px solid rgba(244, 224, 180, 0.55);
+    border-radius: 14px;
+    background: linear-gradient(180deg, #e0c48a, #b48a4a);
+    color: #1a140c;
+    font: inherit;
+    font-weight: 700;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.profile-register-btn img,
+.profile-method-btn img {
+    width: 28px;
+    height: 28px;
+    object-fit: contain;
+}
+
+.profile-auth-methods {
+    display: grid;
+    gap: 10px;
+}
+
+.profile-auth-lead {
+    margin: 0;
+    color: rgba(244, 240, 232, 0.86);
+    font-size: 0.92rem;
+}
+
+.profile-method-gmail {
+    background: linear-gradient(180deg, #f4f0e8, #d8c4a0);
+}
+
+.profile-login-link {
+    margin: 4px 0 0;
+    text-align: center;
+}
+
+.username-field,
+.password-field {
+    position: relative;
+    display: block;
+}
+
+.username-field input,
+.password-field input {
+    width: 100%;
+    padding-left: 42px;
+}
+
+.username-tick {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #2f9e5d;
+    font-size: 1.15rem;
+    font-weight: 800;
+}
+
+.username-field input.is-unique {
+    border-color: #2f9e5d;
+}
+
+.username-hint {
+    color: #ff8b8b;
+    font-size: 0.82rem;
+}
+
+.password-toggle {
+    position: absolute;
+    left: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: #e6c27a;
+    cursor: pointer;
+}
+
+.profile-edit-name {
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 0;
+    border-radius: 10px;
+    background: rgba(230, 194, 122, 0.16);
+    color: #e6c27a;
+    cursor: pointer;
+}
+
+.profile-display-form.is-collapsed {
+    display: none;
+}
+
+.gmail-hint {
+    display: grid;
+    gap: 8px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.gmail-hint p {
+    margin: 0;
+    font-size: 0.86rem;
+    line-height: 1.7;
+    color: rgba(244, 240, 232, 0.82);
+}
+
+.gmail-hint-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--gold);
+    font-size: 0.86rem;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.gmail-hint-link img {
+    width: 18px;
+    height: 18px;
+}
+
+.blue-tick-activate-btn {
+    justify-content: center;
+    background: linear-gradient(180deg, #5aa7ff, #1d5fd0);
+    border-color: rgba(170, 210, 255, 0.55);
+    color: #f4f8ff;
+    font-weight: 800;
+}
+
+.blue-tick-rejected {
+    color: #ff8b8b;
+    font-weight: 700;
+}
+
+.profile-logout-form {
+    margin-top: 8px;
+}
+
+.profile-logout-btn {
+    width: 100%;
+    min-height: 46px;
+    border: 0;
+    border-radius: 14px;
+    background: #b42318;
+    color: #fff;
+    font: inherit;
+    font-weight: 800;
+    cursor: pointer;
+}
+
 .blue-tick-request {
     display: grid;
     gap: 10px;
@@ -2213,12 +2539,13 @@ dialog.settings-dialog:not([open]) {
     }
 
     .card-sheet .choice {
-        padding: 6px 12px;
-        min-height: 0;
+        padding: 12px 16px;
+        min-height: 48px;
+        font-size: 1rem;
     }
 
     body[data-deal-play] .card-sheet {
-        --deal-chrome: calc(56px + 32px + env(safe-area-inset-bottom, 0px));
+        --deal-chrome: calc(56px + env(safe-area-inset-top, 0px) + 16px + env(safe-area-inset-bottom, 0px));
     }
 
     .ad-chip-grid,
@@ -2945,6 +3272,8 @@ dialog.nav-sheet:not([open]) {
 
 .tab span {
     white-space: nowrap;
+    font-size: 0.78rem;
+    line-height: 1.2;
 }
 
 .ads-panel {

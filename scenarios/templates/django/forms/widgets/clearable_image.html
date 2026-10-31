@@ -1,0 +1,14 @@
+{% if widget.is_initial %}
+<div class="clearable-image" data-clearable-image>
+  {% if widget.value.url %}
+    <img src="{{ widget.value.url }}" alt="" class="banner-preview">
+  {% endif %}
+  <p class="file-upload">{{ widget.initial_text }}: <a href="{{ widget.value.url }}">{{ widget.value }}</a></p>
+  {% if not widget.required %}
+    <a href="#" class="deletable-image-link" data-clear-image>{{ widget.clear_checkbox_label }}</a>
+    <input type="checkbox" name="{{ widget.checkbox_name }}" id="{{ widget.checkbox_id }}" hidden class="js-clear-image-box"{% if widget.attrs.disabled %} disabled{% endif %}{% if widget.attrs.checked %} checked{% endif %}>
+  {% endif %}
+  <p class="file-upload">{{ widget.input_text }}:</p>
+</div>
+{% endif %}
+<input type="{{ widget.type }}" name="{{ widget.name }}"{% include "django/forms/widgets/attrs.html" %}>

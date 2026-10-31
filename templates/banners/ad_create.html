@@ -23,8 +23,11 @@
         <section class="blue-tick-request">
           <h2>{% trans "درخواست برای فعال سازی تیک آبی" %}</h2>
           {% if pending_blue_tick %}
-            <p class="blue-tick-wait">پس از بررسی طی 72 ساعت آینده با شما تماس حاصل خواهد شد</p>
+            <p class="blue-tick-wait">{{ blue_tick_wait_message }}</p>
           {% elif request.user.is_authenticated %}
+            {% if rejected_blue_tick %}
+              <p class="blue-tick-rejected">{{ blue_tick_rejected_message }}</p>
+            {% endif %}
             <form class="wizard-form" action="{% url 'request_blue_tick' %}" method="post">
               {% csrf_token %}
               <input type="hidden" name="next" value="{% url 'ad_create' %}">
@@ -37,9 +40,9 @@
               <label>لطفا یک بیوگرافی از خود برای ما ارسال کنید تا با شما تماس حاصل شده و تیک آبی اکانت شما فعال شود
                 <textarea name="biography" rows="5" maxlength="2000" required></textarea>
               </label>
-              <button class="choice tournament-btn wizard-submit" type="submit">
+              <button class="choice tournament-btn wizard-submit blue-tick-activate-btn" type="submit">
                 <img src="{% static 'Icon-BlueTick.png' %}" alt="" width="22" height="22">
-                <span>{% trans "ارسال درخواست تیک آبی" %}</span>
+                <span>{% if rejected_blue_tick %}{% trans "درخواست مجدد تیک آبی" %}{% else %}{% trans "فعالسازی تیک آبی" %}{% endif %}</span>
               </button>
             </form>
           {% else %}
@@ -145,6 +148,6 @@
 
 {% block extra_js %}
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="{% static 'admin/js/venue-map.js' %}?v=1"></script>
+  <script src="{% static 'admin/js/venue-map.js' %}?v=3"></script>
   <script src="{% static 'js/ad-create.js' %}?v=1"></script>
 {% endblock %}

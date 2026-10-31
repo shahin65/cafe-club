@@ -10,6 +10,7 @@ from django.views.decorators.http import require_http_methods
 
 from assistant.catalog import collect_payload, load_object
 from assistant.clients import AssistantClientError, bale_configured, gapgpt_configured
+from assistant.content import official_scenario_queryset, rewrite_scenario_pages
 from assistant.defaults import ensure_policies
 from assistant.realtime import kick_realtime
 from assistant.models import (
@@ -57,18 +58,19 @@ from assistant.reviewer import review_case
 staff_page = staff_member_required(login_url="admin:login")
 
 
-def _base_context():
+def _base_context(nav_active=""):
     ensure_policies()
     return {
         "config": AssistantConfig.load(),
         "gapgpt_ok": gapgpt_configured(),
         "bale_ok": bale_configured(),
+        "nav_active": nav_active,
     }
 
 
 @staff_page
 def home(request):
-    context = _base_context()
+    context = _base_context("home")
     sections = []
     policies = {item.scope: item for item in ReviewPolicy.objects.all()}
     for key, label in SCOPES:
@@ -95,7 +97,7 @@ def queue(request, scope):
     labels = dict(SCOPES)
     if scope not in labels:
         raise Http404()
-    context = _base_context()
+    context = _base_context(scope)
     status = request.GET.get("status") or ""
     cases = ReviewCase.objects.filter(scope=scope)
     if status:
@@ -116,7 +118,7 @@ def queue(request, scope):
 
 @staff_page
 def manager_queue(request):
-    context = _base_context()
+    context = _base_context("manager")
     cases = ReviewCase.objects.filter(status=STATUS_NEEDS_REVIEW).select_related("manager_user")
     page = Paginator(cases, 30).get_page(request.GET.get("page"))
     context.update(
@@ -133,7 +135,7 @@ def manager_queue(request):
 @require_http_methods(["GET", "POST"])
 def case_detail(request, pk):
     case = get_object_or_404(ReviewCase, pk=pk)
-    context = _base_context()
+    context = _base_context("manager")
     obj = None
     obj_missing = False
     payload = {"fields": {}}
@@ -211,7 +213,7 @@ def policy_edit(request, scope):
         _announce_realtime_kick(request)
         messages.success(request, "معیارها ذخیره شد.")
         return redirect("assistant_policy", scope=scope)
-    context = _base_context()
+    context = _base_context(scope)
     context.update(
         {
             "scope": scope,
@@ -246,7 +248,7 @@ def settings_page(request):
         _announce_realtime_kick(request)
         messages.success(request, "تنظیمات ذخیره شد.")
         return redirect("assistant_settings")
-    context = _base_context()
+    context = _base_context("settings")
     context.update(
         {
             "hour_options": HOUR_OPTIONS,
@@ -260,7 +262,7 @@ def settings_page(request):
 
 @staff_page
 def reports(request):
-    context = _base_context()
+    context = _base_context("reports")
     runs = list(AssistantRun.objects.all()[:30])
     reports_qs = list(BaleReport.objects.all()[:20])
     last_hourly = next((run for run in runs if run.kind == "hourly"), None)
@@ -274,3 +276,75 @@ def reports(request):
         }
     )
     return render(request, "admin/assistant/reports.html", context)
+
+
+def _official_scenario(pk):
+    from scenarios.models import Scenario
+
+    scenario = get_object_or_404(official_scenario_queryset(), pk=pk)
+    return scenario
+
+
+@staff_page
+def content_home(request):
+    context = _base_context("content")
+    return render(request, "admin/assistant/content.html", context)
+
+
+@staff_page
+def content_scenarios(request):
+    context = _base_context("content")
+    qs = official_scenario_queryset()
+    context.update(
+        {
+            "quick_scenarios": qs.filter(is_large=False),
+            "large_scenarios": qs.filter(is_large=True),
+        }
+    )
+    return render(request, "admin/assistant/content_scenarios.html", context)
+
+
+@staff_page
+@require_http_methods(["GET", "POST"])
+def content_scenario(request, pk):
+    scenario = _official_scenario(pk)
+    preview_key = f"content_preview_{scenario.pk}"
+    context = _base_context("content")
+    sources = request.POST.get("sources") or request.session.get(f"{preview_key}_sources") or ""
+    tone = request.POST.get("tone") or request.session.get(f"{preview_key}_tone") or ""
+    preview = request.session.get(preview_key)
+    if request.method == "POST":
+        action = request.POST.get("action")
+        sources = request.POST.get("sources") or ""
+        tone = request.POST.get("tone") or ""
+        try:
+            if action == "generate":
+                preview = rewrite_scenario_pages(scenario, sources, tone)
+                request.session[preview_key] = preview
+                request.session[f"{preview_key}_sources"] = sources
+                request.session[f"{preview_key}_tone"] = tone
+                messages.success(request, "پیش‌نویس بازنویسی آماده شد. بعد از بررسی، ثبت کنید.")
+            elif action == "apply":
+                preview = request.session.get(preview_key)
+                if not preview:
+                    raise AssistantClientError("ابتدا بازنویسی را بسازید.")
+                scenario.rulebook_title_fa = preview.get("rulebook_title_fa") or scenario.rulebook_title_fa
+                scenario.rulebook_body_fa = preview.get("rulebook_body_fa") or ""
+                scenario.rules_title_fa = preview.get("rules_title_fa") or scenario.rules_title_fa
+                scenario.rules_body_fa = preview.get("rules_body_fa") or ""
+                scenario.save()
+                request.session.pop(preview_key, None)
+                messages.success(request, "رول‌بوک و قوانین این سناریو به‌روز شد.")
+                return redirect("assistant_content_scenario", pk=scenario.pk)
+        except AssistantClientError as exc:
+            messages.error(request, str(exc))
+        return redirect("assistant_content_scenario", pk=scenario.pk)
+    context.update(
+        {
+            "scenario": scenario,
+            "sources": sources,
+            "tone": tone,
+            "preview": request.session.get(preview_key),
+        }
+    )
+    return render(request, "admin/assistant/content_scenario.html", context)

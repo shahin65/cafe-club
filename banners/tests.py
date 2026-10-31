@@ -12,6 +12,7 @@ from django.utils import timezone, translation
 from PIL import Image
 
 from django.contrib.admin.sites import AdminSite
+from django.contrib.staticfiles import finders
 from django.test import RequestFactory
 
 from banners.admin import VenueSubmissionAdmin
@@ -220,6 +221,7 @@ class BannerSeedTests(TestCase):
         self.assertNotContains(shown, "hostuser")
         profile = self.client.get("/account/profile/")
         self.assertContains(profile, "میزبان شب")
+        self.assertContains(profile, "profile-edit-name")
         self.assertContains(profile, 'name="username"')
         self.assertContains(profile, "hostuser")
 
@@ -236,13 +238,12 @@ class BannerSeedTests(TestCase):
             "/account/register/",
             {
                 "username": "redirectcheck",
-                "password1": "Local-only-test-pass-712!",
-                "password2": "Local-only-test-pass-712!",
+                "password": "123456",
                 "next": "/\\example.com/",
             },
         )
         self.assertTrue(User.objects.filter(username="redirectcheck").exists())
-        self.assertRedirects(response, "/")
+        self.assertRedirects(response, "/account/profile/")
         self.assertTrue(UserProfile.objects.filter(user__username="redirectcheck").exists())
         public_id = User.objects.get(username="redirectcheck").club_profile.public_id
         self.assertGreaterEqual(public_id, 100000)
@@ -260,9 +261,9 @@ class ProfileAndBlueTickTests(TestCase):
         self.assertContains(page, "profile-sheet")
         self.assertContains(page, "ثبت نام")
         self.assertContains(page, "Icon-Gmail.png")
-        self.assertContains(page, "ثبت نام سریع با اتصال اکانت جیمیل")
-        self.assertContains(page, "اتصال اکانت جیمیل")
-        self.assertContains(page, "درخواست برای فعال سازی تیک آبی")
+        self.assertContains(page, "ثبت نام سریع با جیمیل")
+        self.assertContains(page, "ثبت نام کاربری و گذرواژه")
+        self.assertNotContains(page, "فعالسازی تیک آبی")
         self.assertNotContains(page, "ثبت کلاب یا کافه")
         user = User.objects.create_user("host", "host@gmail.com", "pass-word-123")
         self.client.force_login(user)
@@ -271,7 +272,53 @@ class ProfileAndBlueTickTests(TestCase):
         self.assertFalse(user.club_profile.is_verified)
         self.assertNotContains(logged, "امکانات تیک آبی")
         self.assertContains(logged, "Icon-BlueTick-Inactive.png")
-        self.assertContains(logged, "نام و نام خانوادگی")
+        self.assertContains(logged, "نام نمایشی")
+        self.assertContains(logged, "فعالسازی تیک آبی")
+        self.assertContains(logged, "می‌توانی جیمیلت را هم به پروفایل وصل کنی")
+        self.assertContains(logged, "خروج")
+
+    def test_simple_password_register_and_unique_username_check(self):
+        taken = User.objects.create_user("cafehost", password="123456")
+        available = self.client.get("/account/username/available/", {"username": "cafehost"})
+        self.assertEqual(available.json()["available"], False)
+        free = self.client.get("/account/username/available/", {"username": "clubnew"})
+        self.assertEqual(free.json()["available"], True)
+        created = self.client.post(
+            "/account/register/",
+            {"username": "clubnew", "password": "123456", "next": "/account/profile/"},
+        )
+        self.assertRedirects(created, "/account/profile/")
+        self.assertTrue(User.objects.filter(username="clubnew").exists())
+        self.client.logout()
+        clash = self.client.post("/account/register/", {"username": taken.username, "password": "654321"})
+        self.assertContains(clash, "این نام کاربری قبلاً گرفته شده است.")
+
+    def test_rejected_blue_tick_can_be_requested_again(self):
+        user = User.objects.create_user("host", "host@example.com", "123456")
+        BlueTickRequest.objects.create(
+            user=user,
+            full_name="علی",
+            phone="09120000000",
+            biography="میزبان",
+            is_reviewed=True,
+            status=BlueTickRequest.STATUS_REJECTED,
+        )
+        self.client.force_login(user)
+        page = self.client.get("/account/profile/")
+        self.assertContains(page, "درخواست تیک آبی شما رد شد")
+        self.assertContains(page, "درخواست مجدد تیک آبی")
+        sent = self.client.post(
+            "/account/profile/blue-tick/",
+            {
+                "full_name": "علی میزبان",
+                "phone": "09121234567",
+                "biography": "گرداننده میز مافیا",
+            },
+        )
+        self.assertRedirects(sent, "/account/profile/")
+        waiting = self.client.get("/account/profile/")
+        self.assertContains(waiting, "درخواست شما طی ساعات آینده بررسی می‌شود")
+        self.assertNotContains(waiting, "blue-tick-activate-btn")
 
     def test_admin_can_activate_blue_tick_by_public_id(self):
         user = User.objects.create_user("player", "player@example.com", "pass-word-123")
@@ -346,7 +393,8 @@ class ProfileAndBlueTickTests(TestCase):
         )
         self.assertRedirects(sent, "/account/profile/")
         page = self.client.get("/account/profile/")
-        self.assertContains(page, "پس از بررسی طی ۷۲ ساعت آینده با شما تماس حاصل خواهد شد")
+        self.assertContains(page, "درخواست شما طی ساعات آینده بررسی می‌شود")
+        self.assertNotContains(page, "blue-tick-activate-btn")
         self.assertTrue(BlueTickRequest.objects.filter(user=user, full_name="علی میزبان").exists())
 
     def test_admin_dashboard_shows_red_counts_for_pending_items(self):
@@ -565,6 +613,13 @@ class PlacesTests(TestCase):
         self.assertContains(form, "نام مدیر یا سوپروایزر مجموعه")
         self.assertContains(form, "id=\"venue-map\"")
         self.assertContains(form, "id_latitude")
+        self.assertContains(form, "admin/js/venue-map.js")
+        map_js = finders.find("admin/js/venue-map.js")
+        with open(map_js, encoding="utf-8") as handle:
+            source = handle.read()
+        self.assertIn("tile.openstreetmap.de", source)
+        self.assertIn("server.arcgisonline.com", source)
+        self.assertNotIn("tile.openstreetmap.org", source)
         buffer = BytesIO()
         Image.new("RGB", (40, 40), (10, 80, 20)).save(buffer, format="PNG")
         sent = self.client.post(
@@ -724,7 +779,7 @@ class EventAdTests(TestCase):
         self.client.force_login(user)
         page = self.client.get("/ads/create/")
         self.assertContains(page, "برای درج آگهی رایگان باید تیک آبی اکانتتان را فعال کنید")
-        self.assertContains(page, "ارسال درخواست تیک آبی")
+        self.assertContains(page, "فعالسازی تیک آبی")
         self.assertNotContains(page, "نام ایونت")
         sent = self.client.post(
             "/account/profile/blue-tick/",
@@ -737,7 +792,7 @@ class EventAdTests(TestCase):
         )
         self.assertRedirects(sent, "/ads/create/")
         again = self.client.get("/ads/create/")
-        self.assertContains(again, "پس از بررسی طی ۷۲ ساعت آینده با شما تماس حاصل خواهد شد")
+        self.assertContains(again, "درخواست شما طی ساعات آینده بررسی می‌شود")
 
     def test_verified_user_can_post_ad_and_admin_is_notified(self):
         user = User.objects.create_user("star", "star@example.com", "pass-word-123")

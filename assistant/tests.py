@@ -1,3 +1,4 @@
+import json
 from datetime import timedelta
 from decimal import Decimal
 from unittest.mock import patch
@@ -74,6 +75,7 @@ class AssistantAccessTests(TestCase):
         self.assertContains(response, "دستیار هوش مصنوعی")
         settings = self.client.get(reverse("assistant_settings"))
         self.assertContains(settings, "GAPGPT_API_KEY")
+        self.assertContains(settings, "تولید محتوا")
 
     def test_migrations_create_policy_table_and_defaults(self):
         self.assertIn("assistant_reviewpolicy", connection.introspection.table_names())
@@ -438,3 +440,70 @@ class AssistantReportTests(TestCase):
     def test_parse_json_rejects_unknown_decision(self):
         parsed = parse_model_json('noise {"decision":"delete_all","confidence":1,"reason":"x"}')
         self.assertEqual(parsed["decision"], ACTION_NEEDS_REVIEW)
+
+
+class AssistantContentTests(TestCase):
+    def setUp(self):
+        self.client.force_login(_staff())
+
+    def test_settings_and_nav_include_content_section(self):
+        page = self.client.get(reverse("assistant_settings"))
+        self.assertContains(page, "تولید محتوا")
+        self.assertContains(page, "کنترل کلی")
+        self.assertContains(page, "assistant-panel")
+        self.assertContains(page, 'class="button')
+
+    def test_content_lists_split_official_scenarios_and_skips_custom(self):
+        from scenarios.large_deal import seed_large_scenarios
+        from scenarios.models import KIND_ADVANCED
+
+        quick = Scenario.objects.create(name="سناریو رسمی سریع")
+        owner = User.objects.create_user("owner", password="x")
+        Scenario.objects.create(name="سناریو شخصی پنهان", owner=owner)
+        packs = {item.large_kind: item for item in seed_large_scenarios()}
+        listed = self.client.get(reverse("assistant_content_scenarios"))
+        self.assertContains(listed, "تقسیم نقش سریع")
+        self.assertContains(listed, "سناریو تعداد بالا")
+        self.assertContains(listed, quick.name)
+        self.assertContains(listed, packs[KIND_ADVANCED].name)
+        self.assertContains(listed, reverse("assistant_content_scenario", args=[quick.pk]))
+        self.assertNotContains(listed, "سناریو شخصی پنهان")
+
+    def test_rewrite_preview_then_apply(self):
+        scenario = Scenario.objects.create(name="بازپرس رسمی", rulebook_body_fa="<p>قدیمی</p>", rules_body_fa="<p>قدیمی</p>")
+        payload = {
+            "rulebook_title_fa": "رول‌بوک تازه",
+            "rulebook_body_fa": "<p>متن بازنویسی‌شده رول‌بوک</p>",
+            "rules_title_fa": "قوانین تازه",
+            "rules_body_fa": "<p>متن بازنویسی‌شده قوانین</p>",
+        }
+        with patch("assistant.content.fetch_source_text", return_value="منبع قوانین مافیا"), patch(
+            "assistant.content.complete_chat", return_value=json.dumps(payload)
+        ):
+            generated = self.client.post(
+                reverse("assistant_content_scenario", args=[scenario.pk]),
+                {
+                    "action": "generate",
+                    "sources": "https://example.com/mafia-rules",
+                    "tone": "لحن گرداننده خودمانی",
+                },
+            )
+        self.assertRedirects(generated, reverse("assistant_content_scenario", args=[scenario.pk]))
+        preview = self.client.get(reverse("assistant_content_scenario", args=[scenario.pk]))
+        self.assertContains(preview, "متن بازنویسی‌شده رول‌بوک")
+        applied = self.client.post(
+            reverse("assistant_content_scenario", args=[scenario.pk]),
+            {"action": "apply", "sources": "https://example.com/mafia-rules", "tone": "لحن گرداننده خودمانی"},
+        )
+        self.assertRedirects(applied, reverse("assistant_content_scenario", args=[scenario.pk]))
+        scenario.refresh_from_db()
+        self.assertEqual(scenario.rulebook_title_fa, "رول‌بوک تازه")
+        self.assertIn("بازنویسی‌شده قوانین", scenario.rules_body_fa)
+
+    def test_private_source_urls_are_rejected(self):
+        from assistant.content import assert_public_http_url
+
+        with self.assertRaises(AssistantClientError):
+            assert_public_http_url("http://127.0.0.1/secret")
+        with self.assertRaises(AssistantClientError):
+            assert_public_http_url("file:///etc/passwd")

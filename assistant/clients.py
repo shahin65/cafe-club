@@ -37,7 +37,7 @@ def bale_configured():
     return bool(settings.BALE_BOT_TOKEN and settings.BALE_ADMIN_CHAT_ID)
 
 
-def complete_chat(messages, timeout=40):
+def complete_chat(messages, timeout=40, temperature=0.1):
     if not gapgpt_configured():
         raise AssistantClientError("سرویس هوش مصنوعی روی سرور پیکربندی نشده است.")
     endpoint = settings.GAPGPT_BASE_URL.rstrip("/")
@@ -47,7 +47,7 @@ def complete_chat(messages, timeout=40):
         {
             "model": settings.GAPGPT_MODEL,
             "messages": messages,
-            "temperature": 0.1,
+            "temperature": temperature,
         }
     ).encode("utf-8")
     request = urllib.request.Request(

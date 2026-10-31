@@ -224,7 +224,19 @@ class UserProfile(models.Model):
         super().save(*args, **kwargs)
 
 
+BLUE_TICK_WAIT_MESSAGE = "درخواست شما طی ساعات آینده بررسی می‌شود و نتیجه در همین قسمت اعلام می‌شود."
+BLUE_TICK_REJECTED_MESSAGE = "درخواست تیک آبی شما رد شد. می‌توانید دوباره درخواست بدهید."
+
+
 class BlueTickRequest(models.Model):
+    STATUS_PENDING = "pending"
+    STATUS_APPROVED = "approved"
+    STATUS_REJECTED = "rejected"
+    STATUS_CHOICES = [
+        (STATUS_PENDING, "در انتظار بررسی"),
+        (STATUS_APPROVED, "تأیید شده"),
+        (STATUS_REJECTED, "رد شده"),
+    ]
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
@@ -236,6 +248,13 @@ class BlueTickRequest(models.Model):
     biography = models.TextField("بیوگرافی")
     created_at = models.DateTimeField("زمان ارسال", auto_now_add=True)
     is_reviewed = models.BooleanField("بررسی شده", default=False)
+    status = models.CharField(
+        "نتیجه",
+        max_length=12,
+        choices=STATUS_CHOICES,
+        default=STATUS_PENDING,
+        db_index=True,
+    )
 
     class Meta:
         verbose_name = "درخواست تیک آبی"
@@ -244,6 +263,20 @@ class BlueTickRequest(models.Model):
 
     def __str__(self):
         return f"{self.full_name} — {self.user.get_username()}"
+
+    def mark_approved(self):
+        self.status = self.STATUS_APPROVED
+        self.is_reviewed = True
+        self.save(update_fields=["status", "is_reviewed"])
+        profile = getattr(self.user, "club_profile", None)
+        if profile and not profile.is_verified:
+            profile.is_verified = True
+            profile.save(update_fields=["is_verified"])
+
+    def mark_rejected(self):
+        self.status = self.STATUS_REJECTED
+        self.is_reviewed = True
+        self.save(update_fields=["status", "is_reviewed"])
 
 
 class EventAd(models.Model):

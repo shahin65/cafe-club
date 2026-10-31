@@ -189,15 +189,9 @@ def apply_to_object(case, decision, reply=""):
             return "reject"
         return "needs_review"
     if decision == "approve":
-        profile = getattr(obj.user, "club_profile", None)
-        if profile and not profile.is_verified:
-            profile.is_verified = True
-            profile.save(update_fields=["is_verified"])
-        obj.is_reviewed = True
-        obj.save(update_fields=["is_reviewed"])
+        obj.mark_approved()
         return "approve"
     if decision == "reject":
-        obj.is_reviewed = True
-        obj.save(update_fields=["is_reviewed"])
+        obj.mark_rejected()
         return "reject"
     return "needs_review"

@@ -1,0 +1,52 @@
+{% extends "admin/change_list.html" %}
+{% load i18n admin_urls admin_list %}
+
+{% block result_list %}
+  {% if action_form and actions_on_top and cl.show_admin_actions %}{% admin_actions %}{% endif %}
+  {% if scenario_groups %}
+    {% for group in scenario_groups %}
+      <div class="module scenario-catalog-group">
+        <h2>{{ group.title }} ({{ group.count }})</h2>
+        <table>
+          <thead>
+            <tr>
+              {% if cl.list_display_links %}
+                <th class="action-checkbox-column">
+                  <input type="checkbox" class="action-select-all" disabled aria-hidden="true">
+                </th>
+              {% endif %}
+              <th>اسم سناریو</th>
+              <th>نامک</th>
+              <th>حالت‌های نفرات</th>
+              <th>صفحه اول</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in group.items %}
+              <tr class="{% cycle 'row1' 'row2' %}">
+                <td class="action-checkbox">
+                  <input type="checkbox" name="_selected_action" value="{{ item.pk }}" class="action-select">
+                </td>
+                <th>
+                  <a href="{% url 'admin:scenarios_scenario_change' item.pk %}">{{ item.name }}</a>
+                  {% if item.is_large %} — تعداد بالا{% endif %}
+                  {% if item.owner %} — {{ item.owner }}{% endif %}
+                </th>
+                <td>{{ item.slug }}</td>
+                <td>{% for size in item.sizes.all %}{% if not forloop.first %}، {% endif %}{{ size.player_count }}{% empty %}—{% endfor %}</td>
+                <td>{% if item.is_featured %}بله{% else %}—{% endif %}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="5">موردی در این گروه نیست.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% endfor %}
+  {% else %}
+    {% result_list cl %}
+  {% endif %}
+  {% if action_form and actions_on_bottom and cl.show_admin_actions %}{% admin_actions %}{% endif %}
+{% endblock %}
+
+{% block pagination %}{% endblock %}

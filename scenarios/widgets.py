@@ -2,6 +2,13 @@ from django import forms
 from django.urls import reverse
 
 
+class ClearableAdminImageWidget(forms.ClearableFileInput):
+    clear_checkbox_label = "حذف تصویر"
+    initial_text = "تصویر فعلی"
+    input_text = "تصویر جدید"
+    template_name = "django/forms/widgets/clearable_image.html"
+
+
 class PageHtmlWidget(forms.Textarea):
     def __init__(self, language="fa", *args, **kwargs):
         self.editor_language = language

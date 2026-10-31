@@ -4,13 +4,21 @@
 {% block title %}{{ scenario.name }}{% endblock %}
 
 {% block content %}
-  <section class="deal-sheet">
-    <h1>{{ scenario.name }}</h1>
+  <section class="deal-sheet player-count-sheet places-frost">
+    <h1 class="places-title">{{ scenario.name }}</h1>
     {% if sizes %}
       <p>{% trans "بازی را چند نفره اجرا می‌کنید؟" %}</p>
       <div class="choice-list">
         {% for size in sizes %}
-          <a class="choice" href="{% url 'deal_mode' scenario.id size.player_count %}">{{ size.player_count }} {% trans "نفره" %}</a>
+          <a class="choice tournament-btn" href="{% url 'deal_mode' scenario.id size.player_count %}">
+            <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+              <circle cx="9" cy="7.8" r="3" fill="none" stroke="currentColor" stroke-width="1.7"/>
+              <path d="M3.7 18.7c.4-3.1 2.6-4.9 5.3-4.9s4.9 1.8 5.3 4.9" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+              <circle cx="16.7" cy="8.5" r="2.35" fill="none" stroke="currentColor" stroke-width="1.7"/>
+              <path d="M15.8 13.6c2.1.3 3.7 1.8 4.1 4.1" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+            </svg>
+            <span><strong>{{ size.player_count }} {% trans "نفره" %}</strong></span>
+          </a>
         {% endfor %}
       </div>
     {% else %}

@@ -17,10 +17,25 @@
     var hasPoint = Number.isFinite(lat) && Number.isFinite(lng);
     var start = hasPoint ? [lat, lng] : [defaultLat, defaultLng];
     var map = L.map(mapEl).setView(start, hasPoint ? 16 : 12);
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    var tiles = L.tileLayer("https://tile.openstreetmap.de/{z}/{x}/{y}.png", {
       maxZoom: 19,
       attribution: "&copy; OpenStreetMap",
-    }).addTo(map);
+    });
+    var fallback = L.tileLayer(
+      "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",
+      {
+        maxZoom: 19,
+        attribution: "Tiles &copy; Esri",
+      }
+    );
+    var failedTiles = 0;
+    tiles.on("tileerror", function () {
+      failedTiles += 1;
+      if (failedTiles < 4 || map.hasLayer(fallback)) return;
+      map.removeLayer(tiles);
+      fallback.addTo(map);
+    });
+    tiles.addTo(map);
 
     var marker = L.marker(start, { draggable: true }).addTo(map);
 

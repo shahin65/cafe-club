@@ -19,8 +19,13 @@ from banners.gmail import (
     store_gmail_challenge,
 )
 from banners.images import optimize_profile_photo
-from banners.accounts import user_is_blocked
-from banners.models import BlueTickRequest, EventAd, UserProfile
+from banners.accounts import SimpleClubRegisterForm, user_is_blocked
+from banners.models import (
+    BLUE_TICK_REJECTED_MESSAGE,
+    BLUE_TICK_WAIT_MESSAGE,
+    BlueTickRequest,
+    UserProfile,
+)
 
 
 def _safe_next(request, fallback="profile"):
@@ -108,22 +113,42 @@ def _link_gmail(user, email, google_sub=""):
         user.save(update_fields=["email"])
 
 
-def profile_page(request):
+def blue_tick_state(user):
+    pending = None
+    rejected = None
+    if getattr(user, "is_authenticated", False):
+        pending = BlueTickRequest.objects.filter(user=user, is_reviewed=False).first()
+        latest = BlueTickRequest.objects.filter(user=user).order_by("-created_at").first()
+        if (
+            not pending
+            and latest
+            and latest.status == BlueTickRequest.STATUS_REJECTED
+        ):
+            rejected = latest
+    return {"pending_blue_tick": pending, "rejected_blue_tick": rejected}
+
+
+def profile_page_context(request, extra=None):
     profile = request.user.club_profile if request.user.is_authenticated else None
-    pending_request = None
     my_ads = []
     if request.user.is_authenticated:
-        pending_request = BlueTickRequest.objects.filter(user=request.user, is_reviewed=False).first()
         my_ads = list(request.user.event_ads.all().order_by("-created_at", "-id"))
-    return render(
-        request,
-        "account/profile.html",
-        {
-            "club_profile": profile,
-            "pending_blue_tick": pending_request,
-            "my_ads": my_ads,
-        },
-    )
+    context = {
+        "club_profile": profile,
+        "my_ads": my_ads,
+        "register_form": SimpleClubRegisterForm(),
+        "show_auth_methods": False,
+        "blue_tick_wait_message": BLUE_TICK_WAIT_MESSAGE,
+        "blue_tick_rejected_message": BLUE_TICK_REJECTED_MESSAGE,
+    }
+    context.update(blue_tick_state(request.user))
+    if extra:
+        context.update(extra)
+    return context
+
+
+def profile_page(request):
+    return render(request, "account/profile.html", profile_page_context(request))
 
 
 @require_POST
@@ -245,7 +270,7 @@ def request_blue_tick(request):
     if request.user.club_profile.is_verified:
         return redirect(next_url)
     if BlueTickRequest.objects.filter(user=request.user, is_reviewed=False).exists():
-        messages.success(request, "پس از بررسی طی 72 ساعت آینده با شما تماس حاصل خواهد شد")
+        messages.success(request, BLUE_TICK_WAIT_MESSAGE)
         return redirect(next_url)
     full_name = (request.POST.get("full_name") or "").strip()[:80]
     phone = (request.POST.get("phone") or "").strip()[:20]
@@ -259,5 +284,5 @@ def request_blue_tick(request):
         phone=phone,
         biography=biography,
     )
-    messages.success(request, "پس از بررسی طی 72 ساعت آینده با شما تماس حاصل خواهد شد")
+    messages.success(request, BLUE_TICK_WAIT_MESSAGE)
     return redirect(next_url)

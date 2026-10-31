@@ -1,7 +1,11 @@
 document.addEventListener("DOMContentLoaded", function () {
   if (!window.tinymce) return;
   tinymce.baseURL = "https://cdn.jsdelivr.net/npm/tinymce@7.6.1";
-  document.querySelectorAll("textarea.page-html-editor").forEach(function (field) {
+
+  function initEditor(field) {
+    if (!field || field.disabled || (field.id && tinymce.get(field.id))) return;
+    var details = field.closest("details");
+    if (details && !details.open) return;
     var english = field.getAttribute("data-editor-language") === "en";
     var csrf = document.querySelector("[name=csrfmiddlewaretoken]");
     var uploadUrl = field.getAttribute("data-upload-url");
@@ -37,6 +41,17 @@ document.addEventListener("DOMContentLoaded", function () {
           });
         });
       }
+    });
+  }
+
+  function initVisibleEditors() {
+    document.querySelectorAll("textarea.page-html-editor").forEach(initEditor);
+  }
+
+  initVisibleEditors();
+  document.querySelectorAll("details").forEach(function (box) {
+    box.addEventListener("toggle", function () {
+      if (box.open) initVisibleEditors();
     });
   });
   document.querySelectorAll("form").forEach(function (form) {

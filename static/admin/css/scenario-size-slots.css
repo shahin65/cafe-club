@@ -1,3 +1,29 @@
 .nested-slot-row[hidden] {
     display: none !important;
 }
+
+.clearable-image {
+    display: grid;
+    gap: 6px;
+    justify-items: start;
+}
+
+.clearable-image .banner-preview {
+    max-width: 96px;
+    max-height: 96px;
+    object-fit: contain;
+    border-radius: 8px;
+}
+
+.deletable-image-link {
+    color: #b42318;
+    font-weight: 700;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.deletable-image-link[aria-disabled="true"] {
+    color: #6d6256;
+    pointer-events: none;
+    text-decoration: none;
+}

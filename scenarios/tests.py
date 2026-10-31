@@ -21,6 +21,7 @@ from scenarios.models import (
     SIDE_VILLAGE,
     SIDE_WEREWOLF,
     CardBranding,
+    CatalogRole,
     FinalMoveCard,
     Role,
     Scenario,
@@ -252,6 +253,11 @@ class RoleDealTests(TestCase):
         response = self.client.get(f"/deal/{scenario.id}/")
         self.assertContains(response, "۲ نفره")
         self.assertContains(response, "۳ نفره")
+        self.assertContains(response, "player-count-sheet places-frost")
+        self.assertContains(response, "tournament-btn")
+        mode = self.client.get(f"/deal/{scenario.id}/2/")
+        self.assertContains(mode, "deal-mode-sheet places-frost")
+        self.assertContains(mode, "Icon-Numerical.png")
 
     def test_deal_assigns_each_role_once_and_survives_return(self):
         scenario = make_complete_scenario()
@@ -416,6 +422,7 @@ class ScenarioPagesAndCommentsTests(TestCase):
         self.assertContains(rulebook, "رول‌بوک بازپرس")
         self.assertContains(rulebook, "بازگشت به مدیریت بازی")
         self.assertContains(rulebook, "doc-back")
+        self.assertContains(rulebook, "scenario-doc places-frost")
         self.assertContains(rulebook, 'rel="canonical"')
         self.assertContains(rulebook, 'hreflang="en"')
         self.assertContains(rulebook, 'name="description"')
@@ -426,6 +433,7 @@ class ScenarioPagesAndCommentsTests(TestCase):
         self.assertContains(english, "Inspector rulebook")
         rules = self.client.get(scenario.get_rules_url())
         self.assertContains(rules, "قوانین بازپرس")
+        self.assertContains(rules, "scenario-doc places-frost")
         sitemap = self.client.get("/sitemap.xml")
         self.assertContains(sitemap, f"/scenario/{scenario.pk}/rulebook/")
         self.assertContains(sitemap, "/rulebook/")
@@ -451,6 +459,7 @@ class ScenarioPagesAndCommentsTests(TestCase):
         page = self.client.get(scenario.get_comments_url())
         self.assertNotContains(page, "این نظر هنوز نباید دیده شود.")
         self.assertContains(page, "جمع این دو عدد را بنویسید")
+        self.assertContains(page, "comments-sheet places-frost")
         captcha = self.client.session["venue_comment_captcha"]
         self.client.post(
             scenario.get_comments_url(),
@@ -744,6 +753,23 @@ class CardLogoTests(TestCase):
 
 
 class ScenarioAdminTests(TestCase):
+    def test_changelist_separates_quick_large_and_custom_scenarios(self):
+        user = get_user_model().objects.create_superuser("host", "host@example.com", "pass-word-123")
+        self.client.force_login(user)
+        quick = make_complete_scenario(name="سناریو سریع رسمی")
+        custom = make_complete_scenario(name="سناریو دلخواه میزبان")
+        custom.owner = user
+        custom.save(update_fields=["owner"])
+        packs = {item.large_kind: item for item in seed_large_scenarios()}
+        board = self.client.get("/admin/scenarios/scenario/")
+        self.assertContains(board, "تقسیم نقش سریع")
+        self.assertContains(board, "سناریوهای تعداد بالا")
+        self.assertContains(board, "سناریوهای دلخواه من")
+        self.assertContains(board, quick.name)
+        self.assertContains(board, custom.name)
+        self.assertContains(board, packs[KIND_ADVANCED].name)
+        self.assertContains(board, "گروه سناریو")
+
     def test_role_names_and_descriptions_are_on_the_scenario_form(self):
         user = get_user_model().objects.create_superuser("host", "host@example.com", "pass-word-123")
         self.client.force_login(user)
@@ -796,6 +822,168 @@ class ScenarioAdminTests(TestCase):
         change = self.client.get(f"/admin/scenarios/scenario/{scenario.pk}/change/")
         self.assertContains(change, "پدرخوانده")
         self.assertContains(change, "رئیس میز شب")
+        self.assertContains(change, "رول‌بوک‌ها")
+        self.assertContains(change, "<details")
+        self.assertContains(change, "حالت‌های اجرا")
+        self.assertContains(change, 'id="sizes-group"')
+
+    def test_new_player_count_inherits_previous_roles_and_only_needs_extras(self):
+        user = get_user_model().objects.create_superuser("host", "host@example.com", "pass-word-123")
+        self.client.force_login(user)
+        scenario = make_complete_scenario(name="سناریو کپی نقش")
+        size = scenario.sizes.get()
+        roles = list(size.roles.order_by("id"))
+        final = size.final_move_cards.get()
+        saved = self.client.post(
+            f"/admin/scenarios/scenario/{scenario.pk}/change/",
+            {
+                "name": scenario.name,
+                "home_order": str(scenario.home_order),
+                "has_final_move": "on",
+                "has_death_lottery": "on",
+                "_save": "ذخیره",
+                "sizes-TOTAL_FORMS": "2",
+                "sizes-INITIAL_FORMS": "1",
+                "sizes-MIN_NUM_FORMS": "0",
+                "sizes-MAX_NUM_FORMS": "5",
+                "sizes-0-id": str(size.pk),
+                "sizes-0-scenario": str(scenario.pk),
+                "sizes-0-player_count": "2",
+                "sizes-0-mafia_count": "1",
+                "sizes-0-citizen_count": "1",
+                "sizes-0-independent_count": "0",
+                "sizes-0-werewolf_count": "0",
+                "sizes-0-final_move_count": "1",
+                "sizes-0-roles-TOTAL_FORMS": "2",
+                "sizes-0-roles-INITIAL_FORMS": "2",
+                "sizes-0-roles-MIN_NUM_FORMS": "0",
+                "sizes-0-roles-MAX_NUM_FORMS": "20",
+                "sizes-0-roles-0-id": str(roles[0].pk),
+                "sizes-0-roles-0-side": roles[0].side,
+                "sizes-0-roles-0-name": roles[0].name,
+                "sizes-0-roles-0-description": roles[0].description,
+                "sizes-0-roles-1-id": str(roles[1].pk),
+                "sizes-0-roles-1-side": roles[1].side,
+                "sizes-0-roles-1-name": roles[1].name,
+                "sizes-0-roles-1-description": roles[1].description,
+                "sizes-0-finals-TOTAL_FORMS": "1",
+                "sizes-0-finals-INITIAL_FORMS": "1",
+                "sizes-0-finals-MIN_NUM_FORMS": "0",
+                "sizes-0-finals-MAX_NUM_FORMS": "12",
+                "sizes-0-finals-0-id": str(final.pk),
+                "sizes-0-finals-0-name": final.name,
+                "sizes-0-finals-0-description": final.description,
+                "sizes-1-scenario": str(scenario.pk),
+                "sizes-1-player_count": "3",
+                "sizes-1-mafia_count": "1",
+                "sizes-1-citizen_count": "2",
+                "sizes-1-independent_count": "0",
+                "sizes-1-werewolf_count": "0",
+                "sizes-1-final_move_count": "1",
+                "sizes-1-roles-TOTAL_FORMS": "1",
+                "sizes-1-roles-INITIAL_FORMS": "0",
+                "sizes-1-roles-MIN_NUM_FORMS": "0",
+                "sizes-1-roles-MAX_NUM_FORMS": "20",
+                "sizes-1-roles-0-side": "citizen",
+                "sizes-1-roles-0-name": "کارآگاه",
+                "sizes-1-roles-0-description": "مافیا را پیدا می‌کند",
+                "sizes-1-finals-TOTAL_FORMS": "0",
+                "sizes-1-finals-INITIAL_FORMS": "0",
+                "sizes-1-finals-MIN_NUM_FORMS": "0",
+                "sizes-1-finals-MAX_NUM_FORMS": "12",
+            },
+        )
+        self.assertEqual(saved.status_code, 302, saved.content.decode()[:2000])
+        bigger = scenario.sizes.get(player_count=3)
+        self.assertEqual(bigger.mafia_count, 1)
+        self.assertEqual(bigger.citizen_count, 2)
+        self.assertCountEqual(
+            [role.name for role in bigger.roles.all()],
+            ["رئیس مافیا", "بازپرس", "کارآگاه"],
+        )
+        self.assertEqual(bigger.roles.get(name="کارآگاه").description, "مافیا را پیدا می‌کند")
+        self.assertEqual(list(bigger.final_move_cards.values_list("name", flat=True)), ["حرکت آخر"])
+        form = self.client.get(f"/admin/scenarios/scenario/{scenario.pk}/change/")
+        self.assertContains(form, "نقش‌های حالت کوچک‌تر خودکار کپی می‌شوند")
+
+    def test_admin_can_clear_scenario_and_role_icons_with_a_link(self):
+        user = get_user_model().objects.create_superuser("host", "host@example.com", "pass-word-123")
+        self.client.force_login(user)
+        scenario = make_complete_scenario()
+        buffer = BytesIO()
+        Image.new("RGB", (24, 24), (20, 80, 120)).save(buffer, format="PNG")
+        scenario.icon.save("scene.png", SimpleUploadedFile("scene.png", buffer.getvalue(), content_type="image/png"))
+        size = scenario.sizes.get()
+        roles = list(size.roles.order_by("id"))
+        buffer.seek(0)
+        roles[0].icon.save("role.png", SimpleUploadedFile("role.png", buffer.getvalue(), content_type="image/png"))
+        form = self.client.get(f"/admin/scenarios/scenario/{scenario.pk}/change/")
+        self.assertContains(form, "حذف تصویر")
+        self.assertContains(form, "data-clear-image")
+        self.assertContains(form, 'name="icon-clear"')
+        self.assertContains(form, 'name="sizes-0-roles-0-icon-clear"')
+        final = size.final_move_cards.get()
+        saved = self.client.post(
+            f"/admin/scenarios/scenario/{scenario.pk}/change/",
+            {
+                "name": scenario.name,
+                "home_order": str(scenario.home_order),
+                "has_final_move": "on",
+                "has_death_lottery": "on",
+                "icon-clear": "on",
+                "_save": "ذخیره",
+                "sizes-TOTAL_FORMS": "1",
+                "sizes-INITIAL_FORMS": "1",
+                "sizes-MIN_NUM_FORMS": "0",
+                "sizes-MAX_NUM_FORMS": "5",
+                "sizes-0-id": str(size.pk),
+                "sizes-0-scenario": str(scenario.pk),
+                "sizes-0-player_count": "2",
+                "sizes-0-mafia_count": "1",
+                "sizes-0-citizen_count": "1",
+                "sizes-0-independent_count": "0",
+                "sizes-0-werewolf_count": "0",
+                "sizes-0-final_move_count": "1",
+                "sizes-0-roles-TOTAL_FORMS": "2",
+                "sizes-0-roles-INITIAL_FORMS": "2",
+                "sizes-0-roles-MIN_NUM_FORMS": "0",
+                "sizes-0-roles-MAX_NUM_FORMS": "20",
+                "sizes-0-roles-0-id": str(roles[0].pk),
+                "sizes-0-roles-0-side": roles[0].side,
+                "sizes-0-roles-0-name": roles[0].name,
+                "sizes-0-roles-0-description": roles[0].description,
+                "sizes-0-roles-0-icon-clear": "on",
+                "sizes-0-roles-1-id": str(roles[1].pk),
+                "sizes-0-roles-1-side": roles[1].side,
+                "sizes-0-roles-1-name": roles[1].name,
+                "sizes-0-roles-1-description": roles[1].description,
+                "sizes-0-finals-TOTAL_FORMS": "1",
+                "sizes-0-finals-INITIAL_FORMS": "1",
+                "sizes-0-finals-MIN_NUM_FORMS": "0",
+                "sizes-0-finals-MAX_NUM_FORMS": "12",
+                "sizes-0-finals-0-id": str(final.pk),
+                "sizes-0-finals-0-name": final.name,
+                "sizes-0-finals-0-description": final.description,
+            },
+        )
+        self.assertEqual(saved.status_code, 302)
+        scenario.refresh_from_db()
+        self.assertFalse(scenario.icon)
+        from scenarios.admin import RoleEditForm
+
+        role_form = RoleEditForm(
+            {
+                "side": roles[0].side,
+                "name": roles[0].name,
+                "description": roles[0].description,
+                "icon-clear": "on",
+            },
+            instance=roles[0],
+        )
+        self.assertTrue(role_form.is_valid(), role_form.errors)
+        role_form.save()
+        roles[0].refresh_from_db()
+        self.assertFalse(roles[0].icon)
 
     def test_admin_can_reply_to_a_user_comment(self):
         user = get_user_model().objects.create_superuser("mod", "mod@example.com", "pass-word-123")
@@ -847,12 +1035,46 @@ class LargeScenarioDealTests(TestCase):
         self.client.force_login(user)
         advanced = self.packs[KIND_ADVANCED]
         form = self.client.get(f"/admin/scenarios/scenario/{advanced.pk}/change/")
-        self.assertContains(form, 'id="catalog_roles-group"')
+        self.assertContains(form, 'id="catalog_mafia_roles-group"')
+        self.assertContains(form, 'id="catalog_citizen_roles-group"')
+        self.assertContains(form, 'id="catalog_independent_roles-group"')
+        self.assertContains(form, "نقش‌های ساید مافیا")
+        self.assertContains(form, "نقش‌های ساید شهروند")
         self.assertContains(form, "تعدادپذیر")
         self.assertContains(form, 'id="id_icon"')
+        self.assertNotContains(form, 'name="catalog_mafia_roles-0-side"')
+        from django.forms.models import inlineformset_factory
+        from scenarios.admin import CATALOG_ROLE_INLINES
+
+        FormSet = inlineformset_factory(
+            Scenario,
+            CatalogRole,
+            formset=CATALOG_ROLE_INLINES[SIDE_MAFIA].formset,
+            fields=("name", "allows_quantity", "description", "sort_order"),
+            extra=1,
+        )
+        saved = FormSet(
+            {
+                "catalog_mafia_roles-TOTAL_FORMS": "1",
+                "catalog_mafia_roles-INITIAL_FORMS": "0",
+                "catalog_mafia_roles-MIN_NUM_FORMS": "0",
+                "catalog_mafia_roles-MAX_NUM_FORMS": "1000",
+                "catalog_mafia_roles-0-name": "نقش جدید مافیا",
+                "catalog_mafia_roles-0-sort_order": "20",
+            },
+            instance=advanced,
+            prefix="catalog_mafia_roles",
+        )
+        self.assertTrue(saved.is_valid(), saved.errors)
+        saved.save()
+        self.assertEqual(CatalogRole.objects.get(name="نقش جدید مافیا").side, SIDE_MAFIA)
         night = self.packs[KIND_NIGHT]
         night_form = self.client.get(f"/admin/scenarios/scenario/{night.pk}/change/")
         self.assertContains(night_form, 'id="catalog_finals-group"')
+        wolf = self.client.get(f"/admin/scenarios/scenario/{self.packs[KIND_WEREWOLF].pk}/change/")
+        self.assertContains(wolf, 'id="catalog_werewolf_roles-group"')
+        self.assertContains(wolf, 'id="catalog_village_roles-group"')
+        self.assertNotContains(wolf, 'id="catalog_mafia_roles-group"')
 
     def test_advanced_wizard_asks_quantity_and_opens_host(self):
         scenario = self.packs[KIND_ADVANCED]

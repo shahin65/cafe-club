@@ -176,6 +176,10 @@ class UserProfileAdmin(admin.ModelAdmin):
         else:
             profile.is_verified = True
             profile.save(update_fields=["is_verified"])
+            BlueTickRequest.objects.filter(user=profile.user, is_reviewed=False).update(
+                is_reviewed=True,
+                status=BlueTickRequest.STATUS_APPROVED,
+            )
             self.message_user(request, f"تیک آبی {profile.public_id_display()} برای {profile.user.get_username()} فعال شد.")
         return redirect("admin:banners_userprofile_changelist")
 
@@ -184,10 +188,20 @@ admin.site.register(UserProfile, UserProfileAdmin)
 
 
 class BlueTickRequestAdmin(admin.ModelAdmin):
-    list_display = ("full_name", "user", "phone", "created_at", "is_reviewed")
-    list_filter = ("is_reviewed",)
+    list_display = ("full_name", "user", "phone", "created_at", "status", "is_reviewed")
+    list_filter = ("status", "is_reviewed")
     search_fields = ("full_name", "phone", "user__username", "biography")
-    list_editable = ("is_reviewed",)
+    list_editable = ("status",)
+
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        if obj.status == BlueTickRequest.STATUS_APPROVED:
+            obj.mark_approved()
+        elif obj.status == BlueTickRequest.STATUS_REJECTED:
+            obj.mark_rejected()
+        else:
+            obj.is_reviewed = False
+            obj.save(update_fields=["is_reviewed"])
 
 
 admin.site.register(BlueTickRequest, BlueTickRequestAdmin)

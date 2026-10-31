@@ -1,0 +1,38 @@
+{% extends "admin/assistant/base.html" %}
+
+{% block assistant %}
+<h1>بازنویسی {{ scenario.name }}</h1>
+<p>چند لینک منبع و توضیح لحن بدهید. دستیار محتوا را از نو می‌نویسد تا شبیه کپی مستقیم نباشد. قبل از ثبت، پیش‌نویس را بخوانید.</p>
+<form method="post" class="assistant-settings">
+  {% csrf_token %}
+  <div class="assistant-settings-grid">
+    <section class="assistant-panel assistant-panel-wide">
+      <h2>منابع و لحن</h2>
+      <label>لینک منابع (هر خط یک نشانی)</label>
+      <textarea name="sources" rows="6" placeholder="https://example.com/rulebook">{{ sources }}</textarea>
+      <label>لحن، ساختار و نکات بازنویسی</label>
+      <textarea name="tone" rows="5" placeholder="مثلاً لحن خودمانی گرداننده، تیترهای کوتاه، بدون کپی جملات منبع">{{ tone }}</textarea>
+      <p class="assistant-actions">
+        <button class="button default" type="submit" name="action" value="generate">ساخت پیش‌نویس</button>
+        <a class="button" href="{% url 'assistant_content_scenarios' %}">بازگشت به لیست</a>
+        <a class="button" href="{% url 'admin:scenarios_scenario_change' scenario.pk %}">صفحه سناریو در ادمین</a>
+      </p>
+    </section>
+    {% if preview %}
+      <section class="assistant-panel">
+        <h2>پیش‌نویس رول‌بوک</h2>
+        {% if preview.rulebook_title_fa %}<p><strong>{{ preview.rulebook_title_fa }}</strong></p>{% endif %}
+        <div class="assistant-preview">{{ preview.rulebook_body_fa|safe }}</div>
+      </section>
+      <section class="assistant-panel">
+        <h2>پیش‌نویس قوانین</h2>
+        {% if preview.rules_title_fa %}<p><strong>{{ preview.rules_title_fa }}</strong></p>{% endif %}
+        <div class="assistant-preview">{{ preview.rules_body_fa|safe }}</div>
+      </section>
+      <p class="assistant-actions">
+        <button class="button default" type="submit" name="action" value="apply">ثبت در رول‌بوک و قوانین</button>
+      </p>
+    {% endif %}
+  </div>
+</form>
+{% endblock %}

@@ -1,0 +1,29 @@
+{% extends "admin/assistant/base.html" %}
+
+{% block assistant %}
+<h1>تولید محتوا — سناریو</h1>
+<p>سناریوی مورد نظر را انتخاب کنید. سناریوهای دلخواه کاربران در این فهرست نیستند.</p>
+<div class="assistant-settings-grid">
+  <section class="assistant-panel">
+    <h2>تقسیم نقش سریع</h2>
+    <ul class="assistant-content-list">
+      {% for item in quick_scenarios %}
+        <li><a class="button" href="{% url 'assistant_content_scenario' item.pk %}">{{ item.name }}</a></li>
+      {% empty %}
+        <li>سناریوی رسمی تقسیم نقش سریع نیست.</li>
+      {% endfor %}
+    </ul>
+  </section>
+  <section class="assistant-panel">
+    <h2>سناریو تعداد بالا</h2>
+    <ul class="assistant-content-list">
+      {% for item in large_scenarios %}
+        <li><a class="button" href="{% url 'assistant_content_scenario' item.pk %}">{{ item.name }}</a></li>
+      {% empty %}
+        <li>سناریوی تعداد بالا نیست.</li>
+      {% endfor %}
+    </ul>
+  </section>
+</div>
+<p class="assistant-actions"><a class="button" href="{% url 'assistant_content' %}">بازگشت به تولید محتوا</a></p>
+{% endblock %}

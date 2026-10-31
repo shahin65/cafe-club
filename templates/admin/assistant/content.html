@@ -1,0 +1,13 @@
+{% extends "admin/assistant/base.html" %}
+
+{% block assistant %}
+<h1>تولید محتوا</h1>
+<p>از اینجا دستیار می‌تواند متن صفحات سناریو را از منابع شما با لحن تازه بازنویسی کند.</p>
+<ul class="assistant-cards">
+  <li>
+    <strong>سناریو</strong>
+    <p>رول‌بوک و قوانین سناریوهای تقسیم نقش سریع و تعداد بالا را از لینک و توضیح لحن بازنویسی کنید.</p>
+    <a class="button default" href="{% url 'assistant_content_scenarios' %}">لیست سناریوها</a>
+  </li>
+</ul>
+{% endblock %}

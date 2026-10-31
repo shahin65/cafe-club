@@ -8,15 +8,16 @@
 
 {% block content %}
 <div class="assistant-wrap">
-  <nav class="assistant-nav">
-    <a href="{% url 'assistant_home' %}">خانه دستیار</a>
-    <a href="{% url 'assistant_manager' %}">بازبینی مدیر</a>
-    <a href="{% url 'assistant_queue' 'comments' %}">نظرات</a>
-    <a href="{% url 'assistant_queue' 'ads' %}">آگهی‌ها</a>
-    <a href="{% url 'assistant_queue' 'venues' %}">کافه و کلاب</a>
-    <a href="{% url 'assistant_queue' 'ticks' %}">تیک آبی</a>
-    <a href="{% url 'assistant_reports' %}">گزارش‌ها</a>
-    <a href="{% url 'assistant_settings' %}">تنظیمات</a>
+  <nav class="assistant-nav" aria-label="منوی دستیار">
+    <a class="button{% if nav_active == 'home' %} default is-active{% endif %}" href="{% url 'assistant_home' %}">خانه دستیار</a>
+    <a class="button{% if nav_active == 'manager' %} default is-active{% endif %}" href="{% url 'assistant_manager' %}">بازبینی مدیر</a>
+    <a class="button{% if nav_active == 'comments' %} default is-active{% endif %}" href="{% url 'assistant_queue' 'comments' %}">نظرات</a>
+    <a class="button{% if nav_active == 'ads' %} default is-active{% endif %}" href="{% url 'assistant_queue' 'ads' %}">آگهی‌ها</a>
+    <a class="button{% if nav_active == 'venues' %} default is-active{% endif %}" href="{% url 'assistant_queue' 'venues' %}">کافه و کلاب</a>
+    <a class="button{% if nav_active == 'ticks' %} default is-active{% endif %}" href="{% url 'assistant_queue' 'ticks' %}">تیک آبی</a>
+    <a class="button{% if nav_active == 'content' %} default is-active{% endif %}" href="{% url 'assistant_content' %}">تولید محتوا</a>
+    <a class="button{% if nav_active == 'reports' %} default is-active{% endif %}" href="{% url 'assistant_reports' %}">گزارش‌ها</a>
+    <a class="button{% if nav_active == 'settings' %} default is-active{% endif %}" href="{% url 'assistant_settings' %}">تنظیمات</a>
   </nav>
   {% if not gapgpt_ok %}
     <p class="assistant-warn">سرویس هوش مصنوعی روی سرور پیکربندی نشده است. متغیرهای GAPGPT_API_KEY، GAPGPT_BASE_URL و GAPGPT_MODEL را تنظیم کنید.</p>
