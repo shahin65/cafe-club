@@ -37,6 +37,10 @@
   }
   if (retryButton) {
     retryButton.addEventListener("click", function () {
+      if (window.CafeClub && CafeClub.retry) {
+        CafeClub.retry();
+        return;
+      }
       if (navigator.onLine) {
         hideOffline();
         window.location.reload();

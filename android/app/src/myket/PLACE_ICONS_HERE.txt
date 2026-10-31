@@ -1,0 +1,1 @@
+اینجا ic_launcher.png و ic_launcher_round.png نسخه مایکت را بگذارید.

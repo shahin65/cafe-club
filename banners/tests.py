@@ -616,6 +616,7 @@ class PlacesTests(TestCase):
         user = User.objects.create_user("clubads", "clubads@example.com", "pass-word-123")
         self.client.force_login(user)
         form = self.client.get("/location/promo/")
+        self.assertContains(form, "pay-frost")
         self.assertContains(form, "۲۵۰ هزار تومان")
         self.assertContains(form, "۴۵۰ هزار تومان")
         self.assertContains(form, "۸۰۰ هزار تومان")
@@ -1521,6 +1522,7 @@ class PaymentGatewayTests(TestCase):
     def test_main_site_without_referral_uses_bitpay(self, _mock):
         ad = self._ad("آگهی وب بیت‌پی")
         offer = self.client.get(f"/ads/{ad.id}/boost/")
+        self.assertContains(offer, "pay-frost")
         self.assertContains(offer, "بیت‌پی")
         start = self.client.post(f"/ads/{ad.id}/boost/", {"plan": "bronze"})
         self.assertEqual(start.status_code, 302)
@@ -1565,6 +1567,12 @@ class PaymentGatewayTests(TestCase):
         self.assertRedirects(start, f"/pay/checkout/{txn.id}/")
         checkout = self.client.get(f"/pay/checkout/{txn.id}/")
         self.assertContains(checkout, "پلن آگهی برنزی")
+        self.assertContains(checkout, "data-store-checkout")
+        self.assertContains(checkout, "pay-frost")
+        self.assertContains(checkout, "pay-copy")
+        self.assertContains(checkout, 'data-sku="ad_bronze"')
+        self.assertContains(checkout, "store-checkout.js")
+        self.assertNotContains(checkout, "توکن خرید")
         self.assertNotContains(checkout, "SKU")
         paid = self.client.post(
             "/pay/verify/bazaar/",
@@ -1572,6 +1580,7 @@ class PaymentGatewayTests(TestCase):
             HTTP_ACCEPT="application/json",
         )
         self.assertEqual(paid.json()["ok"], True)
+        self.assertTrue(paid.json()["next"])
         ad.refresh_from_db()
         self.assertEqual(ad.promo_plan, "bronze")
         self.assertTrue(ad.is_boosted)

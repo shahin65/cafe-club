@@ -150,18 +150,26 @@ def start_checkout(request, package, *, event_ad=None, venue=None, fail_url="ads
         return redirect(redirect_url)
     request.session["pending_payment_id"] = txn.id
     request.session.modified = True
-    messages.info(request, "خرید را در فروشگاه کامل کنید، سپس توکن خرید را برای تایید بفرستید.")
     return redirect("pay_checkout", txn_id=txn.id)
 
 
 def _finish_response(request, txn, *, wants_json=False, replay=False):
+    next_url = success_url(txn)
     if wants_json:
-        return JsonResponse({"ok": True, "status": "completed", "sku": txn.package.sku, "replay": replay})
+        return JsonResponse(
+            {
+                "ok": True,
+                "status": "completed",
+                "sku": txn.package.sku,
+                "replay": replay,
+                "next": next_url,
+            }
+        )
     if replay:
         messages.info(request, "این خرید قبلاً اعمال شده است.")
     else:
         messages.success(request, success_message(txn))
-    return redirect(success_url(txn))
+    return redirect(next_url)
 
 
 @login_required
@@ -172,8 +180,12 @@ def checkout_page(request, txn_id):
         pk=txn_id,
         user=request.user,
     )
+    if txn.status == PaymentTransaction.STATUS_COMPLETED:
+        messages.success(request, success_message(txn))
+        return redirect(success_url(txn))
     source = install_source(request)
     gateway = txn.gateway or gateway_for_source(source)
+    verify_name = "verify_bazaar" if gateway == PaymentTransaction.GATEWAY_BAZAAR else "verify_myket"
     return render(
         request,
         "account/checkout.html",
@@ -182,7 +194,7 @@ def checkout_page(request, txn_id):
             "package": txn.package,
             "install_source": source,
             "gateway": gateway,
-            "verify_url": reverse("verify_bazaar" if gateway == "bazaar" else "verify_myket"),
+            "verify_url": reverse(verify_name),
         },
     )
 

@@ -121,8 +121,37 @@ def _home_logo_redirect():
     return redirect(f"{reverse('home')}?logo=1")
 
 
+def _delete_custom_logo(request):
+    branding = CardBranding.objects.filter(user=request.user).first() if request.user.is_authenticated else None
+    path = ""
+    if branding and branding.image:
+        path = branding.image.name
+        branding.image.delete(save=False)
+        branding.image = ""
+        if branding.preset not in PRESETS:
+            branding.preset = "cafeclub"
+        branding.save()
+    session = request.session.get(CARD_LOGO_SESSION) or {}
+    if not path:
+        path = session.get("path") or ""
+    if path:
+        try:
+            if default_storage.exists(path):
+                default_storage.delete(path)
+        except Exception:
+            pass
+    fallback = branding.preset if branding and branding.preset in PRESETS else "cafeclub"
+    _save_session(request, {"kind": "preset", "key": fallback})
+    if branding:
+        _save_user(request, preset=fallback, image_path="")
+
+
 @require_POST
 def save_card_logo(request):
+    if request.POST.get("action") == "delete_custom":
+        if _is_verified(request):
+            _delete_custom_logo(request)
+        return _home_logo_redirect()
     preset = (request.POST.get("preset") or "").strip()
     if preset in PRESETS:
         _save_session(request, {"kind": "preset", "key": preset})
@@ -142,7 +171,7 @@ def save_card_logo(request):
     if uploaded and _is_verified(request):
         branding = CardBranding.objects.filter(user=request.user).first()
         if branding and branding.image:
-            branding.image.delete(save=False)
+            return _home_logo_redirect()
         prefix = request.user.id
         path = _store_upload(prefix, uploaded)
         if path:

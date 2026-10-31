@@ -1,32 +1,42 @@
 {% extends "base.html" %}
-{% load i18n %}
+{% load i18n static %}
 
-{% block title %}{% trans "تایید خرید فروشگاه" %}{% endblock %}
+{% block title %}{% trans "پرداخت" %}{% endblock %}
 
 {% block content %}
-  <section class="sheet wizard-sheet wallet-sheet">
-    <h1>{% trans "تایید خرید فروشگاه" %}</h1>
-    {% if gateway == "bazaar" %}
-      <p class="wallet-source">{% trans "پرداخت از طریق کافه بازار" %}</p>
-    {% else %}
-      <p class="wallet-source">{% trans "پرداخت از طریق مایکت" %}</p>
-    {% endif %}
-    <p>{% trans "محصول" %}: <strong>{{ package.title }}</strong></p>
-    <p>{% trans "قیمت" %}: {{ package.price_toman }} {% trans "تومان" %}</p>
-    {% if messages %}
-      <ul class="form-messages">
-        {% for message in messages %}
-          <li class="{{ message.tags }}">{{ message }}</li>
-        {% endfor %}
-      </ul>
-    {% endif %}
-    <form class="wizard-form wallet-verify" method="post" action="{{ verify_url }}">
-      {% csrf_token %}
-      <input type="hidden" name="sku" value="{{ package.sku }}">
-      <label>{% trans "توکن خرید" %}
-        <input type="text" name="purchase_token" required dir="ltr" autocomplete="off">
-      </label>
-      <button class="choice wizard-submit" type="submit">{% trans "اعتبارسنجی خرید" %}</button>
-    </form>
+  <section
+    class="sheet wizard-sheet wallet-sheet pay-frost"
+    data-store-checkout
+    data-sku="{{ package.sku }}"
+    data-payload="{{ txn.id }}"
+    data-verify-url="{{ verify_url }}"
+    data-csrf="{{ csrf_token }}"
+  >
+    <h1>{% trans "پرداخت" %}</h1>
+    <div class="pay-copy">
+      {% if gateway == "bazaar" %}
+        <p class="wallet-source">{% trans "درگاه کافه بازار" %}</p>
+      {% else %}
+        <p class="wallet-source">{% trans "درگاه مایکت" %}</p>
+      {% endif %}
+      <p>{% trans "محصول" %}: <strong>{{ package.title }}</strong></p>
+      <p>{% trans "قیمت ثبت‌شده" %}: {{ package.price_toman }} {% trans "تومان" %}</p>
+      <p class="ad-note">{% trans "صفحه پرداخت فروشگاه باز می‌شود و قیمت همان محصول ثبت‌شده در فروشگاه را نشان می‌دهد." %}</p>
+      {% if messages %}
+        <ul class="form-messages">
+          {% for message in messages %}
+            <li class="{{ message.tags }}">{{ message }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+      <p data-checkout-status>{% trans "در حال اتصال به درگاه…" %}</p>
+    </div>
+    <p>
+      <button class="choice wizard-submit" type="button" data-checkout-retry>{% trans "تلاش دوباره" %}</button>
+    </p>
   </section>
+{% endblock %}
+
+{% block extra_js %}
+  <script src="{% static 'js/store-checkout.js' %}?v=2"></script>
 {% endblock %}

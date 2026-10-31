@@ -20,9 +20,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Lalezar&family=Vazirmatn:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{% static 'css/site.css' %}?v=79">
+  <link rel="stylesheet" href="{% static 'css/site.css' %}?v=81">
 </head>
-<body{% if role_deal_active %} data-deal-active="1" data-deal-cancel="{% url 'deal_cancel' %}"{% endif %}{% if deal_play_chrome %} data-deal-play="1"{% endif %}>
+<body{% if role_deal_active %} data-deal-active="1"{% endif %}{% if deal_play_chrome %} data-deal-play="1" data-deal-cancel="{% url 'deal_cancel' %}"{% endif %}>
   <header class="app-bar">
     {% if deal_play_chrome %}
       <div class="deal-chrome-actions">
@@ -38,8 +38,8 @@
       <img src="{% static 'Icon-Settings1.png' %}" alt="" width="32" height="32">
     </a>
     {% endif %}
-    <a class="app-name" href="{% url 'home' %}">{% trans "کافه کلاب" %}</a>
-    <a class="profile-button" href="{% url 'profile' %}">
+    <a class="app-name"{% if deal_play_chrome %} href="{% url 'deal_cancel' %}" data-deal-home{% else %} href="{% url 'home' %}"{% endif %}>{% trans "کافه کلاب" %}</a>
+    <a class="profile-button"{% if deal_play_chrome %} href="{% url 'deal_cancel' %}" data-deal-home{% else %} href="{% url 'profile' %}"{% endif %}>
       <img src="{% if club_profile and club_profile.photo %}{{ club_profile.photo.url }}{% else %}{% static 'Icon-profile.png' %}{% endif %}" alt="" width="36" height="36">
       <span class="username">{% if profile_shown_name %}{{ profile_shown_name }}{% else %}{% trans "مهمان" %}{% endif %}</span>
       {% if club_profile.is_verified %}
@@ -97,7 +97,7 @@
     </div>
   </div>
   <script src="{% static 'js/call.js' %}?v=1"></script>
-  <script src="{% static 'js/pwa.js' %}?v=3"></script>
+  <script src="{% static 'js/pwa.js' %}?v=4"></script>
   <script>
     (function () {
       var pendingDealHref = "";
@@ -137,7 +137,8 @@
           openDealSheet(refreshSheet, refresh.getAttribute("href"));
           return;
         }
-        if (!document.body.dataset.dealActive) return;
+        var dealPlay = document.body.dataset.dealPlay || document.body.dataset.dealActive;
+        if (!dealPlay) return;
         var link = event.target.closest("a");
         if (!link || link.target === "_blank") return;
         if (link.classList.contains("deal-next") || link.classList.contains("deal-host")) {
@@ -150,7 +151,7 @@
         event.preventDefault();
         openDealSheet(homeSheet, document.body.dataset.dealCancel);
       });
-      if (document.body.dataset.dealActive) {
+      if (document.body.dataset.dealPlay || document.body.dataset.dealActive) {
         var cancelUrl = document.body.dataset.dealCancel;
         history.replaceState({dealGuard: 1}, "", location.href);
         history.pushState({dealGuard: 1}, "", location.href);

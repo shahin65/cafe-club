@@ -205,7 +205,7 @@
     <div class="settings-panel" data-panel="logo" hidden>
       <button class="settings-back" type="button" data-panel-target="menu">{% trans "بازگشت" %}</button>
       <h2>{% trans "تغییر لوگو" %}</h2>
-      <p>{% trans "یک لوگوی آماده انتخاب کنید. لوگوی آپلودشده هم در همین فهرست می‌ماند." %}</p>
+      <p>{% trans "یک لوگوی آماده انتخاب کنید." %}</p>
       <form class="logo-presets" method="post" action="{% url 'card_logo' %}">
         {% csrf_token %}
         {% for preset in card_logo_presets %}
@@ -221,17 +221,25 @@
           </button>
         {% endif %}
       </form>
-      {% if club_profile.is_verified %}
-        <p>{% trans "لوگوی کافه یا کلاب را آپلود کنید تا به فهرست اضافه شود و پشت کارت دیده شود." %}</p>
+      {% if card_logo_custom %}
+        {% if club_profile.is_verified %}
+          <p>{% trans "برای آپلود تصویر جدید، ابتدا لوگوی فعلی را حذف کنید." %}</p>
+          <form class="logo-upload" method="post" action="{% url 'card_logo' %}">
+            {% csrf_token %}
+            <button class="choice wizard-submit" type="submit" name="action" value="delete_custom">{% trans "حذف لوگوی دلخواه" %}</button>
+          </form>
+        {% endif %}
+      {% elif club_profile.is_verified %}
+        <p>{% trans "لوگوی دلخواه را آپلود کنید تا به فهرست اضافه شود و به‌صورت پیش‌فرض پشت کارت دیده شود." %}</p>
         <form class="logo-upload" method="post" action="{% url 'card_logo' %}" enctype="multipart/form-data">
           {% csrf_token %}
           <label>
-            {% trans "لوگوی کافه یا کلاب از روی دستگاه" %}
+            {% trans "آپلود لوگوی دلخواه" %}
             <input type="file" name="logo" accept="image/*" onchange="this.form.submit()">
           </label>
         </form>
       {% else %}
-        <p>{% trans "آپلود لوگوی کافه یا کلاب فقط برای حساب‌های دارای تیک آبی فعال است." %}</p>
+        <p>{% trans "آپلود لوگوی دلخواه فقط برای حساب‌های دارای تیک آبی فعال است." %}</p>
       {% endif %}
     </div>
   </dialog>

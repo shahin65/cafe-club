@@ -1,4 +1,5 @@
 .venv/
+.idea/
 __pycache__/
 *.py[cod]
 db.sqlite3
@@ -17,3 +18,14 @@ staticfiles/
 *.key
 production.json
 _deploy/
+android/local.properties
+android/key.properties
+android/.gradle/
+android/build/
+android/app/build/
+android/.idea/
+android/*.iml
+android/*.jks
+android/*.keystore
+android/app/*.jks
+android/app/*.keystore

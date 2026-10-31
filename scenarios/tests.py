@@ -265,6 +265,9 @@ class RoleDealTests(TestCase):
         self.assertContains(response, "آیا از تقسیم نقش منصرف شدید؟")
         self.assertContains(response, "آیا قصد تقسیم نقش مجدد دارید؟")
         self.assertContains(response, "data-deal-play")
+        self.assertContains(response, "data-deal-cancel")
+        self.assertContains(response, 'class="profile-button" href="/deal/cancel/"')
+        self.assertContains(response, 'data-deal-home')
         self.assertNotContains(response, "Icon-Advertisement.png")
         self.assertNotContains(response, "Icon-Location.png")
         self.assertNotContains(response, "برای دیدن نقش، شماره را لمس کنید.")
@@ -674,6 +677,9 @@ class CardLogoTests(TestCase):
         self.assertContains(home, "لوگوی من")
         self.assertContains(home, 'name="preset" value="custom"')
         self.assertContains(home, "is-selected")
+        self.assertContains(home, "حذف لوگوی دلخواه")
+        self.assertNotContains(home, "از روی دستگاه")
+        self.assertNotContains(home, 'name="logo"')
         self.client.post("/settings/logo/", {"preset": "win"})
         branding = CardBranding.objects.get(user=user)
         self.assertTrue(branding.image)
@@ -688,6 +694,42 @@ class CardLogoTests(TestCase):
         finish_two_player_deal(self.client, scenario)
         card = self.client.get("/deal/final/1/")
         self.assertContains(card, "/media/card_logos/")
+
+    def test_second_upload_needs_delete_first(self):
+        user = get_user_model().objects.create_user("brand2", "brand2@example.com", "pass-word-123")
+        user.club_profile.is_verified = True
+        user.club_profile.save(update_fields=["is_verified"])
+        self.client.force_login(user)
+        first = BytesIO()
+        Image.new("RGB", (8, 8), (10, 20, 30)).save(first, format="PNG")
+        self.client.post(
+            "/settings/logo/",
+            {"logo": SimpleUploadedFile("first.png", first.getvalue(), content_type="image/png")},
+        )
+        kept = CardBranding.objects.get(user=user).image.name
+        second = BytesIO()
+        Image.new("RGB", (8, 8), (40, 50, 60)).save(second, format="PNG")
+        self.client.post(
+            "/settings/logo/",
+            {"logo": SimpleUploadedFile("second.png", second.getvalue(), content_type="image/png")},
+        )
+        self.assertEqual(CardBranding.objects.get(user=user).image.name, kept)
+        self.client.post("/settings/logo/", {"action": "delete_custom"})
+        branding = CardBranding.objects.get(user=user)
+        self.assertFalse(branding.image)
+        self.assertEqual(branding.preset, "cafeclub")
+        again = BytesIO()
+        Image.new("RGB", (8, 8), (70, 80, 90)).save(again, format="PNG")
+        self.client.post(
+            "/settings/logo/",
+            {"logo": SimpleUploadedFile("third.png", again.getvalue(), content_type="image/png")},
+        )
+        branding.refresh_from_db()
+        self.assertTrue(branding.image)
+        self.assertEqual(branding.preset, "")
+        home = self.client.get("/")
+        self.assertContains(home, "is-selected")
+        self.assertContains(home, "/media/card_logos/")
 
     def test_unverified_user_cannot_upload_cafe_logo(self):
         user = get_user_model().objects.create_user("plain", "plain@example.com", "pass-word-123")

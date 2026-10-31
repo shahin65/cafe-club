@@ -21,7 +21,7 @@
     <div>
       <h1>اتصال اینترنت برقرار نیست</h1>
       <p>اتصال اینترنتتان را بررسی کنید و دوباره تلاش کنید.</p>
-      <button type="button" onclick="location.reload()">تلاش مجدد</button>
+      <button type="button" onclick="if(window.CafeClub&amp;&amp;CafeClub.retry){CafeClub.retry()}else{location.reload()}">تلاش مجدد</button>
     </div>
   </main>
 </body>

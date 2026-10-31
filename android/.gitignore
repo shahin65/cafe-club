@@ -1,0 +1,11 @@
+# Release signing credentials and private keys
+key.properties
+*.jks
+*.keystore
+
+# Local Android/Gradle files and generated outputs
+local.properties
+.gradle/
+.idea/
+build/
+app/build/
