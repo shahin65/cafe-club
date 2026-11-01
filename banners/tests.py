@@ -161,6 +161,11 @@ class BannerSeedTests(TestCase):
         self.assertContains(dashboard, "اقدامات دستیار هوش مصنوعی")
         self.assertContains(dashboard, "بازبینی مدیر")
         self.assertContains(dashboard, "فروشگاه و آخرین خریدها")
+        dashboard_html = dashboard.content.decode()
+        self.assertLess(
+            dashboard_html.find("اقدامات دستیار هوش مصنوعی"),
+            dashboard_html.find("فروشگاه و آخرین خریدها"),
+        )
         self.assertContains(dashboard, "بنرها")
         self.assertContains(dashboard, "تنظیمات")
         self.assertContains(dashboard, "کافه‌ها و کلاب‌ها")

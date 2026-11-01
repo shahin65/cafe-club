@@ -171,6 +171,12 @@ class ReviewCase(models.Model):
     last_error = models.CharField(max_length=240, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    @property
+    def display_reason(self):
+        from assistant.language import persian_reason
+
+        return persian_reason(self.ai_reason)
+
     class Meta:
         verbose_name = "مورد بررسی"
         verbose_name_plural = "موارد بررسی"
@@ -205,6 +211,12 @@ class ReviewEvent(models.Model):
     dry_run = models.BooleanField(default=False)
     policy_version = models.PositiveIntegerField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    @property
+    def display_reason(self):
+        from assistant.language import persian_reason
+
+        return persian_reason(self.reason)
 
     class Meta:
         verbose_name = "سابقه بررسی"

@@ -10,6 +10,7 @@ from scenarios.models import (
 
 WIZARD_KEY = "large_deal_wizard"
 MIN_PLAYERS = 4
+DEFAULT_PLAYERS = 18
 MAX_PLAYERS = 80
 
 SIDE_LABELS = {

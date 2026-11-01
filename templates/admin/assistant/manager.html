@@ -21,7 +21,7 @@
         <td>{{ case.get_scope_display }}</td>
         <td>{{ case.title|truncatechars:80 }}</td>
         <td>{{ case.get_ai_decision_display|default:"—" }}</td>
-        <td>{{ case.ai_reason|truncatechars:120|default:"—" }}</td>
+        <td>{{ case.display_reason|truncatechars:120|default:"—" }}</td>
         <td>{{ case.ai_confidence|default:"—" }}</td>
         <td>{{ case.updated_at }}</td>
         <td><a href="{% url 'assistant_case' case.pk %}?next=manager">رسیدگی</a></td>

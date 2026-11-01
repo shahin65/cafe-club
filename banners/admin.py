@@ -677,6 +677,12 @@ def _cafe_admin_get_urls():
     return extra + _original_admin_get_urls()
 
 
+def _persian_event_reason(reason):
+    from assistant.language import persian_reason
+
+    return persian_reason(reason)[:160]
+
+
 def _assistant_recent_events():
     from assistant.models import ACTION_CHOICES, ReviewEvent
 
@@ -694,7 +700,7 @@ def _assistant_recent_events():
                 "scope": case.get_scope_display(),
                 "action": labels.get(event.action) or event.decision or event.action or "—",
                 "applied": event.applied,
-                "reason": (event.reason or "")[:160],
+                "reason": _persian_event_reason(event.reason),
             }
         )
     return rows

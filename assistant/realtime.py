@@ -15,12 +15,13 @@ from assistant.models import (
     AssistantConfig,
     ReviewPolicy,
 )
+from assistant.language import persian_reason
 from assistant.reviewer import process_pending
 
 
 def _alert(case):
     status = case.get_status_display()
-    reason = (case.ai_reason or case.last_error or "").strip()
+    reason = persian_reason(case.ai_reason or case.last_error or "")
     text = (
         f"گزارش لحظه‌ای دستیار\n"
         f"بخش: {case.get_scope_display()}\n"

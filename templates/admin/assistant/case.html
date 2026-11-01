@@ -10,7 +10,7 @@
 
 <h2>نتیجه پیشنهادی هوش مصنوعی</h2>
 <p>پیشنهاد: {{ case.get_ai_decision_display|default:"—" }} | اطمینان: {{ case.ai_confidence|default:"—" }} | نسخه معیار: {{ case.policy_version|default:"—" }}</p>
-<p>دلیل: {{ case.ai_reason|default:"—" }}</p>
+<p>دلیل: {{ case.display_reason|default:"—" }}</p>
 {% if case.ai_reply %}
   <p>پاسخ پیشنهادی:</p>
   <pre>{{ case.ai_reply }}</pre>
@@ -60,7 +60,7 @@
 <h2>سابقه</h2>
 <ul>
   {% for event in events %}
-    <li>{{ event.created_at }} — {{ event.actor }}{% if event.actor_user %} ({{ event.actor_user }}){% endif %} — {{ event.decision }} — {{ event.reason }} — اطمینان {{ event.confidence }} — معیار v{{ event.policy_version }} — اقدام {{ event.action }}{% if event.dry_run %} (آزمایشی){% endif %}</li>
+    <li>{{ event.created_at }} — {{ event.actor }}{% if event.actor_user %} ({{ event.actor_user }}){% endif %} — {{ event.decision }} — {{ event.display_reason }} — اطمینان {{ event.confidence }} — معیار v{{ event.policy_version }} — اقدام {{ event.action }}{% if event.dry_run %} (آزمایشی){% endif %}</li>
   {% endfor %}
 </ul>
 <p>

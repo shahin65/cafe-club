@@ -8,6 +8,7 @@ from django.views.decorators.http import require_http_methods
 from scenarios.dealing import MODES, SESSION_KEY, create_large_deal, current_number, same_deal
 from scenarios.large_deal import (
     COUNT_FIELDS,
+    DEFAULT_PLAYERS,
     MAX_PLAYERS,
     MIN_PLAYERS,
     SIDE_LABELS,
@@ -94,7 +95,7 @@ def _count_rows(scenario, draft):
             "label": _("تعداد بازیکن"),
             "min": MIN_PLAYERS,
             "max": MAX_PLAYERS,
-            "value": draft.get("player_count", MIN_PLAYERS),
+            "value": draft.get("player_count", DEFAULT_PLAYERS),
         }
     ]
     for side in side_steps(scenario.large_kind):

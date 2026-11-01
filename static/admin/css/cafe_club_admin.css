@@ -323,8 +323,13 @@ input, textarea, select, .button, input[type="submit"], .submit-row input {
     margin: 0 0 18px;
 }
 
-.cafe-dashboard-boards .module table {
+.cafe-dashboard-boards .module table,
+#content-related .cafe-shop-module table {
     width: 100%;
+}
+
+#content-related .cafe-shop-module table {
+    font-size: 12px;
 }
 
 .assistant-wrap {

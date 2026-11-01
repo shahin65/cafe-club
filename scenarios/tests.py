@@ -1156,6 +1156,8 @@ class LargeScenarioDealTests(TestCase):
         scenario = self.packs[KIND_WEREWOLF]
         start = self.client.get(f"/large/{scenario.id}/")
         self.assertContains(start, "تعداد بازیکن")
+        self.assertContains(start, 'name="player_count"')
+        self.assertContains(start, 'value="18"')
         self.assertContains(start, "گرگینه")
         self.assertContains(start, "روستا")
         self.assertContains(start, "count-stepper")
