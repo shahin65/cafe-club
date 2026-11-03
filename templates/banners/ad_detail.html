@@ -79,7 +79,7 @@
             <p>{% trans "یکی از برنامه‌های نقشه را انتخاب کنید." %}</p>
             <div class="nav-apps">
               {% for link in nav_links %}
-                <a class="choice" href="{{ link.url }}" target="_blank" rel="noopener">{{ link.label }}</a>
+                <a class="choice" href="{{ link.url }}" target="_blank" rel="noopener noreferrer" data-nav-external{% if link.ios_url %} data-ios-href="{{ link.ios_url }}"{% endif %}>{{ link.label }}</a>
               {% endfor %}
             </div>
             <button class="choice tournament-btn" type="submit">{% trans "بستن" %}</button>

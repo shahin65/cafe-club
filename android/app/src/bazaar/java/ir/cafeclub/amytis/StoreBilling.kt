@@ -6,11 +6,12 @@ import ir.cafebazaar.poolakey.Connection
 import ir.cafebazaar.poolakey.Payment
 import ir.cafebazaar.poolakey.config.PaymentConfiguration
 import ir.cafebazaar.poolakey.config.SecurityCheck
+import ir.cafebazaar.poolakey.entity.PurchaseInfo
 import ir.cafebazaar.poolakey.request.PurchaseRequest
 
 class StoreBilling(
     private val activity: AppCompatActivity,
-    private val onResult: (token: String?, error: String?) -> Unit,
+    private val onResult: (token: String?, error: String?, originalJson: String?, signature: String?) -> Unit,
 ) {
     private val payment = Payment(
         context = activity,
@@ -30,7 +31,7 @@ class StoreBilling(
         }
         connectionFailed { error ->
             ready = false
-            onResult(null, error.message ?: "اتصال به کافه بازار برقرار نشد.")
+            fail(error.message)
         }
         disconnected {
             ready = false
@@ -42,17 +43,16 @@ class StoreBilling(
             pending = sku to payload
             return
         }
-        payment.getPurchasedProducts {
-            querySucceed { purchases ->
-                val owned = purchases.firstOrNull { it.productId == sku }
-                if (owned != null && owned.purchaseToken.isNotBlank()) {
-                    onResult(owned.purchaseToken, null)
-                } else {
-                    launchBuy(sku, payload)
+        payment.getInAppSkuDetails(listOf(sku)) {
+            getSkuDetailsSucceed { details ->
+                if (details.none { it.sku == sku }) {
+                    fail("این محصول در کافه بازار ثبت نشده است.")
+                    return@getSkuDetailsSucceed
                 }
+                takeOwnedOrBuy(sku, payload)
             }
-            queryFailed {
-                launchBuy(sku, payload)
+            getSkuDetailsFailed {
+                takeOwnedOrBuy(sku, payload)
             }
         }
     }
@@ -75,24 +75,60 @@ class StoreBilling(
         connection.disconnect()
     }
 
+    private fun takeOwnedOrBuy(sku: String, payload: String) {
+        payment.getPurchasedProducts {
+            querySucceed { purchases ->
+                val owned = purchases.firstOrNull { it.productId == sku }
+                if (owned != null && owned.purchaseToken.isNotBlank()) {
+                    succeed(owned)
+                } else {
+                    launchBuy(sku, payload)
+                }
+            }
+            queryFailed {
+                launchBuy(sku, payload)
+            }
+        }
+    }
+
     private fun launchBuy(sku: String, payload: String) {
         payment.purchaseProduct(
             registry = activity.activityResultRegistry,
             request = PurchaseRequest(productId = sku, payload = payload),
         ) {
             purchaseSucceed { purchase ->
-                onResult(purchase.purchaseToken, null)
+                succeed(purchase)
             }
             purchaseCanceled {
-                onResult(null, "canceled")
+                onResult(null, "canceled", null, null)
             }
             purchaseFailed { error ->
-                onResult(null, error.message ?: "پرداخت کافه بازار ناموفق بود.")
+                fail(error.message)
             }
             failedToBeginFlow { error ->
-                onResult(null, error.message ?: "درگاه کافه بازار باز نشد.")
+                fail(error.message ?: "درگاه کافه بازار باز نشد.")
             }
         }
+    }
+
+    private fun succeed(purchase: PurchaseInfo) {
+        onResult(purchase.purchaseToken, null, purchase.originalJson, purchase.dataSignature)
+    }
+
+    private fun fail(raw: String?) {
+        onResult(null, friendlyError(raw), null, null)
+    }
+
+    private fun friendlyError(raw: String?): String {
+        val text = raw.orEmpty()
+        val lower = text.lowercase()
+        if (lower.contains("invalid_grant") || lower.contains("invalid grant")) {
+            return "تأیید خرید کافه بازار انجام نشد. دوباره تلاش کنید."
+        }
+        if (lower.contains("not found") || lower.contains("item unavailable")) {
+            return "این محصول در کافه بازار پیدا نشد."
+        }
+        return text.ifBlank { "پرداخت کافه بازار ناموفق بود." }
     }
 
     private fun securityCheck(): SecurityCheck {

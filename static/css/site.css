@@ -4824,3 +4824,34 @@ button.choice.tournament-end,
     letter-spacing: 0.02em;
     color: rgba(244, 240, 232, 0.72);
 }
+
+.lab-sheet {
+    display: grid;
+    gap: 14px;
+}
+
+.lab-module {
+    padding: 14px;
+    border-radius: 16px;
+    background: rgba(8, 10, 16, 0.58);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.lab-module h2 {
+    margin: 0 0 8px;
+    font-size: 1.05rem;
+}
+
+.lab-sku {
+    font-family: ui-monospace, Consolas, monospace;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+}
+
+.lab-history {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    gap: 8px;
+}

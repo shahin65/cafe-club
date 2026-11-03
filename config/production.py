@@ -94,6 +94,8 @@ BITPAY_SANDBOX = str(config_value("BITPAY_SANDBOX", "") or "").lower() in {"1", 
 BAZAAR_CLIENT_ID = config_value("BAZAAR_CLIENT_ID", "") or ""
 BAZAAR_CLIENT_SECRET = config_value("BAZAAR_CLIENT_SECRET", "") or ""
 BAZAAR_REFRESH_TOKEN = config_value("BAZAAR_REFRESH_TOKEN", "") or ""
+BAZAAR_REDIRECT_URI = config_value("BAZAAR_REDIRECT_URI", "") or ""
+BAZAAR_RSA = config_value("BAZAAR_RSA", "") or ""
 MYKET_ACCESS_TOKEN = config_value("MYKET_ACCESS_TOKEN", "") or ""
 ANDROID_PACKAGE_NAME = config_value("ANDROID_PACKAGE_NAME", "ir.cafeclub.amytis") or "ir.cafeclub.amytis"
 

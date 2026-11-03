@@ -3,7 +3,7 @@ from django.urls import path
 
 from banners.accounts import ClubLoginForm
 
-from . import ads_views, auth_views, pay_views, places_views, profile_views, pwa_views, tournament_views, views
+from . import ads_views, auth_views, lab_views, pay_views, places_views, profile_views, pwa_views, tournament_views, views
 
 urlpatterns = [
     path("", views.home, name="home"),
@@ -33,6 +33,8 @@ urlpatterns = [
     path("pay/bitpay/callback/", pay_views.bitpay_callback, name="bitpay_callback"),
     path("pay/verify/bazaar/", pay_views.verify_bazaar, name="verify_bazaar"),
     path("pay/verify/myket/", pay_views.verify_myket, name="verify_myket"),
+    path("dev-lab/", lab_views.lab_home, name="dev_lab"),
+    path("dev-lab/buy/<slug:sku>/", lab_views.lab_buy, name="dev_lab_buy"),
     path("nights/", views.page, {"page": "nights"}, name="nights"),
     path("games/", views.page, {"page": "games"}, name="games"),
     path("tables/", views.page, {"page": "tables"}, name="tables"),

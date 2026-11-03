@@ -70,5 +70,7 @@ $env:JAVA_HOME = "$env:USERPROFILE\.jdks\jbr-21.0.11"
 - نسخه `myket`: درگاه مایکت با قیمت محصول ثبت‌شده در پیشخوان مایکت
 - نسخه `direct`: ریدایرکت به بیت‌پی با مبلغ همان پلن
 
-کلید RSA عمومی هر فروشگاه را در `key.properties` بگذارید (`bazaarRsa` / `myketRsa`)، نه در `.env`.
+کلید RSA عمومی هر فروشگاه را در `key.properties` بگذارید (`bazaarRsa` / `myketRsa`).
+همان کلید بازار را برای تأیید سمت سرور در `.env` / `production.json` با نام `BAZAAR_RSA` هم بگذارید.
 شناسه محصولات باید با SKU سرور یکی باشد: `ad_bronze`، `ad_silver`، `ad_gold`، `venue_bronze`، `venue_silver`، `venue_gold`.
+اگر بعد از خرید پیام توکن نامعتبر دیدید، با `python manage.py bazaar_oauth --code ... --redirect-uri ...` یک `refresh_token` تازه بگیرید.

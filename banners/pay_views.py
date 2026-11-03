@@ -45,6 +45,8 @@ def success_url(txn):
         if plan.get("show_on_home"):
             return reverse("home")
         return reverse("location")
+    if package.kind == CoinPackage.KIND_LAB:
+        return reverse("dev_lab")
     return reverse("ads")
 
 
@@ -58,6 +60,8 @@ def success_message(txn):
         plan = VENUE_PLANS.get(package.plan_key) or {}
         name = txn.venue.name if txn.venue_id else package.title
         return f"پلن {plan.get('title', package.title)} برای «{name}» فعال شد."
+    if package.kind == CoinPackage.KIND_LAB:
+        return f"خرید آزمایشی «{package.title}» ثبت شد."
     return "پرداخت با موفقیت انجام شد."
 
 
@@ -104,9 +108,9 @@ def _complete(txn, *, purchase_token="", trans_id="", payload=None):
     return locked
 
 
-def start_checkout(request, package, *, event_ad=None, venue=None, fail_url="ads", return_to=""):
+def start_checkout(request, package, *, event_ad=None, venue=None, fail_url="ads", return_to="", gateway=""):
     source = install_source(request)
-    gateway = gateway_for_source(source)
+    gateway = gateway or gateway_for_source(source)
     txn = PaymentTransaction.objects.create(
         user=request.user,
         package=package,
@@ -118,10 +122,14 @@ def start_checkout(request, package, *, event_ad=None, venue=None, fail_url="ads
         status=PaymentTransaction.STATUS_PENDING,
         payload={"return": return_to} if return_to else {},
     )
-    bypass = settings.DEBUG and (
-        (gateway == PaymentTransaction.GATEWAY_BITPAY and not bitpay_configured())
-        or (gateway == PaymentTransaction.GATEWAY_BAZAAR and not bazaar_configured())
-        or (gateway == PaymentTransaction.GATEWAY_MYKET and not myket_configured())
+    bypass = (
+        settings.DEBUG
+        and package.kind != CoinPackage.KIND_LAB
+        and (
+            (gateway == PaymentTransaction.GATEWAY_BITPAY and not bitpay_configured())
+            or (gateway == PaymentTransaction.GATEWAY_BAZAAR and not bazaar_configured())
+            or (gateway == PaymentTransaction.GATEWAY_MYKET and not myket_configured())
+        )
     )
     if bypass:
         _complete(txn)
@@ -254,7 +262,12 @@ def _verify_store(request, gateway):
         return redirect(fail_url)
     try:
         if gateway == PaymentTransaction.GATEWAY_BAZAAR:
-            payload = bazaar_verify(sku, purchase_token)
+            payload = bazaar_verify(
+                sku,
+                purchase_token,
+                original_json=request.POST.get("original_json") or "",
+                signature=request.POST.get("signature") or "",
+            )
         else:
             payload = myket_verify(sku, purchase_token)
         existing = PaymentTransaction.objects.select_related("package", "event_ad", "venue").filter(

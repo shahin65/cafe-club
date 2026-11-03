@@ -1,5 +1,5 @@
 PERSIAN_DIGITS = str.maketrans("0123456789", "۰۱۲۳۴۵۶۷۸۹")
-_SKIP_TAGS = {"script", "style", "textarea", "noscript"}
+_SKIP_TAGS = {"script", "style", "textarea", "noscript", "code"}
 
 
 def persian_digits(value):

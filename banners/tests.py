@@ -1,4 +1,5 @@
 from io import BytesIO
+import base64
 import json
 from unittest.mock import patch
 
@@ -552,6 +553,9 @@ class PlacesTests(TestCase):
         self.assertContains(detail, "آیا می‌خواهید با این شماره تماس بگیرید؟")
         self.assertContains(detail, "جمع این دو عدد را بنویسید")
         self.assertContains(detail, "waze.com")
+        self.assertContains(detail, "data-nav-external")
+        self.assertContains(detail, "geo:")
+        self.assertContains(detail, "maps://")
         captcha = self.client.session["venue_comment_captcha"]
         answer = captcha["left"] + captcha["right"]
         bad = self.client.post(
@@ -1300,6 +1304,8 @@ class EventAdTests(TestCase):
         detail = self.client.get(f"/ads/{silver.id}/")
         self.assertContains(detail, "مسیریابی")
         self.assertContains(detail, "venue-gallery")
+        self.assertContains(detail, "data-nav-external")
+        self.assertContains(detail, "geo:")
 
 
 class AppSourceTests(TestCase):
@@ -1408,6 +1414,7 @@ class PersianDigitsTests(TestCase):
         self.assertIn('href="/ads/3/"', converted)
         self.assertIn(">۳</a>", converted)
         self.assertIn('value="12"', converted)
+        self.assertIn("<code>lab_bazaar_5k</code>", persianize_html_digits("<code>lab_bazaar_5k</code>"))
         self.assertEqual(persian_digits("2026"), "۲۰۲۶")
 
 
@@ -1648,6 +1655,73 @@ class PaymentGatewayTests(TestCase):
         self.assertEqual(ad.promo_plan, "bronze")
         self.assertTrue(ad.is_boosted)
 
+    def test_bazaar_invalid_grant_is_hidden_and_refresh_token_is_saved(self):
+        from banners.gateways import GatewayError, GatewayHttpError, bazaar_access_token
+        import banners.gateways as gateways
+
+        gateways._bazaar_token.update({"access": "", "expires": 0.0})
+
+        def rotate_token(url, **kwargs):
+            if "auth/token" in url:
+                return 200, json.dumps(
+                    {"access_token": "new-access", "expires_in": 3600, "refresh_token": "rotated-refresh"}
+                )
+            raise AssertionError(url)
+
+        with patch("banners.gateways._request", side_effect=rotate_token):
+            self.assertEqual(bazaar_access_token(), "new-access")
+        self.assertEqual(SiteSettings.load().bazaar_refresh_token, "rotated-refresh")
+
+        gateways._bazaar_token.update({"access": "", "expires": 0.0})
+
+        def invalid_grant(url, **kwargs):
+            if "auth/token" in url:
+                raise GatewayHttpError(400, '{"error":"invalid_grant"}')
+            raise AssertionError(url)
+
+        with patch("banners.gateways._request", side_effect=invalid_grant):
+            with self.assertRaises(GatewayError) as ctx:
+                bazaar_access_token()
+        message = str(ctx.exception).lower()
+        self.assertNotIn("invalid_grant", message)
+        self.assertIn("refresh_token", message)
+
+    def test_bazaar_signed_purchase_works_when_oauth_fails(self):
+        from cryptography.hazmat.primitives import hashes, serialization
+        from cryptography.hazmat.primitives.asymmetric import padding, rsa
+        from banners.gateways import GatewayHttpError, bazaar_verify
+        import banners.gateways as gateways
+
+        key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+        rsa_b64 = base64.b64encode(
+            key.public_key().public_bytes(
+                serialization.Encoding.DER,
+                serialization.PublicFormat.SubjectPublicKeyInfo,
+            )
+        ).decode()
+        payload = json.dumps(
+            {
+                "productId": "ad_bronze",
+                "purchaseToken": "signed-token",
+                "packageName": "ir.cafeclub.amytis",
+                "purchaseState": 0,
+            },
+            separators=(",", ":"),
+        )
+        signature = base64.b64encode(
+            key.sign(payload.encode("utf-8"), padding.PKCS1v15(), hashes.SHA1())
+        ).decode()
+        gateways._bazaar_token.update({"access": "", "expires": 0.0})
+
+        def oauth_fails(url, **kwargs):
+            if "auth/token" in url:
+                raise GatewayHttpError(400, '{"error":"invalid_grant"}')
+            raise AssertionError(url)
+
+        with override_settings(BAZAAR_RSA=rsa_b64), patch("banners.gateways._request", side_effect=oauth_fails):
+            data = bazaar_verify("ad_bronze", "signed-token", original_json=payload, signature=signature)
+        self.assertEqual(data["purchaseToken"], "signed-token")
+
     @override_settings(DEBUG=False)
     @patch("banners.gateways._request", side_effect=_gateway_http)
     def test_myket_referral_verifies_ad_plan(self, _mock):
@@ -1681,5 +1755,42 @@ class PaymentGatewayTests(TestCase):
         shop = self.client.get("/admin/banners/paymenttransaction/")
         self.assertContains(shop, "فروشگاه و آخرین خریدها")
         self.assertContains(shop, "توکن خرید")
+        self.assertContains(report, "lab_bazaar_5k")
+        self.assertContains(report, "lab_myket_5k")
+
+
+class DevLabTests(TestCase):
+    def test_dev_lab_is_staff_only_and_starts_store_checkouts(self):
+        guest = self.client.get("/dev-lab/")
+        self.assertEqual(guest.status_code, 302)
+        self.assertIn("/admin/login/", guest["Location"])
+        member = User.objects.create_user("player", "player@example.com", "pass-word-123")
+        self.client.force_login(member)
+        blocked = self.client.get("/dev-lab/")
+        self.assertEqual(blocked.status_code, 302)
+        self.assertIn("/admin/login/", blocked["Location"])
+        admin = User.objects.create_superuser("lab-admin", "lab-admin@example.com", "pass-word-123")
+        self.client.force_login(admin)
+        page = self.client.get("/dev-lab/")
+        self.assertContains(page, "آزمایشگاه توسعه")
+        self.assertContains(page, "lab_bazaar_5k")
+        self.assertContains(page, "lab_myket_5k")
+        self.assertContains(page, "تست خرید کافه بازار")
+        self.assertContains(page, "تست خرید مایکت")
+        self.assertContains(page, "ماژول ۱")
+        self.assertContains(page, "ماژول ۲")
+        bazaar = self.client.post("/dev-lab/buy/lab_bazaar_5k/")
+        bazaar_txn = PaymentTransaction.objects.get(package__sku="lab_bazaar_5k")
+        self.assertEqual(bazaar_txn.gateway, "bazaar")
+        self.assertEqual(bazaar_txn.amount_toman, 5000)
+        self.assertRedirects(bazaar, f"/pay/checkout/{bazaar_txn.id}/")
+        myket = self.client.post("/dev-lab/buy/lab_myket_5k/")
+        myket_txn = PaymentTransaction.objects.get(package__sku="lab_myket_5k")
+        self.assertEqual(myket_txn.gateway, "myket")
+        self.assertEqual(myket_txn.amount_toman, 5000)
+        self.assertRedirects(myket, f"/pay/checkout/{myket_txn.id}/")
+        dashboard = self.client.get("/admin/")
+        self.assertContains(dashboard, "آزمایشگاه توسعه")
+        self.assertContains(dashboard, "/dev-lab/")
 
 

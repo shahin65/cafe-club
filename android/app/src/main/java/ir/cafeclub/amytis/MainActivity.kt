@@ -44,8 +44,8 @@ class MainActivity : AppCompatActivity() {
         lastUrl = prefs.getString(KEY_LAST_URL, BuildConfig.START_URL) ?: BuildConfig.START_URL
         webView = findViewById(R.id.web_view)
         fileChooser = WebFileChooser(this)
-        storeBilling = StoreBilling(this) { token, error ->
-            deliverPurchase(token, error)
+        storeBilling = StoreBilling(this) { token, error, originalJson, signature ->
+            deliverPurchase(token, error, originalJson, signature)
         }
         configureWebView()
         onBackPressedDispatcher.addCallback(
@@ -68,38 +68,61 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun configureWebView() {
+        webView.settings.javaScriptEnabled = true
+        webView.settings.domStorageEnabled = true
+        webView.settings.databaseEnabled = true
+        webView.settings.javaScriptCanOpenWindowsAutomatically = true
+        webView.settings.setSupportMultipleWindows(true)
+        webView.settings.allowFileAccess = false
+        webView.settings.allowContentAccess = false
+        webView.settings.cacheMode = WebSettings.LOAD_DEFAULT
+        webView.settings.mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
+        webView.settings.userAgentString =
+            webView.settings.userAgentString +
+            " CafeClub/${BuildConfig.VERSION_NAME} (Android; channel/${BuildConfig.APP_SOURCE}; ir.cafeclub.amytis)"
+        webView.addJavascriptInterface(Bridge(), "CafeClub")
         webView.webChromeClient = object : WebChromeClient() {
             override fun onShowFileChooser(
                 view: WebView,
                 callback: ValueCallback<Array<Uri>>,
                 params: FileChooserParams,
             ): Boolean = fileChooser.show(callback, params)
+
+            override fun onCreateWindow(
+                view: WebView?,
+                isDialog: Boolean,
+                isUserGesture: Boolean,
+                resultMsg: android.os.Message?,
+            ): Boolean {
+                val trampoline = WebView(this@MainActivity)
+                trampoline.webViewClient = object : WebViewClient() {
+                    override fun shouldOverrideUrlLoading(v: WebView, request: WebResourceRequest): Boolean {
+                        openOutside(request.url.toString())
+                        return true
+                    }
+                }
+                (resultMsg?.obj as? WebView.WebViewTransport)?.webView = trampoline
+                resultMsg?.sendToTarget()
+                return true
+            }
         }
-        webView.settings.javaScriptEnabled = true
-        webView.settings.domStorageEnabled = true
-        webView.settings.databaseEnabled = true
-        webView.settings.cacheMode = WebSettings.LOAD_DEFAULT
-        webView.settings.mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
-        webView.settings.userAgentString =
-            webView.settings.userAgentString +
-            " CafeClub/${BuildConfig.VERSION_NAME} (Android; channel/${BuildConfig.APP_SOURCE}; ir.cafeclub.amytis)"
-        webView.addJavascriptInterface(Bridge(), "CafeClub")
         webView.webViewClient =
             object : WebViewClient() {
                 override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                     val url = request.url?.toString().orEmpty()
-                    if (url.startsWith("intent:") || url.startsWith("bazaar:") || url.startsWith("myket:")) {
-                        return true
+                    if (!request.isForMainFrame) {
+                        return false
                     }
-                    if (request.isForMainFrame && (url.startsWith("https://") || url.startsWith("http://"))) {
+                    if (isAppUrl(request.url)) {
                         view.loadUrl(url, extraHeaders)
                         return true
                     }
-                    return false
+                    openOutside(url)
+                    return true
                 }
 
                 override fun onPageFinished(view: WebView, url: String) {
-                    if (!isOfflineAsset(url)) {
+                    if (!isOfflineAsset(url) && isAppUrl(Uri.parse(url))) {
                         showingOffline = false
                         rememberUrl(url)
                     }
@@ -110,15 +133,22 @@ class MainActivity : AppCompatActivity() {
                     request: WebResourceRequest,
                     error: WebResourceError,
                 ) {
-                    if (request.isForMainFrame) {
-                        showOffline()
+                    if (!request.isForMainFrame || showingOffline) return
+                    if (!isAppUrl(request.url)) return
+                    if (error.errorCode == WebViewClient.ERROR_UNSUPPORTED_SCHEME ||
+                        error.errorCode == WebViewClient.ERROR_BAD_URL ||
+                        error.errorCode == WebViewClient.ERROR_FILE
+                    ) {
+                        return
                     }
+                    showOffline()
                 }
             }
     }
 
     private fun initialUrl(): String {
-        return if (prefs.getBoolean(KEY_SOURCE_BOUND, false)) lastUrl else BuildConfig.START_URL
+        val candidate = if (prefs.getBoolean(KEY_SOURCE_BOUND, false)) lastUrl else BuildConfig.START_URL
+        return if (isAppUrl(Uri.parse(candidate))) candidate else BuildConfig.START_URL
     }
 
     private fun configureFullscreen() {
@@ -151,13 +181,49 @@ class MainActivity : AppCompatActivity() {
         if (hasFocus) hideSystemBars()
     }
 
+    private fun isTrustedWebPage(): Boolean {
+        return isAppUrl(Uri.parse(webView.url ?: ""))
+    }
+
+    private fun isAppUrl(uri: Uri?): Boolean {
+        if (uri == null) return false
+        val scheme = uri.scheme?.lowercase() ?: return false
+        if (scheme != "http" && scheme != "https") return false
+        val host = uri.host?.lowercase() ?: return false
+        return host == "cafeclub.amytisapp.ir" ||
+            host.endsWith(".amytisapp.ir") ||
+            host == "127.0.0.1" ||
+            host == "localhost" ||
+            host == "10.0.2.2"
+    }
+
+    private fun openOutside(url: String) {
+        if (url.isBlank() || url == "about:blank") return
+        try {
+            val intent = if (url.startsWith("intent:", ignoreCase = true)) {
+                Intent.parseUri(url, Intent.URI_INTENT_SCHEME)
+            } else {
+                Intent(Intent.ACTION_VIEW, Uri.parse(url))
+            }
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            val scheme = intent.data?.scheme?.lowercase().orEmpty()
+            if (scheme == "geo" || scheme == "maps") {
+                startActivity(Intent.createChooser(intent, null))
+            } else {
+                startActivity(intent)
+            }
+        } catch (_: Exception) {
+            // Stay on the current Cafe Club page instead of showing the offline screen.
+        }
+    }
+
     private fun loadSite(url: String) {
         showingOffline = false
         webView.loadUrl(url, extraHeaders)
     }
 
     private fun rememberUrl(url: String) {
-        if (url.isBlank() || isOfflineAsset(url) || url == "about:blank") {
+        if (url.isBlank() || isOfflineAsset(url) || url == "about:blank" || !isAppUrl(Uri.parse(url))) {
             return
         }
         lastUrl = url
@@ -177,7 +243,8 @@ class MainActivity : AppCompatActivity() {
             showOffline()
             return
         }
-        loadSite(lastUrl.ifBlank { BuildConfig.START_URL })
+        val target = lastUrl.ifBlank { BuildConfig.START_URL }
+        loadSite(if (isAppUrl(Uri.parse(target))) target else BuildConfig.START_URL)
     }
 
     private fun isOnline(): Boolean {
@@ -203,12 +270,19 @@ class MainActivity : AppCompatActivity() {
         super.onDestroy()
     }
 
-    private fun deliverPurchase(token: String?, error: String?) {
+    private fun deliverPurchase(
+        token: String?,
+        error: String?,
+        originalJson: String? = null,
+        signature: String? = null,
+    ) {
         val tokenJs = if (token.isNullOrBlank()) "null" else JSONObject.quote(token)
         val errorJs = if (error.isNullOrBlank()) "null" else JSONObject.quote(error)
+        val jsonJs = if (originalJson.isNullOrBlank()) "null" else JSONObject.quote(originalJson)
+        val sigJs = if (signature.isNullOrBlank()) "null" else JSONObject.quote(signature)
         webView.post {
             webView.evaluateJavascript(
-                "window.CafeClubOnPurchase && CafeClubOnPurchase($tokenJs, $errorJs);",
+                "window.CafeClubOnPurchase && CafeClubOnPurchase($tokenJs, $errorJs, $jsonJs, $sigJs);",
                 null,
             )
         }
@@ -222,12 +296,26 @@ class MainActivity : AppCompatActivity() {
 
         @JavascriptInterface
         fun purchase(sku: String, payload: String) {
-            runOnUiThread { storeBilling.purchase(sku, payload) }
+            runOnUiThread {
+                if (!isTrustedWebPage()) return@runOnUiThread
+                storeBilling.purchase(sku, payload)
+            }
         }
 
         @JavascriptInterface
         fun consume(token: String) {
-            runOnUiThread { storeBilling.consume(token) }
+            runOnUiThread {
+                if (!isTrustedWebPage()) return@runOnUiThread
+                storeBilling.consume(token)
+            }
+        }
+
+        @JavascriptInterface
+        fun openExternal(url: String) {
+            runOnUiThread {
+                if (!isTrustedWebPage() && !showingOffline) return@runOnUiThread
+                openOutside(url)
+            }
         }
     }
 

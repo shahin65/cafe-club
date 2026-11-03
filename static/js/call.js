@@ -49,7 +49,15 @@
   if (confirmBtn) {
     confirmBtn.addEventListener("click", function () {
       if (sheet && sheet.open) sheet.close();
-      if (pending) window.location.href = "tel:" + pending;
+      if (!pending) return;
+      var tel = "tel:" + pending;
+      try {
+        if (window.CafeClub && CafeClub.openExternal) {
+          CafeClub.openExternal(tel);
+          return;
+        }
+      } catch (err) {}
+      window.location.href = tel;
     });
   }
 })();

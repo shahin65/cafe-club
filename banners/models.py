@@ -644,6 +644,7 @@ class SiteSettings(models.Model):
         default=False,
         help_text="اگر فعال باشد سایت برای کاربران عادی بسته می‌شود تا زمان به‌روزرسانی.",
     )
+    bazaar_refresh_token = models.TextField(blank=True)
 
     class Meta:
         verbose_name = "وضعیت سایت"
@@ -697,9 +698,11 @@ class LegalPage(models.Model):
 class CoinPackage(models.Model):
     KIND_AD = "ad"
     KIND_VENUE = "venue"
+    KIND_LAB = "lab"
     KIND_CHOICES = [
         (KIND_AD, "پلن آگهی"),
         (KIND_VENUE, "پلن کجا برم؟"),
+        (KIND_LAB, "تست آزمایشگاه"),
     ]
 
     sku = models.SlugField("شناسه محصول (SKU)", unique=True, max_length=40)

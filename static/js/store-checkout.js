@@ -20,11 +20,13 @@
     return null;
   }
 
-  function verify(token) {
+  function verify(token, originalJson, signature) {
     setStatus("در حال تایید خرید…");
     var body = new URLSearchParams();
     body.set("sku", sku);
     body.set("purchase_token", token);
+    if (originalJson) body.set("original_json", originalJson);
+    if (signature) body.set("signature", signature);
     fetch(verifyUrl, {
       method: "POST",
       headers: {
@@ -56,9 +58,9 @@
       });
   }
 
-  window.CafeClubOnPurchase = function (token, error) {
+  window.CafeClubOnPurchase = function (token, error, originalJson, signature) {
     if (token) {
-      verify(token);
+      verify(token, originalJson, signature);
       return;
     }
     if (error === "canceled") {

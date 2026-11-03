@@ -442,6 +442,7 @@ class ScenarioPagesAndCommentsTests(TestCase):
         robots = self.client.get("/robots.txt")
         self.assertContains(robots, "Sitemap:")
         self.assertContains(robots, "Disallow: /admin/")
+        self.assertContains(robots, "Disallow: /dev-lab/")
         self.assertTrue(scenario.slug.isascii())
         self.assertEqual(scenario.get_rulebook_url(), f"/scenario/{scenario.pk}/rulebook/")
         self.assertEqual(scenario.get_rules_url(), f"/scenario/{scenario.pk}/rules/")

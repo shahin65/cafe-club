@@ -55,7 +55,7 @@ Do not trust forwarded protocol headers without verifying the proxy configuratio
 
 ## دستیار هوش مصنوعی و زمان‌بندی هاست
 
-کلید سرویس هوش مصنوعی، توکن بات بله و کلید درگاه‌ها را فقط در محیط سرور یا `production.json` بگذارید؛ داخل گیت نگذارید. نام متغیرها: `GAPGPT_API_KEY`، `GAPGPT_BASE_URL`، `GAPGPT_MODEL`، `BALE_BOT_TOKEN`، `BALE_ADMIN_CHAT_ID`، `BITPAY_API_KEY`، `BITPAY_SANDBOX`، `BAZAAR_CLIENT_ID`، `BAZAAR_CLIENT_SECRET`، `BAZAAR_REFRESH_TOKEN`، `MYKET_ACCESS_TOKEN`، `ANDROID_PACKAGE_NAME`. مقدار واقعی مدل و آدرس را حدس نزنید؛ همان را که ارائه‌دهنده داده وارد کنید.
+کلید سرویس هوش مصنوعی، توکن بات بله و کلید درگاه‌ها را فقط در محیط سرور یا `production.json` بگذارید؛ داخل گیت نگذارید. نام متغیرها: `GAPGPT_API_KEY`، `GAPGPT_BASE_URL`، `GAPGPT_MODEL`، `BALE_BOT_TOKEN`، `BALE_ADMIN_CHAT_ID`، `BITPAY_API_KEY`، `BITPAY_SANDBOX`، `BAZAAR_CLIENT_ID`، `BAZAAR_CLIENT_SECRET`، `BAZAAR_REFRESH_TOKEN`، `BAZAAR_REDIRECT_URI`، `BAZAAR_RSA`، `MYKET_ACCESS_TOKEN`، `ANDROID_PACKAGE_NAME`. مقدار واقعی مدل و آدرس را حدس نزنید؛ همان را که ارائه‌دهنده داده وارد کنید. `BAZAAR_RSA` همان کلید عمومی پرداخت درون‌برنامه‌ای پیشخوان بازار است. اگر بازار `refresh_token` جدید بدهد، سرور آن را ذخیره می‌کند؛ `invalid_grant` یعنی باید با `manage.py bazaar_oauth` توکن تازه بگیرید.
 
 Celery در این پروژه استفاده نمی‌شود. یک cron ساعتی در cPanel بسازید که از همان Python محیط برنامه اجرا شود. ساعت بازبینی و ارسال گزارش از پنل دستیار تنظیم می‌شود:
 

@@ -5,6 +5,28 @@ from django.utils import timezone
 from banners.models import CoinPackage
 from banners.promo import PLANS, VENUE_PLANS, plan_expires_at
 
+LAB_BAZAAR_SKU = "lab_bazaar_5k"
+LAB_MYKET_SKU = "lab_myket_5k"
+LAB_PACKAGES = (
+    {
+        "sku": LAB_BAZAAR_SKU,
+        "title": "تست خرید کافه بازار",
+        "plan_key": "bazaar",
+        "price_toman": 5000,
+        "sort_order": 900,
+        "gateway": "bazaar",
+    },
+    {
+        "sku": LAB_MYKET_SKU,
+        "title": "تست خرید مایکت",
+        "plan_key": "myket",
+        "price_toman": 5000,
+        "sort_order": 910,
+        "gateway": "myket",
+    },
+)
+LAB_SKU_GATEWAYS = {item["sku"]: item["gateway"] for item in LAB_PACKAGES}
+
 
 def package_for_sku(sku):
     return CoinPackage.objects.filter(sku=sku, is_active=True).first()
@@ -75,6 +97,26 @@ def apply_venue_plan(venue, plan_key, channel=""):
         ]
     )
     return venue
+
+
+def ensure_lab_packages():
+    for item in LAB_PACKAGES:
+        CoinPackage.objects.update_or_create(
+            sku=item["sku"],
+            defaults={
+                "title": item["title"],
+                "kind": CoinPackage.KIND_LAB,
+                "plan_key": item["plan_key"],
+                "price_toman": item["price_toman"],
+                "sort_order": item["sort_order"],
+                "is_active": True,
+            },
+        )
+
+
+def lab_package(sku):
+    ensure_lab_packages()
+    return CoinPackage.objects.filter(sku=sku, kind=CoinPackage.KIND_LAB, is_active=True).first()
 
 
 def fulfill_purchase(txn):

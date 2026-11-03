@@ -9,7 +9,7 @@ import ir.myket.billingclient.util.Purchase
 
 class StoreBilling(
     private val activity: AppCompatActivity,
-    private val onResult: (token: String?, error: String?) -> Unit,
+    private val onResult: (token: String?, error: String?, originalJson: String?, signature: String?) -> Unit,
 ) {
     private val helper = IabHelper(activity, BuildConfig.MYKET_RSA)
     private var ready = false
@@ -24,7 +24,7 @@ class StoreBilling(
                     purchase(queued.first, queued.second)
                 }
             } else {
-                onResult(null, result.message ?: "اتصال به مایکت برقرار نشد.")
+                onResult(null, result.message ?: "اتصال به مایکت برقرار نشد.", null, null)
             }
         }
     }
@@ -40,7 +40,7 @@ class StoreBilling(
                     val owned = inventory.getPurchase(sku)
                     val token = owned?.token
                     if (!token.isNullOrBlank()) {
-                        onResult(token, null)
+                        onResult(token, null, null, null)
                         return@queryInventoryAsync
                     }
                 }
@@ -81,7 +81,7 @@ class StoreBilling(
             helper.launchPurchaseFlow(activity, sku, { result: IabResult, purchase: Purchase? ->
                 val token = purchase?.token
                 if (result.isSuccess && !token.isNullOrBlank()) {
-                    onResult(token, null)
+                    onResult(token, null, null, null)
                     return@launchPurchaseFlow
                 }
                 val message = result.message ?: ""
@@ -90,13 +90,13 @@ class StoreBilling(
                     message.contains("cancel", ignoreCase = true) ||
                     message.contains("لغو")
                 ) {
-                    onResult(null, "canceled")
+                    onResult(null, "canceled", null, null)
                 } else {
-                    onResult(null, message.ifBlank { "درگاه مایکت باز نشد." })
+                    onResult(null, message.ifBlank { "درگاه مایکت باز نشد." }, null, null)
                 }
             }, payload)
         } catch (exc: Exception) {
-            onResult(null, exc.message ?: "درگاه مایکت باز نشد.")
+            onResult(null, exc.message ?: "درگاه مایکت باز نشد.", null, null)
         }
     }
 }

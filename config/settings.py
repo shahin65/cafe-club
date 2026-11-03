@@ -144,5 +144,7 @@ BITPAY_SANDBOX = os.environ.get("BITPAY_SANDBOX", "").lower() in {"1", "true", "
 BAZAAR_CLIENT_ID = os.environ.get("BAZAAR_CLIENT_ID", "")
 BAZAAR_CLIENT_SECRET = os.environ.get("BAZAAR_CLIENT_SECRET", "")
 BAZAAR_REFRESH_TOKEN = os.environ.get("BAZAAR_REFRESH_TOKEN", "")
+BAZAAR_REDIRECT_URI = os.environ.get("BAZAAR_REDIRECT_URI", "")
+BAZAAR_RSA = os.environ.get("BAZAAR_RSA", "")
 MYKET_ACCESS_TOKEN = os.environ.get("MYKET_ACCESS_TOKEN", "")
 ANDROID_PACKAGE_NAME = os.environ.get("ANDROID_PACKAGE_NAME", "ir.cafeclub.amytis")

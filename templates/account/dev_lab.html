@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% load i18n static %}
+
+{% block title %}{% trans "آزمایشگاه توسعه" %}{% endblock %}
+
+{% block content %}
+  <section class="sheet wizard-sheet wallet-sheet pay-frost lab-sheet">
+    <h1>{% trans "آزمایشگاه توسعه" %}</h1>
+    <p class="ad-note">{% trans "فقط ادمین این صفحه را می‌بیند. هر بسته را داخل همان اپ فروشگاه تست کنید." %}</p>
+    {% if messages %}
+      <ul class="form-messages">
+        {% for message in messages %}
+          <li class="{{ message.tags }}">{{ message }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+
+    <article class="lab-module">
+      <h2>{% trans "ماژول ۱ — تست کافه بازار" %}</h2>
+      <p>{% trans "بسته آزمایشی ۵۰۰۰ تومانی. این خرید را فقط با APK بازار بزنید." %}</p>
+      <p>{% trans "نام بسته" %}: {{ bazaar_pack.title }}</p>
+      <p>{% trans "شناسه محصول" %}: <code class="lab-sku" dir="ltr">{{ bazaar_sku }}</code></p>
+      <p>{% trans "قیمت" %}: {{ bazaar_pack.price_toman }} {% trans "تومان" %}</p>
+      <form method="post" action="{% url 'dev_lab_buy' bazaar_sku %}">
+        {% csrf_token %}
+        <button class="choice wizard-submit" type="submit">{% trans "خرید تست کافه بازار" %}</button>
+      </form>
+    </article>
+
+    <article class="lab-module">
+      <h2>{% trans "ماژول ۲ — تست مایکت" %}</h2>
+      <p>{% trans "بسته آزمایشی ۵۰۰۰ تومانی. این خرید را فقط با APK مایکت بزنید." %}</p>
+      <p>{% trans "نام بسته" %}: {{ myket_pack.title }}</p>
+      <p>{% trans "شناسه محصول" %}: <code class="lab-sku" dir="ltr">{{ myket_sku }}</code></p>
+      <p>{% trans "قیمت" %}: {{ myket_pack.price_toman }} {% trans "تومان" %}</p>
+      <form method="post" action="{% url 'dev_lab_buy' myket_sku %}">
+        {% csrf_token %}
+        <button class="choice wizard-submit" type="submit">{% trans "خرید تست مایکت" %}</button>
+      </form>
+    </article>
+
+    {% if recent %}
+      <div class="lab-module">
+        <h2>{% trans "آخرین خریدهای آزمایشی شما" %}</h2>
+        <ul class="lab-history">
+          {% for buy in recent %}
+            <li>
+              {{ buy.package.title }}
+              <code class="lab-sku" dir="ltr">{{ buy.package.sku }}</code>
+              — {{ buy.get_gateway_display }} — {{ buy.get_status_display }}
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+  </section>
+{% endblock %}

@@ -31,8 +31,17 @@
     if (offlineScreen) offlineScreen.hidden = true;
   }
   if (offlineScreen) {
-    window.addEventListener("offline", showOffline);
-    window.addEventListener("online", hideOffline);
+    var offlineTimer;
+    window.addEventListener("offline", function () {
+      clearTimeout(offlineTimer);
+      offlineTimer = setTimeout(function () {
+        if (!navigator.onLine) showOffline();
+      }, 600);
+    });
+    window.addEventListener("online", function () {
+      clearTimeout(offlineTimer);
+      hideOffline();
+    });
     if (!navigator.onLine) showOffline();
   }
   if (retryButton) {

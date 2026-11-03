@@ -2,6 +2,7 @@ import hashlib
 import hmac
 import math
 import random
+from urllib.parse import quote
 from uuid import uuid4
 
 from django.conf import settings
@@ -137,7 +138,8 @@ def consume_captcha(request):
 
 
 def navigation_links(lat, lng, name):
-    query_name = name or "کافه کلاب"
+    query_name = " ".join(str(name or "کافه کلاب").split()) or "کافه کلاب"
+    encoded = quote(query_name)
     dest = f"{lat},{lng}"
     return [
         {
@@ -163,11 +165,13 @@ def navigation_links(lat, lng, name):
         {
             "id": "apple",
             "label": "اپل مپ",
-            "url": f"https://maps.apple.com/?daddr={dest}&q={query_name}",
+            "url": f"https://maps.apple.com/?daddr={dest}&q={encoded}",
+            "ios_url": f"maps://?daddr={dest}&q={encoded}",
         },
         {
             "id": "geo",
             "label": "سایر برنامه‌ها",
-            "url": f"geo:{dest}?q={dest}({query_name})",
+            "url": f"geo:{dest}?q={dest}({encoded})",
+            "ios_url": f"maps://?daddr={dest}&q={encoded}",
         },
     ]
