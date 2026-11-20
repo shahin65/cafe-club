@@ -10,15 +10,14 @@
       <div>
         <h1>
           {% if profile_shown_name %}{{ profile_shown_name }}{% else %}{% trans "مهمان" %}{% endif %}
-          {% if club_profile.is_verified %}
+          {% if club_profile.is_gold_verified %}
+            <img class="gold-tick" src="{% static 'Icon-GoldTick.png' %}" alt="{% trans 'تیک طلایی فعال' %}" width="28" height="28">
+          {% elif club_profile.is_verified %}
             <img class="blue-tick" src="{% static 'Icon-BlueTick.png' %}" alt="{% trans 'تیک آبی فعال' %}" width="28" height="28">
           {% else %}
             <button class="blue-tick-hint" type="button" data-blue-tick-hint aria-label="{% trans 'تیک آبی' %}">
               <img class="blue-tick" src="{% static 'Icon-BlueTick-Inactive.png' %}" alt="{% trans 'تیک آبی' %}" width="28" height="28">
             </button>
-          {% endif %}
-          {% if club_profile.is_gold_verified %}
-            <img class="gold-tick" src="{% static 'Icon-GoldTick.png' %}" alt="{% trans 'تیک طلایی فعال' %}" width="28" height="28">
           {% endif %}
           {% if profile_display_name or not request.user.is_authenticated %}
             <button class="profile-edit-name" type="button" data-toggle-display-form aria-label="{% trans 'ویرایش نام نمایشی' %}">
@@ -65,13 +64,11 @@
       <label>{% trans "نام نمایشی" %}
         <input type="text" name="display_name" value="{% if pending_paid_display_name %}{{ pending_paid_display_name }}{% else %}{{ profile_display_name }}{% endif %}" maxlength="40" placeholder="{% trans 'نامی که به دیگران نشان داده می‌شود' %}" required>
       </label>
-      {% if display_name_changes >= 1 %}
+      {% if paid_display_name_edit and display_name_changes >= 1 %}
         <p class="gmail-hint">{% trans "ویرایش نخست رایگان بود. ویرایش بعدی ۵۰٬۰۰۰ تومان است." %}</p>
-      {% else %}
-        <p class="gmail-hint">{% trans "ثبت و ویرایش نخست نام نمایشی رایگان است. ویرایش دوم ۵۰٬۰۰۰ تومان هزینه دارد." %}</p>
       {% endif %}
-      <button class="choice wizard-submit" type="submit">
-        {% if display_name_changes >= 1 %}{% trans "پرداخت و ذخیره نام نمایشی" %}{% else %}{% trans "ذخیره نام نمایشی" %}{% endif %}
+      <button class="choice wizard-submit profile-save" type="submit">
+        {% if paid_display_name_edit and display_name_changes >= 1 %}{% trans "پرداخت و ذخیره نام نمایشی" %}{% else %}{% trans "ذخیره نام نمایشی" %}{% endif %}
       </button>
     </form>
 
@@ -189,7 +186,7 @@
     {% if club_profile.is_verified %}
       <section class="verified-tools">
         <h2>{% trans "امکانات تیک آبی" %}</h2>
-        <form class="wizard-form" action="{% url 'profile_details' %}" method="post" enctype="multipart/form-data">
+        <form class="wizard-form" action="{% url 'profile_details' %}" method="post" enctype="multipart/form-data" data-upload-busy>
           {% csrf_token %}
           <label>{% trans "عکس پروفایل" %}
             <input type="file" name="photo" accept="image/*">
@@ -197,12 +194,12 @@
           <label>{% trans "بیوگرافی" %}
             <textarea name="bio" rows="4" maxlength="280" placeholder="{% trans 'چند خط درباره خودتان' %}">{{ club_profile.bio }}</textarea>
           </label>
-          <button class="choice wizard-submit" type="submit">{% trans "ذخیره پروفایل" %}</button>
+          <button class="choice wizard-submit profile-save" type="submit">{% trans "ذخیره پروفایل" %}</button>
         </form>
       </section>
     {% endif %}
 
-    {% if request.user.is_authenticated %}
+    {% if club_profile.is_gold_verified or club_profile.is_verified %}
       <section class="gold-tick-request">
         <h2>
           <img src="{% static 'Icon-GoldTick.png' %}" alt="" width="22" height="22">
@@ -211,7 +208,7 @@
         {% if club_profile.is_gold_verified %}
           <p>{% trans "تیک طلایی شما فعال است." %}</p>
         {% else %}
-          <p>{% trans "اگر به نظرت در جامعه مافیا شناخته‌شده هستی، رزومه‌ات را برای ما بفرست تا تیک طلایی‌ات فعال شود." %}</p>
+          <p>{% trans "اگه شما چهره ای شناخته شده در بازی مافیا هستید، سابقه گردانندگی دارید، در مسابقات شهروند و مافیا، فیلمنت و سایر برنامه های تصویری حضور داشتید، سناریو و نقش نوشتین این فرم رو پر کنید تا تیک طلایی شما فعال بشه" %}</p>
           {% if pending_gold_tick %}
             <p class="gold-tick-wait">{{ gold_tick_wait_message }}</p>
           {% else %}
@@ -249,5 +246,5 @@
 {% endblock %}
 
 {% block extrascripts %}
-  <script src="{% static 'js/profile.js' %}?v=3"></script>
+  <script src="{% static 'js/profile.js' %}?v=4"></script>
 {% endblock %}

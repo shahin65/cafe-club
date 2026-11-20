@@ -49,6 +49,7 @@ class BannerSeedTests(TestCase):
             [1, 2, 3, 4],
         )
         self.assertTrue(all(banner.is_active for banner in banners))
+        self.assertFalse(SiteSettings.load().show_home_banners)
         self.assertTrue(all(banner.title_fa and banner.title_en for banner in banners))
         self.assertTrue(all(banner.image.storage.exists(banner.image.name) for banner in banners))
 
@@ -75,7 +76,8 @@ class BannerSeedTests(TestCase):
     def test_public_site_defaults_to_persian_and_switches_to_english(self):
         persian = self.client.get("/")
         self.assertContains(persian, 'dir="rtl"')
-        self.assertContains(persian, "شب‌های مرموز کافه کلاب")
+        self.assertNotContains(persian, "شب‌های مرموز کافه کلاب")
+        self.assertNotContains(persian, 'class="ad-rotator')
         self.assertContains(persian, "مهمان")
         self.assertContains(persian, "Icon-Home.png")
         self.assertContains(persian, 'aria-current="page"')
@@ -124,8 +126,7 @@ class BannerSeedTests(TestCase):
         self.assertNotContains(location, "نمایش شعب")
         self.assertNotContains(location, "به زودی")
         self.assertNotContains(persian, "جزئیات")
-        self.assertContains(persian, 'data-interval="3000"')
-        self.assertContains(persian, 'href="/nights/"')
+        self.assertNotContains(persian, 'data-interval="3000"')
         self.assertNotContains(persian, "site-nav")
 
         english = self.client.get("/en/")
@@ -264,9 +265,9 @@ class ProfileAndBlueTickTests(TestCase):
         self.assertNotContains(logged, "امکانات تیک آبی")
         self.assertContains(logged, "Icon-BlueTick-Inactive.png")
         self.assertContains(logged, "نام نمایشی")
-        self.assertContains(logged, "تیک طلایی")
-        self.assertContains(logged, "Icon-GoldTick.png")
-        self.assertContains(logged, "اگر به نظرت در جامعه مافیا شناخته‌شده هستی")
+        self.assertNotContains(logged, "تیک طلایی")
+        self.assertNotContains(logged, "اگر به نظرت در جامعه مافیا شناخته‌شده هستی")
+        self.assertNotContains(logged, "ثبت و ویرایش نخست نام نمایشی رایگان است")
         self.assertNotContains(logged, "فعالسازی تیک آبی")
         self.assertContains(logged, "اتصال به بله")
         self.assertNotContains(logged, "می‌توانی جیمیلت را هم به پروفایل وصل کنی")
@@ -287,6 +288,8 @@ class ProfileAndBlueTickTests(TestCase):
 
     def test_rejected_gold_tick_can_be_requested_again(self):
         user = User.objects.create_user("host", "host@example.com", "123456")
+        user.club_profile.is_verified = True
+        user.club_profile.save(update_fields=["is_verified"])
         BlueTickRequest.objects.create(
             user=user,
             full_name="علی",
@@ -324,11 +327,14 @@ class ProfileAndBlueTickTests(TestCase):
             {"public_id": public_id, "action": "activate"},
         )
         self.assertRedirects(activated, "/admin/banners/userprofile/")
+        user.club_profile.is_verified = True
+        user.club_profile.save(update_fields=["is_verified"])
         user.club_profile.refresh_from_db()
         self.assertTrue(user.club_profile.is_gold_verified)
         self.client.force_login(user)
         verified_header = self.client.get("/")
         self.assertContains(verified_header, "Icon-GoldTick.png")
+        self.assertNotContains(verified_header, "Icon-BlueTick.png")
 
     def test_verified_user_can_save_optimized_photo_and_bio(self):
         user = User.objects.create_user("star", "star@example.com", "pass-word-123")
@@ -360,7 +366,11 @@ class ProfileAndBlueTickTests(TestCase):
 
     def test_gold_tick_request_saves_and_shows_wait_message(self):
         user = User.objects.create_user("host", "host@example.com", "pass-word-123")
+        user.club_profile.is_verified = True
+        user.club_profile.save(update_fields=["is_verified"])
         self.client.force_login(user)
+        intro = self.client.get("/account/profile/")
+        self.assertContains(intro, "اگه شما چهره ای شناخته شده در بازی مافیا هستید")
         sent = self.client.post(
             "/account/profile/gold-tick/",
             {
@@ -408,6 +418,7 @@ class ProfileAndBlueTickTests(TestCase):
     def test_guest_can_set_display_name_for_free(self):
         page = self.client.get("/account/profile/")
         self.assertContains(page, "نام نمایشی")
+        self.assertNotContains(page, "ثبت و ویرایش نخست نام نمایشی رایگان است")
         self.assertContains(page, "data-blue-tick-hint")
         self.assertContains(page, "با ثبت تلفن همراه از طریق بات بله و تلگرام")
         saved = self.client.post(
@@ -417,11 +428,25 @@ class ProfileAndBlueTickTests(TestCase):
         self.assertRedirects(saved, "/account/profile/")
         shown = self.client.get("/account/profile/")
         self.assertContains(shown, "مهمان میز")
+        self.assertNotContains(shown, "ویرایش نخست رایگان بود")
         self.assertEqual(self.client.session["display_name_changes"], 1)
+
+    def test_second_display_name_edit_is_free_until_server_enables_payment(self):
+        self.client.post("/account/username/", {"display_name": "اول", "next": "/account/profile/"})
+        second = self.client.post("/account/username/", {"display_name": "دوم", "next": "/account/profile/"})
+        self.assertRedirects(second, "/account/profile/")
+        self.assertEqual(self.client.session["display_name_changes"], 2)
+        self.assertNotIn("pending_paid_display_name", self.client.session)
+        shown = self.client.get("/account/profile/")
+        self.assertContains(shown, "دوم")
+        self.assertNotContains(shown, "پرداخت و ذخیره نام نمایشی")
 
     @override_settings(BITPAY_API_KEY="", DEBUG=True)
     @patch("banners.pay_views.bitpay_configured", return_value=False)
     def test_second_display_name_edit_costs_fifty_thousand(self, _configured):
+        from banners.catalog import set_paid_display_name
+
+        set_paid_display_name(True)
         self.client.post("/account/username/", {"display_name": "اول", "next": "/account/profile/"})
         second = self.client.post("/account/username/", {"display_name": "دوم", "next": "/account/profile/"})
         self.assertRedirects(second, "/account/profile/")
@@ -813,6 +838,54 @@ class PlacesTests(TestCase):
         self.assertEqual(venue.manager_name, "سارا")
         self.assertEqual(str(venue.latitude), "35.700000")
 
+    def test_superadmin_publishes_and_edits_venue_from_places(self):
+        admin_user = User.objects.create_superuser("placeboss", "placeboss@example.com", "pass-word-123")
+        self.client.force_login(admin_user)
+        listing = self.client.get("/location/")
+        self.assertContains(listing, "افزودن کافه یا کلاب")
+        form = self.client.get("/location/submit/")
+        self.assertContains(form, "ذخیره و انتشار در سایت")
+        self.assertContains(form, "data-upload-busy")
+        self.assertContains(form, 'id="venue-map"')
+        self.assertContains(form, 'dir="ltr"')
+        self.assertContains(form, "id_latitude")
+        buffer = BytesIO()
+        Image.new("RGB", (40, 40), (10, 80, 20)).save(buffer, format="PNG")
+        created = self.client.post(
+            "/location/submit/",
+            {
+                "name": "کلاب سوپر",
+                "manager_name": "نیما",
+                "address": "انقلاب",
+                "phone": "021111",
+                "hours": "چهارشنبه و پنجشنبه ۲۰ تا ۲",
+                "city": "تهران",
+                "latitude": "35.689200",
+                "longitude": "51.389000",
+                "logo": SimpleUploadedFile("logo.png", buffer.getvalue(), content_type="image/png"),
+            },
+        )
+        venue = Venue.objects.get(name="کلاب سوپر")
+        self.assertRedirects(created, f"/location/{venue.id}/")
+        shown = self.client.get("/location/")
+        self.assertContains(shown, f"/location/{venue.id}/edit/")
+        edited = self.client.post(
+            f"/location/{venue.id}/edit/",
+            {
+                "name": "کلاب ویرایش",
+                "manager_name": "نیما",
+                "address": "انقلاب",
+                "phone": "021111",
+                "hours": "چهارشنبه و پنجشنبه ۲۰ تا ۲",
+                "city": "تهران",
+                "latitude": "35.689200",
+                "longitude": "51.389000",
+            },
+        )
+        self.assertRedirects(edited, f"/location/{venue.id}/")
+        venue.refresh_from_db()
+        self.assertEqual(venue.name, "کلاب ویرایش")
+
     def test_city_search_sort_rating_comment_captcha_and_navigation(self):
         near = make_venue(name="کافه نزدیک", lat=35.6892, lng=51.3890)
         far = make_venue(name="کافه دور", lat=35.8000, lng=51.5000)
@@ -955,6 +1028,7 @@ class PlacesTests(TestCase):
         self.assertContains(form, "نام کلاب")
         self.assertContains(form, "نام مدیر یا سوپروایزر مجموعه")
         self.assertContains(form, "id=\"venue-map\"")
+        self.assertContains(form, 'dir="ltr"')
         self.assertContains(form, "id_latitude")
         self.assertContains(form, "admin/js/venue-map.js")
         map_js = finders.find("admin/js/venue-map.js")
@@ -962,6 +1036,7 @@ class PlacesTests(TestCase):
             source = handle.read()
         self.assertIn("tile.openstreetmap.de", source)
         self.assertIn("server.arcgisonline.com", source)
+        self.assertIn("cc:mounted", source)
         self.assertNotIn("tile.openstreetmap.org", source)
         buffer = BytesIO()
         Image.new("RGB", (40, 40), (10, 80, 20)).save(buffer, format="PNG")
@@ -1120,6 +1195,39 @@ class EventAdTests(TestCase):
         self.assertContains(page, "places-add-btn")
         self.assertContains(page, "ایوینت مافیا، پانتومیم، گل یا پوچ داری یا تورنومنت برگذار میکنی رایگان آگهی بده")
         self.assertContains(page, "ads-panel")
+
+    def test_superadmin_can_create_and_edit_ads_on_the_site(self):
+        admin_user = User.objects.create_superuser("adsboss", "adsboss@example.com", "pass-word-123")
+        self.client.force_login(admin_user)
+        form = self.client.get("/ads/create/")
+        self.assertContains(form, "نام ایونت")
+        self.assertContains(form, "data-upload-busy")
+        payload = {
+            "event_name": "شب سوپر ادمین",
+            "organizer_name": "علی",
+            "address": "خیابان ولیعصر",
+            "phone": "09121234567",
+            "ticket_price": "رایگان",
+            "cafe_bank": "کافه شب",
+            "city": "تهران",
+            "district": "ونک",
+            "scenario": "بازپرس",
+            "image": _png_upload("super-ad.png"),
+        }
+        payload.update(_future_event_post(days=1, hour="22:00"))
+        created = self.client.post("/ads/create/", payload)
+        ad = EventAd.objects.get(event_name="شب سوپر ادمین")
+        self.assertRedirects(created, "/ads/")
+        listing = self.client.get("/ads/")
+        self.assertContains(listing, f"/ads/{ad.id}/edit/")
+        edit = self.client.get(f"/ads/{ad.id}/edit/")
+        self.assertContains(edit, "ویرایش آگهی")
+        payload["event_name"] = "شب سوپر ویرایش"
+        payload.pop("image")
+        saved = self.client.post(f"/ads/{ad.id}/edit/", payload)
+        self.assertRedirects(saved, f"/ads/{ad.id}/")
+        ad.refresh_from_db()
+        self.assertEqual(ad.event_name, "شب سوپر ویرایش")
 
     def test_unverified_user_sees_blue_tick_form_instead_of_ad_form(self):
         user = User.objects.create_user("host", "host@example.com", "pass-word-123")
@@ -1715,6 +1823,28 @@ class MaintenanceModeTests(TestCase):
         self.assertFalse(SiteSettings.load().maintenance_mode)
         self.client.logout()
         self.assertEqual(self.client.get("/").status_code, 200)
+
+    def test_home_banner_slider_stays_off_until_enabled(self):
+        home = self.client.get("/")
+        self.assertNotContains(home, 'class="ad-rotator')
+        host = User.objects.create_superuser("banners", "banners@example.com", "pass-word-123")
+        self.client.force_login(host)
+        dashboard = self.client.get("/admin/")
+        self.assertContains(dashboard, "اسلایدر بنرها در صفحه اول نمایش داده شود")
+        self.assertContains(dashboard, 'action="/admin/home-banners/"')
+        enabled = self.client.post("/admin/home-banners/", {"show_home_banners": "1"})
+        self.assertRedirects(enabled, "/admin/")
+        self.assertTrue(SiteSettings.load().show_home_banners)
+        shown = self.client.get("/")
+        self.assertContains(shown, 'class="ad-rotator')
+        self.assertContains(shown, "شب‌های مرموز کافه کلاب")
+        self.assertContains(shown, 'data-interval="3000"')
+        self.assertContains(shown, 'href="/nights/"')
+        disabled = self.client.post("/admin/home-banners/", {})
+        self.assertRedirects(disabled, "/admin/")
+        self.assertFalse(SiteSettings.load().show_home_banners)
+        hidden = self.client.get("/")
+        self.assertNotContains(hidden, 'class="ad-rotator')
 
 
 class BlockedAccountTests(TestCase):

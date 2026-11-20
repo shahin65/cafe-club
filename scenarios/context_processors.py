@@ -1,5 +1,6 @@
 from django.templatetags.static import static
 
+from banners.catalog import paid_display_name_enabled
 from scenarios.branding import PRESET_LABELS, PRESETS, current_card_logo, custom_logo_choice
 from scenarios.dealing import SESSION_KEY, deal_is_active
 from scenarios.staff import staff_flags
@@ -57,6 +58,7 @@ def branding(request):
         "club_profile": club_profile,
         "display_name_changes": display_name_changes,
         "pending_paid_display_name": pending_paid_display_name,
+        "paid_display_name_edit": paid_display_name_enabled(),
         "staff_flags": staff_flags(request.user),
         "app_source": app_source,
         "from_installed_app": bool(app_source),

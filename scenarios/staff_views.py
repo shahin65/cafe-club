@@ -1,5 +1,6 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.db.models import Max
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_http_methods, require_POST
 
@@ -19,10 +20,58 @@ from scenarios.models import (
 )
 from scenarios.staff import require_staff_flag
 
-SIZE_SLOTS = 5
+SIZE_SLOTS = 8
 ROLE_SLOTS = 12
 FINAL_SLOTS = 8
 QUICK_SIDES = (SIDE_MAFIA, SIDE_CITIZEN, SIDE_INDEPENDENT, SIDE_WEREWOLF)
+
+
+def _empty_size_form():
+    row = {
+        "player": "",
+        "mafia": 0,
+        "citizen": 0,
+        "independent": 0,
+        "werewolf": 0,
+    }
+    for side in QUICK_SIDES:
+        row[f"{side}_names"] = ""
+    return row
+
+
+def _quick_size_forms(request, scenario):
+    if request.method == "POST":
+        forms = []
+        for index in range(SIZE_SLOTS):
+            player = request.POST.get(f"player_{index}")
+            if player is None and request.POST.get(f"mafia_count_{index}") is None:
+                continue
+            row = {
+                "player": player or "",
+                "mafia": request.POST.get(f"mafia_count_{index}") or 0,
+                "citizen": request.POST.get(f"citizen_count_{index}") or 0,
+                "independent": request.POST.get(f"independent_count_{index}") or 0,
+                "werewolf": request.POST.get(f"werewolf_count_{index}") or 0,
+            }
+            for side in QUICK_SIDES:
+                row[f"{side}_names"] = request.POST.get(f"{side}_names_{index}") or ""
+            forms.append(row)
+        return forms or [_empty_size_form()]
+    existing = list(scenario.sizes.all()) if scenario else []
+    forms = []
+    for size in existing:
+        roles = list(size.roles.all())
+        row = {
+            "player": size.player_count,
+            "mafia": size.mafia_count,
+            "citizen": size.citizen_count,
+            "independent": size.independent_count,
+            "werewolf": size.werewolf_count,
+        }
+        for side in QUICK_SIDES:
+            row[f"{side}_names"] = "\n".join(role.name for role in roles if role.side == side)
+        forms.append(row)
+    return forms or [_empty_size_form()]
 
 
 def _official(scenario_id, *, large=None):
@@ -56,11 +105,55 @@ def _save_icon(request, scenario):
     uploaded = request.FILES.get("icon")
     if not uploaded:
         return True
-    stored = _store_icon(f"staff-{request.user.id}", uploaded)
-    if stored is None:
+    try:
+        stored = _store_icon(f"staff-{request.user.id}", uploaded)
+    except Exception:
+        return False
+    if not stored:
         return False
     scenario.icon = stored
     return True
+
+
+def _place_on_home(scenario):
+    if scenario.is_large:
+        return
+    extras = Scenario.objects.filter(is_featured=True, owner__isnull=True, guest_key="", is_large=False)
+    if scenario.pk:
+        extras = extras.exclude(pk=scenario.pk)
+    extras = list(extras.order_by("home_order", "id"))
+    overflow = len(extras) + 1 - 6
+    if overflow > 0:
+        for old in extras[-overflow:]:
+            old.is_featured = False
+            old.save(update_fields=["is_featured"])
+    scenario.is_featured = True
+
+
+def _next_home_order(*, large=False):
+    last = (
+        Scenario.objects.filter(owner__isnull=True, guest_key="", is_large=large).aggregate(Max("home_order"))[
+            "home_order__max"
+        ]
+    )
+    return (last or 0) + 1
+
+
+def _apply_home_order(scenario, raw, *, created):
+    text = "" if raw is None else str(raw).strip()
+    if text == "":
+        if created:
+            scenario.home_order = _next_home_order(large=scenario.is_large)
+            if not scenario.is_large:
+                scenario.is_featured = False
+        return
+    scenario.home_order = max(0, _read_int(text, 0) or 0)
+    if scenario.is_large:
+        return
+    if scenario.home_order <= 5:
+        _place_on_home(scenario)
+    else:
+        scenario.is_featured = False
 
 
 @require_http_methods(["GET", "POST"])
@@ -105,15 +198,10 @@ def quick_edit(request, scenario_id=None):
                 scenario.name = name
                 scenario.has_final_move = request.POST.get("has_final_move") == "1"
                 scenario.has_death_lottery = request.POST.get("has_death_lottery") == "1"
-                scenario.home_order = max(0, _read_int(request.POST.get("home_order"), 0) or 0)
+                _apply_home_order(scenario, request.POST.get("home_order"), created=created)
                 if not _save_icon(request, scenario):
-                    error = "فقط تصویر کوچک JPG یا PNG انتخاب کنید."
+                    error = "آپلود تصویر انجام نشد. JPG، PNG یا WebP کوچک انتخاب کنید."
                 else:
-                    if created:
-                        featured_count = Scenario.objects.filter(
-                            is_featured=True, owner__isnull=True, guest_key=""
-                        ).count()
-                        scenario.is_featured = featured_count < 6
                     scenario.save()
                     scenario.sizes.all().delete()
                     for item in sizes:
@@ -131,21 +219,7 @@ def quick_edit(request, scenario_id=None):
                                 Role.objects.create(size=size, side=side, name=role_name)
                     messages.success(request, "سناریو تقسیم نقش سریع ذخیره شد.")
                     return redirect("home")
-    size_forms = []
-    existing = list(scenario.sizes.all()) if scenario else []
-    for index in range(SIZE_SLOTS):
-        size = existing[index] if index < len(existing) else None
-        roles = list(size.roles.all()) if size else []
-        row = {
-            "player": size.player_count if size else "",
-            "mafia": size.mafia_count if size else 0,
-            "citizen": size.citizen_count if size else 0,
-            "independent": size.independent_count if size else 0,
-            "werewolf": size.werewolf_count if size else 0,
-        }
-        for side in QUICK_SIDES:
-            row[f"{side}_names"] = "\n".join(role.name for role in roles if role.side == side)
-        size_forms.append(row)
+    size_forms = _quick_size_forms(request, scenario)
     return render(
         request,
         "scenarios/staff_quick.html",
@@ -206,9 +280,9 @@ def large_edit(request, scenario_id=None):
             scenario.large_kind = kind
             scenario.has_final_move = request.POST.get("has_final_move") == "1" or kind == "night"
             scenario.has_death_lottery = request.POST.get("has_death_lottery") == "1"
-            scenario.home_order = max(0, _read_int(request.POST.get("home_order"), 0) or 0)
+            _apply_home_order(scenario, request.POST.get("home_order"), created=created)
             if not _save_icon(request, scenario):
-                error = "فقط تصویر کوچک JPG یا PNG انتخاب کنید."
+                error = "آپلود تصویر انجام نشد. JPG، PNG یا WebP کوچک انتخاب کنید."
             else:
                 scenario.save()
                 keep_ids = []

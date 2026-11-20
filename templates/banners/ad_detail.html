@@ -6,6 +6,13 @@
 {% block content %}
   <section class="sheet venue-sheet places-frost ad-detail-card{% if ad.promo_plan %} is-boosted is-plan-{{ ad.promo_plan }}{% elif ad.is_boosted %} is-boosted is-plan-bronze{% endif %}">
       <p class="doc-kicker"><a href="{% url 'ads' %}">{% trans "آگهی" %}</a></p>
+      {% if staff_flags.listings %}
+        <a class="favorite-edit" href="{% url 'ad_edit' ad.id %}" aria-label="{% trans 'ویرایش آگهی' %}">
+          <svg viewBox="0 0 24 24" width="16" height="16">
+            <path fill="currentColor" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25ZM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83Z"/>
+          </svg>
+        </a>
+      {% endif %}
       {% if ad.plan_badge %}<span class="ad-ladder-badge is-static is-{{ ad.promo_plan|default:'bronze' }}">{{ ad.plan_badge }}</span>{% endif %}
       {% if nav_links %}
         <button class="venue-nav-btn" type="button" data-open-nav>

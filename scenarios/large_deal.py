@@ -31,7 +31,7 @@ COUNT_FIELDS = {
 
 
 def large_scenarios():
-    return Scenario.objects.filter(is_large=True, owner__isnull=True, guest_key="").order_by("home_order", "id")
+    return Scenario.objects.filter(is_large=True, owner__isnull=True, guest_key="").order_by("home_order", "-id")
 
 
 def read_int(value, minimum, maximum):

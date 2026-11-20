@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{% static 'css/site.css' %}?v=96">
+  <link rel="stylesheet" href="{% static 'css/site.css' %}?v=102">
 </head>
 <body{% if role_deal_active %} data-deal-active="1"{% endif %}{% if deal_play_chrome %} data-deal-play="1" data-deal-cancel="{% url 'deal_cancel' %}"{% endif %}>
   <header class="app-bar" id="cc-chrome-top">
@@ -40,13 +40,12 @@
     <a class="profile-button"{% if deal_play_chrome %} href="{% url 'deal_cancel' %}" data-deal-home{% else %} href="{% url 'profile' %}"{% endif %}>
       <img src="{% if club_profile and club_profile.photo %}{{ club_profile.photo.url }}{% else %}{% static 'Icon-profile.png' %}{% endif %}" alt="" width="36" height="36">
       <span class="username">{% if profile_shown_name %}{{ profile_shown_name }}{% else %}{% trans "مهمان" %}{% endif %}</span>
-      {% if club_profile.is_verified %}
+      {% if club_profile.is_gold_verified %}
+        <img class="gold-tick" src="{% static 'Icon-GoldTick.png' %}" alt="" width="22" height="22">
+      {% elif club_profile.is_verified %}
         <img class="blue-tick" src="{% static 'Icon-BlueTick.png' %}" alt="" width="22" height="22">
       {% else %}
         <img class="blue-tick" src="{% static 'Icon-BlueTick-Inactive.png' %}" alt="" width="22" height="22">
-      {% endif %}
-      {% if club_profile.is_gold_verified %}
-        <img class="gold-tick" src="{% static 'Icon-GoldTick.png' %}" alt="" width="22" height="22">
       {% endif %}
     </a>
   </header>
@@ -105,7 +104,9 @@
   <script src="{% static 'js/external-nav.js' %}?v=1" defer></script>
   <script src="{% static 'js/pwa.js' %}?v=7" defer></script>
   <script src="{% static 'js/translate.js' %}?v=1" defer></script>
-  <script src="{% static 'js/shell-nav.js' %}?v=2" defer></script>
+  <script src="{% static 'js/shell-nav.js' %}?v=4" defer></script>
+  <script src="{% static 'js/upload-progress.js' %}?v=1" defer></script>
+  <script src="{% static 'admin/js/venue-map.js' %}?v=4" defer></script>
   <script>
     (function () {
       var pendingDealHref = "";

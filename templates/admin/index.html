@@ -25,6 +25,24 @@
   </label>
   <p>با زدن این تیک، سایت برای کاربران عادی بسته می‌شود تا زمان آپدیت. پنل ادمین باز می‌ماند.</p>
 </form>
+<form class="module cafe-maintenance{% if paid_display_name_edit %} is-on{% endif %}" method="post" action="{% url 'admin:paid_display_name' %}">
+  {% csrf_token %}
+  <h2>ویرایش نام نمایشی</h2>
+  <label>
+    <input type="checkbox" name="paid_display_name_edit" value="1"{% if paid_display_name_edit %} checked{% endif %} onchange="this.form.submit()">
+    ویرایش دوم نام نمایشی پولی باشد
+  </label>
+  <p>پیش‌فرض خاموش است و تغییر دوباره نام رایگان می‌ماند. با روشن کردن، محصول <code>rename_50k</code> از درگاه کافه بازار، مایکت و بیت‌پی گرفته می‌شود.</p>
+</form>
+<form class="module cafe-maintenance{% if show_home_banners %} is-on{% endif %}" method="post" action="{% url 'admin:home_banners' %}">
+  {% csrf_token %}
+  <h2>بنر صفحه اول</h2>
+  <label>
+    <input type="checkbox" name="show_home_banners" value="1"{% if show_home_banners %} checked{% endif %} onchange="this.form.submit()">
+    اسلایدر بنرها در صفحه اول نمایش داده شود
+  </label>
+  <p>پیش‌فرض خاموش است. با روشن کردن، بنرهای فعال پنل در صفحه اول می‌چرخند.</p>
+</form>
 {% new_ads_notice %}
 <div class="cafe-dashboard-boards">
   <div class="module">

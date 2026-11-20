@@ -5,7 +5,7 @@ from io import BytesIO
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import Client, TestCase
+from django.test import Client, TestCase, override_settings
 from django.utils.encoding import iri_to_uri
 from PIL import Image
 
@@ -90,10 +90,10 @@ class ScenarioRulesTests(TestCase):
         content = response.content.decode()
         self.assertLess(content.find("نصب اپلیکیشن"), content.find("quick-roles"))
         self.assertLess(content.find("quick-roles"), content.find("large-roles"))
-        self.assertLess(content.find("large-roles"), content.find("ad-rotator"))
+        self.assertLess(content.find("large-roles"), content.find("favorite-scenarios"))
         self.assertContains(response, "تقسیم نقش سناریو تعداد بالا")
         self.assertContains(response, "Icon-Objective.png")
-        self.assertLess(content.find("ad-rotator"), content.find("favorite-scenarios"))
+        self.assertNotContains(response, 'class="ad-rotator')
         self.assertLess(content.find("favorite-scenarios"), content.find("tournament-home"))
         self.assertContains(response, "تورنومنت مافیا بساز و همینجا مدیریتش کن")
         self.assertContains(response, "Icon-Tournament.png")
@@ -1195,6 +1195,12 @@ class StaffSiteEditorTests(TestCase):
         self.client.force_login(user)
         home = self.client.get("/")
         self.assertContains(home, "/staff/quick/new/")
+        form = self.client.get("/staff/quick/new/")
+        self.assertContains(form, "افزودن حالت جدید")
+        self.assertNotContains(form, "چند حالت چندنفره")
+        self.assertNotContains(form, 'name="size_count"')
+        self.assertContains(form, 'name="player_0"')
+        self.assertNotContains(form, 'name="player_1"')
         created = self.client.post(
             "/staff/quick/new/",
             {
@@ -1251,3 +1257,65 @@ class StaffSiteEditorTests(TestCase):
         self.assertEqual(edited.status_code, 302)
         advanced.refresh_from_db()
         self.assertEqual(advanced.name, "پیشرفته ویرایش‌شده")
+
+    def test_new_quick_scenario_appends_last_unless_home_order_is_set(self):
+        user = get_user_model().objects.create_superuser("boss", "boss@example.com", "pass-word-123")
+        self.client.force_login(user)
+        old = []
+        for index in range(6):
+            old.append(make_complete_scenario(name=f"سناریو قدیمی {index}", featured=True))
+        created = self.client.post(
+            "/staff/quick/new/",
+            {
+                "name": "سناریو تازه",
+                "player_0": "2",
+                "mafia_count_0": "1",
+                "mafia_names_0": "پدرخوانده",
+                "citizen_count_0": "1",
+                "citizen_names_0": "شهروند",
+                "independent_count_0": "0",
+                "werewolf_count_0": "0",
+            },
+        )
+        self.assertEqual(created.status_code, 302)
+        fresh = Scenario.objects.get(name="سناریو تازه")
+        self.assertFalse(fresh.is_featured)
+        self.assertGreater(fresh.home_order, max(item.home_order for item in old))
+        self.assertEqual(Scenario.objects.filter(is_featured=True, is_large=False).count(), 6)
+        home = self.client.get("/")
+        self.assertNotContains(home, "سناریو تازه")
+        self.assertContains(home, "تقسیم نقش سریع ذخیره شد")
+        catalog = self.client.get("/scenarios/")
+        self.assertContains(catalog, "سناریو تازه")
+        self.assertContains(catalog, f"/staff/quick/{fresh.id}/")
+        pinned = self.client.post(
+            "/staff/quick/new/",
+            {
+                "name": "سناریو صفحه اول",
+                "home_order": "0",
+                "player_0": "2",
+                "mafia_count_0": "1",
+                "mafia_names_0": "پدرخوانده",
+                "citizen_count_0": "1",
+                "citizen_names_0": "شهروند",
+                "independent_count_0": "0",
+                "werewolf_count_0": "0",
+            },
+        )
+        self.assertEqual(pinned.status_code, 302)
+        front = Scenario.objects.get(name="سناریو صفحه اول")
+        self.assertTrue(front.is_featured)
+        self.assertEqual(front.home_order, 0)
+        shown = self.client.get("/")
+        self.assertContains(shown, "سناریو صفحه اول")
+        self.assertContains(shown, f"/staff/quick/{front.id}/")
+        self.assertContains(shown, "favorite-edit")
+
+    @override_settings(STAFF_TEST_MODE=True, DEBUG=True)
+    def test_staff_test_mode_lets_a_logged_in_user_open_quick_editor(self):
+        user = get_user_model().objects.create_user("tester", "tester@example.com", "pass-word-123")
+        self.client.force_login(user)
+        page = self.client.get("/staff/quick/new/")
+        self.assertEqual(page.status_code, 200)
+        self.assertContains(page, "افزودن حالت جدید")
+        self.assertNotContains(page, "چند حالت چندنفره")

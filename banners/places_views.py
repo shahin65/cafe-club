@@ -28,6 +28,7 @@ from banners.images import optimize_venue_image
 from banners.models import Venue, VenueComment, VenueRating, VenueSubmission
 from banners.pay_views import install_source, start_checkout
 from banners.promo import VENUE_PLANS, venue_plan_or_none
+from scenarios.staff import can_manage_listings
 
 SORTS = ("name", "distance", "rating")
 PAGE_SIZE = 10
@@ -285,15 +286,8 @@ INTRO_TEXT = (
 THANKS_TEXT = "مورد ارسالی طی 72 ساعت آینده بررسی و به شما اطلاع‌رسانی خواهد شد"
 
 
-def _save_upload(upload, max_edge):
-    if not upload:
-        return None
-    return optimize_venue_image(upload, max_edge=max_edge)
-
-
-@require_http_methods(["GET", "POST"])
-def submit_venue(request):
-    values = {
+def _empty_venue_values():
+    return {
         "name": "",
         "manager_name": "",
         "address": "",
@@ -303,62 +297,192 @@ def submit_venue(request):
         "longitude": "",
         "city": "",
     }
+
+
+def _venue_values_from_post(request):
+    values = _empty_venue_values()
+    values["name"] = (request.POST.get("name") or "").strip()[:120]
+    values["manager_name"] = (request.POST.get("manager_name") or "").strip()[:80]
+    values["address"] = (request.POST.get("address") or "").strip()[:300]
+    values["phone"] = (request.POST.get("phone") or "").strip()[:30]
+    values["hours"] = (request.POST.get("hours") or "").strip()[:200]
+    values["city"] = (request.POST.get("city") or "").strip()[:80]
+    values["latitude"] = (request.POST.get("latitude") or "").strip()
+    values["longitude"] = (request.POST.get("longitude") or "").strip()
+    return values
+
+
+def _venue_values_from_obj(venue):
+    return {
+        "name": venue.name,
+        "manager_name": venue.manager_name,
+        "address": venue.address,
+        "phone": venue.phone,
+        "hours": venue.hours,
+        "city": venue.city,
+        "latitude": venue.latitude or "",
+        "longitude": venue.longitude or "",
+    }
+
+
+def _apply_venue_files(venue, request, *, logo_required):
+    logo = request.FILES.get("logo")
+    if logo:
+        venue.logo = _save_upload(logo, 512)
+    elif logo_required:
+        raise ValidationError("لوگوی کلاب را انتخاب کنید.")
+    extras = [request.FILES.get("photo_1"), request.FILES.get("photo_2"), request.FILES.get("photo_3")]
+    extras = [item for item in extras if item]
+    if len(extras) > 3:
+        raise ValidationError("حداکثر سه تصویر می‌توانید ارسال کنید.")
+    photos = [_save_upload(item, 1200) for item in extras]
+    if len(photos) > 0:
+        venue.photo_1 = photos[0]
+    if len(photos) > 1:
+        venue.photo_2 = photos[1]
+    if len(photos) > 2:
+        venue.photo_3 = photos[2]
+
+
+def _fill_venue_fields(venue, values, lat, lng):
+    venue.name = values["name"]
+    venue.manager_name = values["manager_name"]
+    venue.address = values["address"]
+    venue.phone = values["phone"]
+    venue.hours = values["hours"]
+    venue.city = values["city"]
+    venue.latitude = lat
+    venue.longitude = lng
+
+
+def _save_upload(upload, max_edge):
+    if not upload:
+        return None
+    return optimize_venue_image(upload, max_edge=max_edge)
+
+
+@require_http_methods(["GET", "POST"])
+def submit_venue(request):
+    staff_direct = can_manage_listings(request.user)
+    values = _empty_venue_values()
     error = ""
     if request.method == "POST":
-        values["name"] = (request.POST.get("name") or "").strip()[:120]
-        values["manager_name"] = (request.POST.get("manager_name") or "").strip()[:80]
-        values["address"] = (request.POST.get("address") or "").strip()[:300]
-        values["phone"] = (request.POST.get("phone") or "").strip()[:30]
-        values["hours"] = (request.POST.get("hours") or "").strip()[:200]
-        values["city"] = (request.POST.get("city") or "").strip()[:80]
-        values["latitude"] = (request.POST.get("latitude") or "").strip()
-        values["longitude"] = (request.POST.get("longitude") or "").strip()
+        values = _venue_values_from_post(request)
         lat = parse_coord(values["latitude"])
         lng = parse_coord(values["longitude"])
-        logo = request.FILES.get("logo")
-        extras = [request.FILES.get("photo_1"), request.FILES.get("photo_2"), request.FILES.get("photo_3")]
-        extras = [item for item in extras if item]
         required = {key: values[key] for key in ("name", "manager_name", "address", "phone", "hours", "city")}
-        if not all(required.values()) or not logo:
-            error = "نام کلاب، لوگو، نام مدیر، شهر، آدرس، تلفن و ساعات کاری را کامل کنید."
+        if not all(required.values()):
+            error = "نام کلاب، نام مدیر، شهر، آدرس، تلفن و ساعات کاری را کامل کنید."
         elif lat is None or lng is None:
             error = "محل کافه یا کلاب را روی نقشه انتخاب کنید."
-        elif len(extras) > 3:
-            error = "حداکثر سه تصویر می‌توانید ارسال کنید."
-        else:
+        elif staff_direct:
             try:
-                submission = VenueSubmission(
-                    user=request.user if request.user.is_authenticated else None,
-                    name=values["name"],
-                    manager_name=values["manager_name"],
-                    address=values["address"],
-                    phone=values["phone"],
-                    hours=values["hours"],
-                    city=values["city"],
-                    latitude=lat,
-                    longitude=lng,
-                    logo=_save_upload(logo, 512),
-                )
-                photos = [_save_upload(item, 1200) for item in extras]
-                if len(photos) > 0:
-                    submission.photo_1 = photos[0]
-                if len(photos) > 1:
-                    submission.photo_2 = photos[1]
-                if len(photos) > 2:
-                    submission.photo_3 = photos[2]
-                submission.save()
+                venue = Venue(is_active=True)
+                _fill_venue_fields(venue, values, lat, lng)
+                _apply_venue_files(venue, request, logo_required=True)
+                venue.save()
             except ValidationError as exc:
                 error = " ".join(exc.messages)
             else:
-                return render(
-                    request,
-                    "banners/venue_submit.html",
-                    {"submitted": True, "thanks": THANKS_TEXT, "intro": INTRO_TEXT, "values": values},
-                )
+                messages.success(request, "کافه یا کلاب در سایت منتشر شد.")
+                return redirect("venue_detail", venue_id=venue.id)
+        else:
+            logo = request.FILES.get("logo")
+            extras = [item for item in (request.FILES.get("photo_1"), request.FILES.get("photo_2"), request.FILES.get("photo_3")) if item]
+            if not logo:
+                error = "نام کلاب، لوگو، نام مدیر، شهر، آدرس، تلفن و ساعات کاری را کامل کنید."
+            elif len(extras) > 3:
+                error = "حداکثر سه تصویر می‌توانید ارسال کنید."
+            else:
+                try:
+                    submission = VenueSubmission(
+                        user=request.user if request.user.is_authenticated else None,
+                        name=values["name"],
+                        manager_name=values["manager_name"],
+                        address=values["address"],
+                        phone=values["phone"],
+                        hours=values["hours"],
+                        city=values["city"],
+                        latitude=lat,
+                        longitude=lng,
+                        logo=_save_upload(logo, 512),
+                    )
+                    photos = [_save_upload(item, 1200) for item in extras]
+                    if len(photos) > 0:
+                        submission.photo_1 = photos[0]
+                    if len(photos) > 1:
+                        submission.photo_2 = photos[1]
+                    if len(photos) > 2:
+                        submission.photo_3 = photos[2]
+                    submission.save()
+                except ValidationError as exc:
+                    error = " ".join(exc.messages)
+                else:
+                    return render(
+                        request,
+                        "banners/venue_submit.html",
+                        {
+                            "submitted": True,
+                            "thanks": THANKS_TEXT,
+                            "intro": INTRO_TEXT,
+                            "values": values,
+                            "staff_direct": False,
+                        },
+                    )
     return render(
         request,
         "banners/venue_submit.html",
-        {"submitted": False, "intro": INTRO_TEXT, "error": error, "values": values},
+        {
+            "submitted": False,
+            "intro": "کافه یا کلاب را همین‌جا ثبت کنید تا بلافاصله در صفحه کجا برم؟ نمایش داده شود."
+            if staff_direct
+            else INTRO_TEXT,
+            "error": error,
+            "values": values,
+            "staff_direct": staff_direct,
+        },
+    )
+
+
+@login_required(login_url="profile")
+@require_http_methods(["GET", "POST"])
+def edit_venue(request, venue_id):
+    if not can_manage_listings(request.user):
+        messages.error(request, "اجازه این کار را ندارید.")
+        return redirect("location")
+    venue = get_object_or_404(Venue, pk=venue_id)
+    values = _venue_values_from_obj(venue)
+    error = ""
+    if request.method == "POST":
+        values = _venue_values_from_post(request)
+        lat = parse_coord(values["latitude"])
+        lng = parse_coord(values["longitude"])
+        required = {key: values[key] for key in ("name", "manager_name", "address", "phone", "hours", "city")}
+        if not all(required.values()):
+            error = "نام کلاب، نام مدیر، شهر، آدرس، تلفن و ساعات کاری را کامل کنید."
+        elif lat is None or lng is None:
+            error = "محل کافه یا کلاب را روی نقشه انتخاب کنید."
+        else:
+            try:
+                _fill_venue_fields(venue, values, lat, lng)
+                _apply_venue_files(venue, request, logo_required=False)
+                venue.save()
+            except ValidationError as exc:
+                error = " ".join(exc.messages)
+            else:
+                messages.success(request, "اطلاعات کافه یا کلاب ذخیره شد.")
+                return redirect("venue_detail", venue_id=venue.id)
+    return render(
+        request,
+        "banners/venue_submit.html",
+        {
+            "submitted": False,
+            "intro": "اطلاعات کافه یا کلاب را ویرایش کنید.",
+            "error": error,
+            "values": values,
+            "staff_direct": True,
+            "venue": venue,
+        },
     )
 
 

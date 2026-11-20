@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load i18n static %}
 
-{% block title %}{% trans "ثبت کافه یا کلاب من" %} | {% trans "کجا برم؟" %}{% endblock %}
+{% block title %}{% if venue %}{% trans "ویرایش کافه یا کلاب" %}{% elif staff_direct %}{% trans "افزودن کافه یا کلاب" %}{% else %}{% trans "ثبت کافه یا کلاب من" %}{% endif %} | {% trans "کجا برم؟" %}{% endblock %}
 
 {% block extrahead %}
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
@@ -11,20 +11,21 @@
   <section class="sheet venue-sheet">
     <div class="venue-card">
       <p class="doc-kicker"><a href="{% url 'location' %}">{% trans "کجا برم؟" %}</a></p>
-      <h1>{% trans "ثبت کافه یا کلاب من" %}</h1>
+      <h1>{% if venue %}{% trans "ویرایش کافه یا کلاب" %}{% elif staff_direct %}{% trans "افزودن کافه یا کلاب" %}{% else %}{% trans "ثبت کافه یا کلاب من" %}{% endif %}</h1>
       <p class="venue-submit-intro">{{ intro }}</p>
       {% if submitted %}
         <p class="blue-tick-wait">{{ thanks }}</p>
       {% else %}
         {% if error %}<p class="wizard-error">{{ error }}</p>{% endif %}
-        <form class="wizard-form" method="post" enctype="multipart/form-data">
+        <form class="wizard-form" method="post" enctype="multipart/form-data" data-upload-busy>
           {% csrf_token %}
           <label>{% trans "نام کلاب" %}
             <input type="text" name="name" maxlength="120" required value="{{ values.name }}">
           </label>
           <label>{% trans "لوگو" %}
-            <input type="file" name="logo" accept="image/*" required>
+            <input type="file" name="logo" accept="image/*"{% if not venue %} required{% endif %}>
           </label>
+          {% if venue %}<p class="music-note">{% trans "اگر لوگو را عوض نمی‌کنید این فیلد را خالی بگذارید." %}</p>{% endif %}
           <label>{% trans "تصویر ۱" %}
             <input type="file" name="photo_1" accept="image/*">
           </label>
@@ -52,11 +53,12 @@
           </label>
           <div class="venue-map-public">
             <p>{% trans "روی نقشه محل کافه یا کلاب را انتخاب کنید." %}</p>
-            <div id="venue-map" data-default-lat="35.6892" data-default-lng="51.3890"></div>
+            <div id="venue-map" dir="ltr" data-default-lat="35.6892" data-default-lng="51.3890"></div>
             <input type="hidden" name="latitude" id="id_latitude" value="{{ values.latitude }}" required>
             <input type="hidden" name="longitude" id="id_longitude" value="{{ values.longitude }}" required>
+            <p data-map-point dir="ltr"{% if not values.latitude %} hidden{% endif %}>{% if values.latitude %}{{ values.latitude }}, {{ values.longitude }}{% endif %}</p>
           </div>
-          <button class="choice wizard-submit" type="submit">{% trans "ارسال برای بررسی" %}</button>
+          <button class="choice wizard-submit" type="submit">{% if staff_direct %}{% trans "ذخیره و انتشار در سایت" %}{% else %}{% trans "ارسال برای بررسی" %}{% endif %}</button>
         </form>
       {% endif %}
     </div>
@@ -65,5 +67,4 @@
 
 {% block extra_js %}
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="{% static 'admin/js/venue-map.js' %}?v=3"></script>
 {% endblock %}

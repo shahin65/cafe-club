@@ -10,6 +10,7 @@ from django.utils import timezone
 from django.utils.html import format_html
 from django.views.decorators.http import require_POST
 
+from banners.catalog import set_paid_display_name
 from banners.geo import IRAN_CITIES
 from banners.images import optimize_image, optimize_venue_image
 from banners.models import Banner, BlueTickRequest, CoinPackage, EventAd, LegalPage, PaymentTransaction, SiteLink, SiteSettings, Tournament, TournamentPlayer, UserProfile, Venue, VenueComment, VenueRating, VenueSubmission
@@ -750,6 +751,29 @@ def toggle_maintenance(request):
     return redirect("admin:index")
 
 
+@require_POST
+def toggle_paid_display_name(request):
+    enabled = request.POST.get("paid_display_name_edit") == "1"
+    set_paid_display_name(enabled)
+    if enabled:
+        messages.success(request, "ویرایش دوم نام نمایشی پولی شد. محصول rename_50k برای بازار و مایکت فعال است.")
+    else:
+        messages.success(request, "ویرایش دوباره نام نمایشی رایگان شد.")
+    return redirect("admin:index")
+
+
+@require_POST
+def toggle_home_banners(request):
+    settings_row = SiteSettings.load()
+    settings_row.show_home_banners = request.POST.get("show_home_banners") == "1"
+    settings_row.save(update_fields=["show_home_banners"])
+    if settings_row.show_home_banners:
+        messages.success(request, "اسلایدر بنر صفحه اول روشن شد.")
+    else:
+        messages.success(request, "اسلایدر بنر صفحه اول خاموش شد.")
+    return redirect("admin:index")
+
+
 _original_admin_get_urls = admin.site.get_urls
 _original_admin_index = admin.site.index
 
@@ -757,6 +781,16 @@ _original_admin_index = admin.site.index
 def _cafe_admin_get_urls():
     extra = [
         path("site-maintenance/", admin.site.admin_view(toggle_maintenance), name="site_maintenance"),
+        path(
+            "paid-display-name/",
+            admin.site.admin_view(toggle_paid_display_name),
+            name="paid_display_name",
+        ),
+        path(
+            "home-banners/",
+            admin.site.admin_view(toggle_home_banners),
+            name="home_banners",
+        ),
     ]
     return extra + _original_admin_get_urls()
 
@@ -795,6 +829,8 @@ def _cafe_admin_index(request, extra_context=None):
 
     extra_context = extra_context or {}
     extra_context["maintenance_mode"] = SiteSettings.load().maintenance_mode
+    extra_context["paid_display_name_edit"] = SiteSettings.load().paid_display_name_edit
+    extra_context["show_home_banners"] = SiteSettings.load().show_home_banners
     extra_context["assistant_events"] = _assistant_recent_events()
     extra_context["manager_cases"] = list(
         ReviewCase.objects.filter(status=STATUS_NEEDS_REVIEW).order_by("-updated_at", "-id")[:8]

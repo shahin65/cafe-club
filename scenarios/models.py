@@ -171,7 +171,7 @@ class Scenario(models.Model):
     class Meta:
         verbose_name = "سناریو"
         verbose_name_plural = "سناریوها"
-        ordering = ["home_order", "id"]
+        ordering = ["home_order", "-id"]
 
     def __str__(self):
         return self.name

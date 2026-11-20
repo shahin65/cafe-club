@@ -23,11 +23,14 @@
         ? "پرداخت هزینه — " + (current.getAttribute("data-price") || "")
         : freeLabel;
     }
-    if (needsExtras && window.L && extras) {
+    if (needsExtras && extras) {
       window.setTimeout(function () {
         extras.querySelectorAll(".leaflet-container").forEach(function () {
           window.dispatchEvent(new Event("resize"));
         });
+        try {
+          document.dispatchEvent(new CustomEvent("cc:mounted"));
+        } catch (err) {}
       }, 220);
     }
   }

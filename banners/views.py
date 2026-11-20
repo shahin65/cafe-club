@@ -4,7 +4,7 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from banners.app_source import filter_downloads
-from banners.models import Banner, EventAd, LegalPage, SiteLink, Venue
+from banners.models import Banner, EventAd, LegalPage, SiteLink, SiteSettings, Venue
 from banners.tournament import MAX_OPEN, owned_tournaments
 from scenarios.large_deal import large_scenarios
 from scenarios.models import GUEST_SCENARIO_KEY, Scenario
@@ -36,7 +36,10 @@ PAGES = {
 
 
 def home(request):
-    banners = Banner.objects.filter(is_active=True)
+    if SiteSettings.load().show_home_banners:
+        banners = Banner.objects.filter(is_active=True)
+    else:
+        banners = Banner.objects.none()
     quick_scenarios, show_more_scenarios = home_quick_scenarios(request)
     if request.user.is_authenticated:
         owned = Scenario.objects.filter(owner=request.user)

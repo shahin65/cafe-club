@@ -29,6 +29,9 @@
     if (isNew) {
       window.setTimeout(function () {
         window.dispatchEvent(new Event("resize"));
+        try {
+          document.dispatchEvent(new CustomEvent("cc:mounted"));
+        } catch (err) {}
       }, 220);
     }
   }

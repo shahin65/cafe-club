@@ -25,6 +25,72 @@ html.is-cc-busy {
     cursor: progress;
 }
 
+#cc-upload-busy {
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    display: grid;
+    place-items: center;
+    background: rgba(5, 6, 12, 0.62);
+    backdrop-filter: blur(6px);
+}
+
+#cc-upload-busy[hidden] {
+    display: none !important;
+}
+
+.cc-upload-busy-card {
+    display: grid;
+    gap: 12px;
+    justify-items: center;
+    min-width: 220px;
+    padding: 22px 26px;
+    border-radius: 18px;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    background: rgba(12, 16, 24, 0.92);
+    color: #f4f0e8;
+}
+
+.cc-upload-busy-card p {
+    margin: 0;
+    font-weight: 700;
+}
+
+.cc-upload-spinner {
+    width: 36px;
+    height: 36px;
+    border: 3px solid rgba(255, 255, 255, 0.18);
+    border-top-color: #5dce88;
+    border-radius: 50%;
+    animation: cc-spin 0.8s linear infinite;
+}
+
+.cc-upload-bar {
+    width: 160px;
+    height: 6px;
+    overflow: hidden;
+    border-radius: 99px;
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.cc-upload-bar i {
+    display: block;
+    width: 40%;
+    height: 100%;
+    border-radius: 99px;
+    background: linear-gradient(90deg, #5dce88, #c8f3d6);
+    animation: cc-bar 1.1s ease-in-out infinite;
+}
+
+@keyframes cc-spin {
+    to { transform: rotate(360deg); }
+}
+
+@keyframes cc-bar {
+    0% { transform: translateX(-120%); }
+    100% { transform: translateX(280%); }
+}
+
 body {
     position: relative;
     z-index: 0;
@@ -606,6 +672,19 @@ html[dir="rtl"] .quick-roles-title {
     overflow: visible;
 }
 
+.quick-role-list li {
+    position: relative;
+    display: grid;
+}
+
+.quick-role-list li > a:not(.favorite-edit) {
+    grid-area: 1 / 1;
+}
+
+.catalog-list .favorite-edit {
+    top: 18px;
+}
+
 .quick-role-list a:not(.favorite-edit) {
     display: flex;
     flex-direction: column;
@@ -623,6 +702,7 @@ html[dir="rtl"] .quick-roles-title {
 }
 
 .scenario-icon-frame {
+    position: relative;
     display: grid;
     place-items: center;
     flex: 0 0 auto;
@@ -1601,14 +1681,13 @@ button.choice {
 }
 
 .doc-back {
-    position: fixed;
-    top: calc(56px + 10px);
-    left: 12px;
-    z-index: 8;
-    display: flex;
+    position: static;
+    display: inline-flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: 8px;
-    max-width: min(78vw, 280px);
+    max-width: 100%;
+    margin: 0 0 12px;
     padding: 8px 12px;
     border-radius: 12px;
     background: rgba(0, 0, 0, 0.82);
@@ -1616,23 +1695,27 @@ button.choice {
     color: var(--gold);
     text-decoration: none;
     font-weight: 700;
-    font-size: 0.85rem;
+    font-size: clamp(0.78rem, 3.4vw, 0.92rem);
+    line-height: 1.4;
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
 }
 
 .doc-back img {
     width: 28px;
     height: 28px;
+    flex: 0 0 auto;
     object-fit: contain;
 }
 
 .scenario-doc {
+    min-width: 0;
     padding-top: 8px;
 }
 
 .scenario-doc.places-frost {
-    padding: 52px 14px 20px;
+    padding: 16px 12px 20px;
     border-radius: 22px;
+    overflow-wrap: anywhere;
 }
 
 .scenario-doc.places-frost .doc-kicker,
@@ -1669,6 +1752,25 @@ button.choice {
 .scenario-html {
     color: var(--ink);
     line-height: 1.85;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+.scenario-html table {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+}
+
+@media (max-width: 720px) {
+    .scenario-doc.places-frost {
+        padding: 12px 10px 16px;
+    }
+
+    .scenario-doc.places-frost h1 {
+        font-size: clamp(1.12rem, 5.6vw, 1.45rem);
+        line-height: 1.35;
+    }
 }
 
 .doc-empty {
@@ -2131,20 +2233,24 @@ dialog.settings-dialog:not([open]) {
 }
 
 .favorite-edit {
-    position: absolute;
-    top: 8px;
-    left: 8px;
-    z-index: 1;
+    grid-area: 1 / 1;
+    position: relative;
+    z-index: 5;
+    justify-self: center;
+    align-self: start;
+    margin-top: 12px;
     display: grid;
     place-items: center;
-    width: 22px;
-    height: 22px;
+    width: 32px;
+    height: 32px;
     min-height: 0;
     padding: 0;
-    background: transparent;
-    border: 0;
-    color: #9a9a9a;
+    background: rgba(8, 10, 16, 0.88);
+    border: 1px solid rgba(230, 194, 122, 0.7);
+    border-radius: 999px;
+    color: #f0d9a8;
     text-decoration: none;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
 }
 
 .wizard-form {
@@ -2227,6 +2333,23 @@ dialog.settings-dialog:not([open]) {
     max-width: 100%;
     min-width: 0;
     box-sizing: border-box;
+}
+
+.profile-sheet .profile-save {
+    justify-content: center;
+    background: linear-gradient(180deg, #62d48c, #1f8a4d);
+    border: 1px solid rgba(180, 255, 210, 0.45);
+    color: #06210f;
+    font-weight: 700;
+}
+
+.home-messages {
+    list-style: none;
+    margin: 0 0 12px;
+    padding: 12px 14px;
+    border-radius: 16px;
+    background: rgba(10, 12, 18, 0.82);
+    color: #f4f0e8;
 }
 
 .profile-sheet .gmail-box h2,
@@ -2794,6 +2917,30 @@ dialog.settings-dialog:not([open]) {
     gap: 10px;
 }
 
+.place-list li {
+    position: relative;
+    display: grid;
+}
+
+.place-list .favorite-edit,
+.ad-banner .favorite-edit,
+.venue-sheet .favorite-edit,
+.ad-detail-card .favorite-edit {
+    grid-area: auto;
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    z-index: 5;
+    margin-top: 0;
+    justify-self: auto;
+    align-self: auto;
+}
+
+.place-list .favorite-edit {
+    left: auto;
+    right: 8px;
+}
+
 .place-card {
     position: relative;
     display: grid;
@@ -2900,6 +3047,7 @@ dialog.settings-dialog:not([open]) {
 
 .venue-sheet,
 .places-sheet {
+    position: relative;
     max-width: 100%;
     min-width: 0;
     overflow-x: hidden;
@@ -3157,12 +3305,17 @@ html[dir="rtl"] .places-frost select {
     overflow: hidden;
 }
 
+.venue-card:has(#venue-map) {
+    overflow: visible;
+}
+
 .venue-card img,
 .venue-card svg {
     max-width: 100%;
 }
 
 .venue-hero {
+    position: relative;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -3992,6 +4145,9 @@ button.ad-chip {
 
 .venue-map-public {
     margin: 8px 0 14px;
+    position: relative;
+    z-index: 3;
+    overflow: visible;
 }
 
 .venue-map-public p {
@@ -3999,11 +4155,24 @@ button.ad-chip {
     color: #f4f0e8;
 }
 
-.venue-map-public #venue-map {
+.venue-map-public [data-map-point] {
+    margin: 8px 0 0;
+    font-size: 0.85rem;
+    letter-spacing: 0.02em;
+    color: #e6c27a;
+}
+
+.venue-map-public #venue-map,
+.venue-map-public .leaflet-container {
     height: 240px;
     width: 100%;
     border-radius: 12px;
     overflow: hidden;
+    direction: ltr;
+    touch-action: none;
+    pointer-events: auto;
+    position: relative;
+    z-index: 3;
 }
 
 @media (min-width: 720px) {
@@ -4093,8 +4262,12 @@ button.ad-chip {
 
 .catalog-list li {
     position: relative;
-    display: block;
+    display: grid;
     min-width: 0;
+}
+
+.catalog-list .catalog-card {
+    grid-area: 1 / 1;
 }
 
 .catalog-card {

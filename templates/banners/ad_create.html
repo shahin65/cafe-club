@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load i18n static %}
 
-{% block title %}{% trans "درج آگهی جدید" %} | {% trans "کافه کلاب" %}{% endblock %}
+{% block title %}{% if is_edit %}{% trans "ویرایش آگهی" %}{% else %}{% trans "درج آگهی جدید" %}{% endif %} | {% trans "کافه کلاب" %}{% endblock %}
 
 {% block extrahead %}
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
@@ -10,7 +10,7 @@
 {% block content %}
   <section class="sheet venue-sheet places-frost pay-frost">
       <p class="doc-kicker"><a href="{% url 'ads' %}">{% trans "آگهی" %}</a></p>
-      <h1 class="places-title">{% trans "درج آگهی جدید" %}</h1>
+      <h1 class="places-title">{% if is_edit %}{% trans "ویرایش آگهی" %}{% else %}{% trans "درج آگهی جدید" %}{% endif %}</h1>
       {% if messages %}
         <ul class="form-messages">
           {% for message in messages %}
@@ -29,8 +29,9 @@
           <p class="ad-note">{% trans "آگهی‌های رایگان باقی‌مانده این ماه" %}: {{ remaining }}</p>
         {% endif %}
         {% if error %}<p class="wizard-error">{{ error }}</p>{% endif %}
-          <form class="wizard-form" method="post" enctype="multipart/form-data" data-ad-create>
+          <form class="wizard-form" method="post" enctype="multipart/form-data" data-ad-create data-upload-busy>
             {% csrf_token %}
+            {% if not is_edit %}
             <fieldset class="ad-create-plans">
               <legend>{% trans "پلن تبلیغاتی" %}</legend>
               <div class="ad-plan-grid is-create">
@@ -48,6 +49,7 @@
                 {% endfor %}
               </div>
             </fieldset>
+            {% endif %}
             <label>{% trans "نام ایونت" %}
               <input type="text" name="event_name" maxlength="120" required value="{{ values.event_name }}">
             </label>
@@ -55,8 +57,9 @@
               <input type="text" name="organizer_name" maxlength="80" required value="{{ values.organizer_name }}">
             </label>
             <label>{% trans "تصویر ایونت" %}
-              <input type="file" name="image" accept="image/*" required>
+              <input type="file" name="image" accept="image/*"{% if not is_edit %} required{% endif %}>
             </label>
+            {% if is_edit %}<p class="music-note">{% trans "اگر تصویر را عوض نمی‌کنید این فیلد را خالی بگذارید." %}</p>{% endif %}
             <p class="music-note">{% trans "حداکثر حجم تصویر ۲ مگابایت است." %}</p>
             <label>{% trans "شهر" %}
               <input type="text" name="city" maxlength="80" required value="{{ values.city }}" placeholder="{% trans 'نام شهر را بنویسید' %}">
@@ -100,9 +103,10 @@
             <div class="ad-create-extras" data-plan-extras hidden>
               <div class="venue-map-public">
                 <p>{% trans "روی نقشه محل برگزاری را انتخاب کنید." %}</p>
-                <div id="venue-map" data-default-lat="35.6892" data-default-lng="51.3890"></div>
+                <div id="venue-map" dir="ltr" data-default-lat="35.6892" data-default-lng="51.3890"></div>
                 <input type="hidden" name="latitude" id="id_latitude" value="{{ values.latitude }}">
                 <input type="hidden" name="longitude" id="id_longitude" value="{{ values.longitude }}">
+                <p data-map-point dir="ltr"{% if not values.latitude %} hidden{% endif %}>{% if values.latitude %}{{ values.latitude }}, {{ values.longitude }}{% endif %}</p>
               </div>
               <label>{% trans "تصویر ۱" %}<input type="file" name="photo_1" accept="image/*"></label>
               <label>{% trans "تصویر ۲" %}<input type="file" name="photo_2" accept="image/*"></label>
@@ -111,7 +115,7 @@
             </div>
             <button class="choice tournament-btn wizard-submit" type="submit" data-ad-submit>
               <img src="{% static 'Icon-Advertisement.png' %}" alt="" width="22" height="22">
-              <span data-ad-submit-label>{% trans "ثبت آگهی برای نمایش" %}</span>
+              <span data-ad-submit-label>{% if is_edit %}{% trans "ذخیره آگهی" %}{% else %}{% trans "ثبت آگهی برای نمایش" %}{% endif %}</span>
             </button>
           </form>
       {% endif %}
@@ -120,6 +124,5 @@
 
 {% block extra_js %}
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="{% static 'admin/js/venue-map.js' %}?v=3"></script>
-  <script src="{% static 'js/ad-create.js' %}?v=1"></script>
+  <script src="{% static 'js/ad-create.js' %}?v=2"></script>
 {% endblock %}

@@ -11,10 +11,11 @@ from banners.catalog import package_for_ad_plan
 from banners.gateways import gateway_for_source
 from banners.geo import ensure_guest_key, navigation_links, parse_coord
 from banners.images import optimize_ad_image
-from banners.jalali import HOUR_CHOICES, format_jalali_datetime, free_ad_date_choices, parse_event_at
+from banners.jalali import HOUR_CHOICES, format_jalali_date, format_jalali_datetime, free_ad_date_choices, parse_event_at
 from banners.models import EventAd, EventAdLike
 from banners.pay_views import install_source, start_checkout
 from banners.promo import CREATE_PLANS, PLANS, PLAN_GOLD, create_plan_key, plan_expires_at, plan_or_none
+from scenarios.staff import can_manage_listings
 
 ADS_PER_MONTH = 3
 
@@ -29,7 +30,104 @@ def _monthly_count(user):
 
 
 def _ads_unlimited(user):
-    return bool(user and (user.is_staff or user.is_superuser))
+    return bool(user and (user.is_staff or user.is_superuser or can_manage_listings(user)))
+
+
+def _empty_ad_values():
+    return {
+        "event_name": "",
+        "organizer_name": "",
+        "address": "",
+        "event_date": "",
+        "event_hour": "",
+        "phone": "",
+        "ticket_price": "",
+        "cafe_bank": "",
+        "city": "",
+        "district": "",
+        "scenario": "",
+        "promo_plan": "free",
+        "latitude": "",
+        "longitude": "",
+    }
+
+
+def _ad_values_from_post(request):
+    values = _empty_ad_values()
+    for key in values:
+        if key == "promo_plan":
+            values[key] = (request.POST.get("promo_plan") or "free").strip()[:12]
+        else:
+            values[key] = (request.POST.get(key) or "").strip()
+            if key in {"event_name"}:
+                values[key] = values[key][:120]
+            elif key == "organizer_name":
+                values[key] = values[key][:80]
+            elif key == "address":
+                values[key] = values[key][:300]
+            elif key == "phone":
+                values[key] = values[key][:30]
+            elif key in {"ticket_price", "city"}:
+                values[key] = values[key][:80]
+            elif key in {"cafe_bank", "district", "scenario"}:
+                values[key] = values[key][:120]
+            elif key == "event_date":
+                values[key] = values[key][:20]
+            elif key == "event_hour":
+                values[key] = values[key][:8]
+    return values
+
+
+def _ad_values_from_obj(ad):
+    values = _empty_ad_values()
+    values.update(
+        {
+            "event_name": ad.event_name,
+            "organizer_name": ad.organizer_name,
+            "address": ad.address,
+            "phone": ad.phone,
+            "ticket_price": ad.ticket_price,
+            "cafe_bank": ad.cafe_bank,
+            "city": ad.city,
+            "district": ad.district,
+            "scenario": ad.scenario,
+            "promo_plan": ad.promo_plan or "free",
+            "latitude": ad.latitude or "",
+            "longitude": ad.longitude or "",
+        }
+    )
+    if ad.event_at:
+        local = timezone.localtime(ad.event_at)
+        values["event_date"] = local.date().isoformat()
+        values["event_hour"] = f"{local.hour:02d}:00"
+    return values
+
+
+def _date_choices_for_ad(ad=None):
+    choices = list(free_ad_date_choices())
+    if ad and ad.event_at:
+        value = timezone.localtime(ad.event_at).date().isoformat()
+        if value not in {item["value"] for item in choices}:
+            choices.insert(0, {"value": value, "label": f"{format_jalali_date(ad.event_at)} (فعلی)"})
+    return choices
+
+
+def _ad_form_context(request, values, remaining, error="", unlimited=False, ad=None):
+    return {
+        "needs_blue_tick": False,
+        "remaining": max(0, remaining),
+        "ads_unlimited": unlimited,
+        "values": values,
+        "error": error,
+        "date_choices": _date_choices_for_ad(ad),
+        "hour_choices": HOUR_CHOICES,
+        "create_plans": CREATE_PLANS,
+        "local_checkout": settings.DEBUG,
+        "install_source": install_source(request) if request.user.is_authenticated else "direct",
+        "gateway": gateway_for_source(getattr(request, "app_source", "")),
+        "ad": ad,
+        "is_edit": ad is not None,
+    }
 
 
 def purge_expired_ads():
@@ -124,26 +222,11 @@ def like_ad(request, ad_id):
     return redirect("ad_detail", ad_id=ad.id)
 
 
-def _ad_form_context(request, values, remaining, error="", unlimited=False):
-    return {
-        "needs_blue_tick": False,
-        "remaining": max(0, remaining),
-        "ads_unlimited": unlimited,
-        "values": values,
-        "error": error,
-        "date_choices": free_ad_date_choices(),
-        "hour_choices": HOUR_CHOICES,
-        "create_plans": CREATE_PLANS,
-        "local_checkout": settings.DEBUG,
-        "install_source": install_source(request) if request.user.is_authenticated else "direct",
-        "gateway": gateway_for_source(getattr(request, "app_source", "")),
-    }
-
-
 @require_http_methods(["GET", "POST"])
 def create_ad(request):
     profile = getattr(request.user, "club_profile", None) if request.user.is_authenticated else None
-    if not request.user.is_authenticated or not profile or not profile.is_verified:
+    listings = can_manage_listings(request.user)
+    if not listings and (not request.user.is_authenticated or not profile or not profile.is_verified):
         return render(
             request,
             "banners/ad_create.html",
@@ -155,40 +238,12 @@ def create_ad(request):
 
     unlimited = _ads_unlimited(request.user)
     remaining = 99 if unlimited else ADS_PER_MONTH - _monthly_count(request.user)
-    values = {
-        "event_name": "",
-        "organizer_name": "",
-        "address": "",
-        "event_date": "",
-        "event_hour": "",
-        "phone": "",
-        "ticket_price": "",
-        "cafe_bank": "",
-        "city": "",
-        "district": "",
-        "scenario": "",
-        "promo_plan": "free",
-        "latitude": "",
-        "longitude": "",
-    }
+    values = _empty_ad_values()
     error = ""
     if not unlimited and remaining <= 0 and request.method != "POST":
         error = "سقف سه آگهی رایگان در این ماه پر شده است. برای ثبت آگهی جدید یک پلن پولی انتخاب کنید."
     if request.method == "POST":
-        values["event_name"] = (request.POST.get("event_name") or "").strip()[:120]
-        values["organizer_name"] = (request.POST.get("organizer_name") or "").strip()[:80]
-        values["address"] = (request.POST.get("address") or "").strip()[:300]
-        values["event_date"] = (request.POST.get("event_date") or "").strip()[:20]
-        values["event_hour"] = (request.POST.get("event_hour") or "").strip()[:8]
-        values["phone"] = (request.POST.get("phone") or "").strip()[:30]
-        values["ticket_price"] = (request.POST.get("ticket_price") or "").strip()[:80]
-        values["cafe_bank"] = (request.POST.get("cafe_bank") or "").strip()[:120]
-        values["city"] = (request.POST.get("city") or "").strip()[:80]
-        values["district"] = (request.POST.get("district") or "").strip()[:120]
-        values["scenario"] = (request.POST.get("scenario") or "").strip()[:120]
-        values["promo_plan"] = (request.POST.get("promo_plan") or "free").strip()[:12]
-        values["latitude"] = (request.POST.get("latitude") or "").strip()
-        values["longitude"] = (request.POST.get("longitude") or "").strip()
+        values = _ad_values_from_post(request)
         plan_key = create_plan_key(values["promo_plan"])
         chosen = PLANS.get(plan_key) if plan_key else None
         upload = request.FILES.get("image")
@@ -269,6 +324,58 @@ def create_ad(request):
                 messages.success(request, "آگهی شما ثبت شد و تا ۱۲ ساعت پس از زمان برگزاری نمایش داده می‌شود.")
                 return redirect("ads")
     return render(request, "banners/ad_create.html", _ad_form_context(request, values, remaining, error, unlimited))
+
+
+@login_required(login_url="profile")
+@require_http_methods(["GET", "POST"])
+def edit_ad(request, ad_id):
+    if not can_manage_listings(request.user):
+        messages.error(request, "اجازه این کار را ندارید.")
+        return redirect("ads")
+    ad = get_object_or_404(EventAd.objects.select_related("user__club_profile"), pk=ad_id)
+    values = _ad_values_from_obj(ad)
+    error = ""
+    extra_dates = [values["event_date"]] if values.get("event_date") else []
+    if request.method == "POST":
+        values = _ad_values_from_post(request)
+        upload = request.FILES.get("image")
+        required = {
+            key: values[key]
+            for key in values
+            if key not in {"event_date", "event_hour", "promo_plan", "latitude", "longitude"}
+        }
+        if not all(required.values()):
+            error = "همه فیلدها را کامل کنید."
+        else:
+            try:
+                event_at = parse_event_at(values["event_date"], values["event_hour"], extra_dates=extra_dates)
+                if upload:
+                    ad.image = optimize_ad_image(upload)
+            except ValueError as exc:
+                error = str(exc)
+            except ValidationError as exc:
+                error = " ".join(exc.messages)
+            else:
+                ad.event_name = values["event_name"]
+                ad.organizer_name = values["organizer_name"]
+                ad.address = values["address"]
+                ad.starts_at = format_jalali_datetime(event_at)
+                ad.event_at = event_at
+                ad.phone = values["phone"]
+                ad.ticket_price = values["ticket_price"]
+                ad.cafe_bank = values["cafe_bank"]
+                ad.city = values["city"]
+                ad.district = values["district"]
+                ad.scenario = values["scenario"]
+                ad.expires_at = plan_expires_at(event_at, ad.promo_plan or None)
+                ad.save()
+                messages.success(request, "آگهی ذخیره شد.")
+                return redirect("ad_detail", ad_id=ad.id)
+    return render(
+        request,
+        "banners/ad_create.html",
+        _ad_form_context(request, values, 99, error, True, ad=ad),
+    )
 
 
 def _live_owner_ad(request, ad_id):

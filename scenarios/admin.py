@@ -619,7 +619,7 @@ class ScenarioAdmin(admin.ModelAdmin):
     list_display = ("name", "catalog_group", "slug", "is_large", "large_kind", "owner", "player_modes", "has_final_move", "has_death_lottery", "is_featured", "home_order")
     list_filter = (ScenarioCatalogFilter, "is_large", "large_kind", "is_featured", "has_final_move", "has_death_lottery", "owner")
     search_fields = ("name", "slug")
-    ordering = ("home_order", "id")
+    ordering = ("home_order", "-id")
     inlines = (ScenarioSizeInline,)
     fieldsets = (
         ("سناریو", {"fields": ("name", "slug", "owner", "guest_key", "icon", "is_large", "large_kind", "has_final_move", "has_death_lottery")}),
@@ -717,7 +717,7 @@ class ScenarioAdmin(admin.ModelAdmin):
         context["scenario_groups"] = [
             {
                 "title": title,
-                "items": list(items.select_related("owner").prefetch_related("sizes").order_by("home_order", "id")[:300]),
+                "items": list(items.select_related("owner").prefetch_related("sizes").order_by("home_order", "-id")[:300]),
                 "count": items.count(),
             }
             for title, items in groups

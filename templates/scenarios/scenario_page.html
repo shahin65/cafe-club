@@ -39,11 +39,11 @@
 {% endblock %}
 
 {% block content %}
-  <a class="doc-back deal-safe" href="{% url 'deal_host' %}">
-    <img src="{% static 'Icon-Opreator.png' %}" alt="" width="28" height="28">
-    <span>{% trans "بازگشت به مدیریت بازی" %}</span>
-  </a>
   <article class="sheet scenario-doc places-frost">
+    <a class="doc-back deal-safe" href="{% url 'deal_host' %}">
+      <img src="{% static 'Icon-Opreator.png' %}" alt="" width="28" height="28">
+      <span>{% trans "بازگشت به مدیریت بازی" %}</span>
+    </a>
     <p class="doc-kicker">{{ scenario.display_name }}</p>
     <h1>{{ page.title }}</h1>
     {% if tab_active == "rulebook" and staff_flags.rulebook %}

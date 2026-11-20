@@ -4,6 +4,13 @@
 {% block title %}{% trans "کافه کلاب" %}{% endblock %}
 
 {% block content %}
+  {% if messages %}
+    <ul class="form-messages home-messages">
+      {% for message in messages %}
+        <li class="{{ message.tags }}">{{ message }}</li>
+      {% endfor %}
+    </ul>
+  {% endif %}
   {% if not from_installed_app %}
   <a class="app-install-btn" href="{% url 'install_app' %}" data-hide-when-installed>
     <span class="app-install-icon" aria-hidden="true">
@@ -46,11 +53,11 @@
               </a>
             {% endif %}
             <a href="{% url 'deal_start' scenario.id %}">
-              {% if scenario.icon %}
-                <span class="scenario-icon-frame">
+              <span class="scenario-icon-frame">
+                {% if scenario.icon %}
                   <img class="quick-role-icon" src="{{ scenario.icon.url }}" alt="">
-                </span>
-              {% endif %}
+                {% endif %}
+              </span>
               <p class="quick-role-name">{{ scenario.display_name }}</p>
             </a>
           </li>
@@ -117,11 +124,11 @@
               </a>
             {% endif %}
             <a href="{% url 'large_start' scenario.id %}?fresh=1">
-              {% if scenario.icon %}
-                <span class="scenario-icon-frame">
+              <span class="scenario-icon-frame">
+                {% if scenario.icon %}
                   <img class="quick-role-icon" src="{{ scenario.icon.url }}" alt="">
-                </span>
-              {% endif %}
+                {% endif %}
+              </span>
               <p class="quick-role-name">{{ scenario.display_name }}</p>
             </a>
           </li>
@@ -130,6 +137,7 @@
     {% endif %}
   </section>
 
+  {% if banners %}
   <section class="ad-rotator home-frost" aria-label="{% trans 'بنرهای کافه' %}" data-interval="3000">
     {% for banner in banners %}
       {% if banner.public_url %}
@@ -149,10 +157,9 @@
       {% else %}
         </div>
       {% endif %}
-    {% empty %}
-      <p class="empty">{% trans "بنر فعالی برای نمایش وجود ندارد." %}</p>
     {% endfor %}
   </section>
+  {% endif %}
 
   <section class="favorite-scenarios home-frost" aria-labelledby="favorite-scenarios-title">
     <header class="quick-roles-bar">
@@ -180,11 +187,11 @@
               </svg>
             </a>
             <a href="{% url 'deal_start' scenario.id %}">
-              {% if scenario.icon %}
-                <span class="scenario-icon-frame">
+              <span class="scenario-icon-frame">
+                {% if scenario.icon %}
                   <img class="quick-role-icon" src="{{ scenario.icon.url }}" alt="">
-                </span>
-              {% endif %}
+                {% endif %}
+              </span>
               <p class="quick-role-name">{{ scenario.display_name }}</p>
             </a>
           </li>
@@ -299,7 +306,9 @@
           slides[index].classList.add("is-active");
         }, Number(root.getAttribute("data-interval")) || fallbackMs);
       }
+      {% if banners %}
       rotate(document.querySelector(".ad-rotator"), ".ad-slide", 3000);
+      {% endif %}
       rotate(document.querySelector(".home-promo-list"), "li", 5000);
     })();
   </script>

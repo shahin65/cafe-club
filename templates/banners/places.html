@@ -9,7 +9,7 @@
     <div class="places-actions">
       <a class="places-add-btn" href="{% url 'venue_submit' %}">
         <span aria-hidden="true">+</span>
-        {% trans "ثبت کلاب من" %}
+        {% if staff_flags.listings %}{% trans "افزودن کافه یا کلاب" %}{% else %}{% trans "ثبت کلاب من" %}{% endif %}
       </a>
       <a class="places-add-btn is-promo" href="{% url 'venue_promo' %}">
         {% trans "پلن‌های تبلیغاتی" %}
@@ -85,6 +85,13 @@
       <ul class="place-list">
         {% for venue in venues %}
           <li>
+            {% if staff_flags.listings %}
+              <a class="favorite-edit" href="{% url 'venue_edit' venue.id %}" aria-label="{% trans 'ویرایش کافه' %}">
+                <svg viewBox="0 0 24 24" width="16" height="16">
+                  <path fill="currentColor" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25ZM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83Z"/>
+                </svg>
+              </a>
+            {% endif %}
             <a class="place-card{% if venue.is_promo_live %} is-boosted is-plan-{{ venue.promo_plan }}{% endif %}" href="{% url 'venue_detail' venue.id %}{% if user_lat %}?lat={{ user_lat }}&lng={{ user_lng }}{% endif %}" data-lat="{{ venue.latitude|default_if_none:'' }}" data-lng="{{ venue.longitude|default_if_none:'' }}" data-name="{{ venue.name }}">
               {% if venue.is_promo_live and venue.promo_badge %}<span class="ad-ladder-badge is-{{ venue.promo_plan }}">{{ venue.promo_badge }}</span>{% endif %}
               <span class="place-card-logo">

@@ -13,13 +13,14 @@
     <h1 class="places-title">{% trans "مسیریاب و تصاویر" %}</h1>
     <p class="venue-submit-intro">برای آگهی «{{ ad.event_name }}» محل برگزاری را روی نقشه بزنید و تا سه تصویر اضافه آپلود کنید.</p>
     {% if error %}<p class="wizard-error">{{ error }}</p>{% endif %}
-    <form class="wizard-form" method="post" enctype="multipart/form-data">
+    <form class="wizard-form" method="post" enctype="multipart/form-data" data-upload-busy>
       {% csrf_token %}
       <div class="venue-map-public">
         <p>{% trans "روی نقشه محل برگزاری را انتخاب کنید." %}</p>
-        <div id="venue-map" data-default-lat="35.6892" data-default-lng="51.3890"></div>
+        <div id="venue-map" dir="ltr" data-default-lat="35.6892" data-default-lng="51.3890"></div>
         <input type="hidden" name="latitude" id="id_latitude" value="{{ values.latitude }}" required>
         <input type="hidden" name="longitude" id="id_longitude" value="{{ values.longitude }}" required>
+        <p data-map-point dir="ltr"{% if not values.latitude %} hidden{% endif %}>{% if values.latitude %}{{ values.latitude }}, {{ values.longitude }}{% endif %}</p>
       </div>
       <label>{% trans "تصویر ۱" %}<input type="file" name="photo_1" accept="image/*"></label>
       <label>{% trans "تصویر ۲" %}<input type="file" name="photo_2" accept="image/*"></label>
@@ -33,5 +34,4 @@
 
 {% block extra_js %}
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="{% static 'admin/js/venue-map.js' %}?v=3"></script>
 {% endblock %}

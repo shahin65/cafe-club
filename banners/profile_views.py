@@ -98,6 +98,9 @@ def request_gold_tick(request):
     next_url = _safe_next(request, fallback="profile")
     if request.user.club_profile.is_gold_verified:
         return redirect(next_url)
+    if not request.user.club_profile.is_verified:
+        messages.error(request, "ابتدا با تلگرام یا بله تیک آبی بگیرید.")
+        return redirect(next_url)
     if BlueTickRequest.objects.filter(user=request.user, is_reviewed=False).exists():
         messages.success(request, GOLD_TICK_WAIT_MESSAGE)
         return redirect(next_url)

@@ -47,12 +47,25 @@
       <ul class="catalog-list">
         {% for scenario in scenarios %}
           <li>
+            {% if scenario.is_large and staff_flags.large %}
+              <a class="favorite-edit" href="{% url 'staff_large_edit' scenario.id %}" aria-label="{% trans 'ویرایش' %}">
+                <svg viewBox="0 0 24 24" width="16" height="16">
+                  <path fill="currentColor" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25ZM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83Z"/>
+                </svg>
+              </a>
+            {% elif not scenario.is_large and staff_flags.quick %}
+              <a class="favorite-edit" href="{% url 'staff_quick_edit' scenario.id %}" aria-label="{% trans 'ویرایش' %}">
+                <svg viewBox="0 0 24 24" width="16" height="16">
+                  <path fill="currentColor" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25ZM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83Z"/>
+                </svg>
+              </a>
+            {% endif %}
             <a class="catalog-card" href="{% url 'deal_start' scenario.id %}">
-              {% if scenario.icon %}
-                <span class="scenario-icon-frame catalog-icon-frame">
+              <span class="scenario-icon-frame catalog-icon-frame">
+                {% if scenario.icon %}
                   <img class="scenario-icon" src="{{ scenario.icon.url }}" alt="">
-                </span>
-              {% endif %}
+                {% endif %}
+              </span>
               <span class="catalog-card-name">{{ scenario.display_name }}</span>
             </a>
             <button

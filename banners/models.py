@@ -696,6 +696,16 @@ class SiteSettings(models.Model):
         help_text="اگر فعال باشد سایت برای کاربران عادی بسته می‌شود تا زمان به‌روزرسانی.",
     )
     bazaar_refresh_token = models.TextField(blank=True)
+    paid_display_name_edit = models.BooleanField(
+        "ویرایش دوم نام نمایشی پولی باشد",
+        default=False,
+        help_text="اگر خاموش باشد تغییر دوباره نام نمایشی رایگان است. با روشن کردن، پرداخت ۵۰٬۰۰۰ تومانی از درگاه بازار، مایکت یا بیت‌پی فعال می‌شود.",
+    )
+    show_home_banners = models.BooleanField(
+        "اسلایدر بنر صفحه اول نمایش داده شود",
+        default=False,
+        help_text="پیش‌فرض خاموش است. با روشن کردن، بنرهای فعال در صفحه اول می‌چرخند.",
+    )
 
     class Meta:
         verbose_name = "وضعیت سایت"

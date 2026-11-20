@@ -97,13 +97,14 @@ def free_ad_date_choices(now=None):
     return choices
 
 
-def parse_event_at(date_value, hour_value, now=None):
+def parse_event_at(date_value, hour_value, now=None, extra_dates=None):
     local_now = timezone.localtime(now or timezone.now())
     date_text = (date_value or "").strip()
     hour_text = (hour_value or "").strip()
     if hour_text not in HOUR_CHOICES:
         raise ValueError("ساعت برگزاری را انتخاب کنید.")
     allowed = {item["value"] for item in free_ad_date_choices(local_now)}
+    allowed.update(extra_dates or ())
     if date_text not in allowed:
         raise ValueError("تاریخ ایونت فقط می‌تواند یکی از سه روز آینده باشد.")
     hour, minute = [int(part) for part in hour_text.split(":")]

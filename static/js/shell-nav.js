@@ -53,6 +53,7 @@
   function canSwap(url) {
     var path = pathOf(url);
     if (path.indexOf("/admin") === 0) return false;
+    if (path.indexOf("/staff") === 0) return false;
     if (path.indexOf("/deal") === 0) return false;
     if (path.indexOf("/large") === 0) return false;
     if (path.indexOf("/pay") === 0) return false;
@@ -179,6 +180,7 @@
       var fresh = doc.createElement("script");
       if (old.src) {
         fresh.src = old.src;
+        fresh.async = false;
       } else {
         fresh.textContent = old.textContent;
       }
@@ -234,6 +236,9 @@
       win.history.pushState({ ccNav: 1 }, "", url.href);
     }
     runScripts(doc.getElementById("cc-shell"));
+    try {
+      doc.dispatchEvent(new CustomEvent("cc:mounted"));
+    } catch (err) {}
   }
 
   function fetchShell(url, signal) {

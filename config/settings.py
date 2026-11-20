@@ -24,6 +24,11 @@ def _load_env_file(path):
 _load_env_file(BASE_DIR / ".env")
 
 DEBUG = os.environ.get("DJANGO_DEBUG", "true").lower() in {"1", "true", "yes"}
+STAFF_TEST_MODE = (
+    DEBUG
+    and "test" not in sys.argv
+    and os.environ.get("STAFF_TEST_MODE", "true").lower() in {"1", "true", "yes", "on"}
+)
 
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "")
 if not SECRET_KEY:

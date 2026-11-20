@@ -122,8 +122,28 @@ def lab_package(sku):
     return CoinPackage.objects.filter(sku=sku, kind=CoinPackage.KIND_LAB, is_active=True).first()
 
 
+def paid_display_name_enabled():
+    from banners.models import SiteSettings
+
+    return bool(SiteSettings.load().paid_display_name_edit)
+
+
+def set_paid_display_name(enabled):
+    from banners.models import SiteSettings
+
+    enabled = bool(enabled)
+    settings_row = SiteSettings.load()
+    settings_row.paid_display_name_edit = enabled
+    settings_row.save(update_fields=["paid_display_name_edit"])
+    package = ensure_rename_package()
+    if package.is_active != enabled:
+        package.is_active = enabled
+        package.save(update_fields=["is_active"])
+    return settings_row
+
+
 def ensure_rename_package():
-    CoinPackage.objects.update_or_create(
+    package, _created = CoinPackage.objects.get_or_create(
         sku=RENAME_SKU,
         defaults={
             "title": "ویرایش نام نمایشی",
@@ -131,14 +151,20 @@ def ensure_rename_package():
             "plan_key": "rename",
             "price_toman": RENAME_PRICE_TOMAN,
             "sort_order": 50,
-            "is_active": True,
+            "is_active": False,
         },
     )
-    return CoinPackage.objects.filter(sku=RENAME_SKU, is_active=True).first()
+    return package
 
 
 def rename_package():
-    return ensure_rename_package()
+    if not paid_display_name_enabled():
+        return None
+    package = ensure_rename_package()
+    if not package.is_active:
+        package.is_active = True
+        package.save(update_fields=["is_active"])
+    return package
 
 
 def fulfill_purchase(txn):

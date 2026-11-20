@@ -11,7 +11,7 @@ from django.utils.translation import check_for_language
 from django.views.decorators.http import require_POST
 from django.views.i18n import LANGUAGE_QUERY_PARAMETER
 
-from banners.catalog import rename_package
+from banners.catalog import paid_display_name_enabled, rename_package
 from banners.pay_views import start_checkout
 
 
@@ -92,7 +92,8 @@ def save_username(request):
     current = _current_display_name(request)
     if not display_name or display_name == current:
         return redirect(next_url)
-    if _display_name_changes(request) >= 1:
+    paid = paid_display_name_enabled()
+    if paid and _display_name_changes(request) >= 1:
         request.session["pending_paid_display_name"] = display_name
         request.session.modified = True
         if not request.user.is_authenticated:
@@ -113,7 +114,10 @@ def save_username(request):
             payload={"display_name": display_name},
         )
     _apply_free_display_name(request, display_name)
-    messages.success(request, "نام نمایشی ذخیره شد. ویرایش بعدی ۵۰٬۰۰۰ تومان است.")
+    if paid:
+        messages.success(request, "نام نمایشی ذخیره شد. ویرایش بعدی ۵۰٬۰۰۰ تومان است.")
+    else:
+        messages.success(request, "نام نمایشی ذخیره شد.")
     return redirect(next_url)
 
 
