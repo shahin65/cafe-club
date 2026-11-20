@@ -233,7 +233,7 @@ class Scenario(models.Model):
         super().save(*args, **kwargs)
 
     def language_is_english(self):
-        return (get_language() or "fa").startswith("en")
+        return False
 
     def pick_text(self, fa_value, en_value):
         fa_value = (fa_value or "").strip()

@@ -18,9 +18,17 @@
   {% endif %}
   <section class="quick-roles home-frost" aria-labelledby="quick-roles-title">
     <header class="quick-roles-bar">
-      <button class="quick-roles-gear" type="button" data-open-settings aria-label="{% trans 'تنظیمات' %}">
-        <img src="{% static 'Icon-Settings2.png' %}" alt="" width="32" height="32">
-      </button>
+      {% if staff_flags.quick %}
+        <a class="quick-roles-gear favorite-add" href="{% url 'staff_quick_new' %}" aria-label="{% trans 'افزودن سناریو' %}">
+          <svg viewBox="0 0 24 24" width="22" height="22">
+            <path fill="currentColor" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2Z"/>
+          </svg>
+        </a>
+      {% else %}
+        <button class="quick-roles-gear" type="button" data-open-settings aria-label="{% trans 'تنظیمات' %}">
+          <img src="{% static 'Icon-Settings2.png' %}" alt="" width="32" height="32">
+        </button>
+      {% endif %}
       <div class="quick-roles-title">
         <img src="{% static 'Icon-Fast.png' %}" alt="" width="40" height="40">
         <h2 id="quick-roles-title">{% trans "تقسیم نقش سریع" %}</h2>
@@ -30,6 +38,13 @@
       <ul class="quick-role-list">
         {% for scenario in quick_scenarios %}
           <li>
+            {% if staff_flags.quick %}
+              <a class="favorite-edit" href="{% url 'staff_quick_edit' scenario.id %}" aria-label="{% trans 'ویرایش' %}">
+                <svg viewBox="0 0 24 24" width="16" height="16">
+                  <path fill="currentColor" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25ZM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83Z"/>
+                </svg>
+              </a>
+            {% endif %}
             <a href="{% url 'deal_start' scenario.id %}">
               {% if scenario.icon %}
                 <span class="scenario-icon-frame">
@@ -50,16 +65,23 @@
       <ul class="home-promo-list" data-interval="5000">
         {% for ad in featured_ads %}
           <li{% if forloop.first %} class="is-active"{% endif %}>
-            <a href="{{ ad.href }}">
-              {% if ad.image_url %}
-                <img src="{{ ad.image_url }}" alt="">
-              {% else %}
-                <img src="{% static 'Logo.png' %}" alt="">
-              {% endif %}
-              <span>
+            <a class="home-promo-link" href="{{ ad.href }}">
+              <span class="home-promo-title">
                 <strong>{{ ad.title }}</strong>
-                {% if ad.meta %}<em class="home-promo-meta">{{ ad.meta }}</em>{% endif %}
+                {% if ad.subtitle %}<small>{{ ad.subtitle }}</small>{% endif %}
               </span>
+              <span class="home-promo-logo">
+                {% if ad.image_url %}
+                  <img src="{{ ad.image_url }}" alt="" {% if forloop.first %}fetchpriority="high"{% else %}loading="lazy" decoding="async"{% endif %}>
+                {% else %}
+                  <img src="{% static 'Logo.png' %}" alt="" {% if forloop.first %}fetchpriority="high"{% else %}loading="lazy" decoding="async"{% endif %}>
+                {% endif %}
+              </span>
+              {% if ad.meta %}
+                <em class="home-promo-meta">{{ ad.meta }}</em>
+              {% else %}
+                <span class="home-promo-meta" aria-hidden="true"></span>
+              {% endif %}
             </a>
           </li>
         {% endfor %}
@@ -69,7 +91,15 @@
 
   <section class="large-roles home-frost" aria-labelledby="large-roles-title">
     <header class="quick-roles-bar">
-      <span class="quick-roles-gear" aria-hidden="true"></span>
+      {% if staff_flags.large %}
+        <a class="quick-roles-gear favorite-add" href="{% url 'staff_large_new' %}" aria-label="{% trans 'افزودن سناریو تعداد بالا' %}">
+          <svg viewBox="0 0 24 24" width="22" height="22">
+            <path fill="currentColor" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2Z"/>
+          </svg>
+        </a>
+      {% else %}
+        <span class="quick-roles-gear" aria-hidden="true"></span>
+      {% endif %}
       <div class="quick-roles-title">
         <img src="{% static 'Icon-Objective.png' %}" alt="" width="40" height="40">
         <h2 id="large-roles-title">{% trans "تقسیم نقش سناریو تعداد بالا" %}</h2>
@@ -79,6 +109,13 @@
       <ul class="quick-role-list">
         {% for scenario in large_scenarios %}
           <li>
+            {% if staff_flags.large %}
+              <a class="favorite-edit" href="{% url 'staff_large_edit' scenario.id %}" aria-label="{% trans 'ویرایش' %}">
+                <svg viewBox="0 0 24 24" width="16" height="16">
+                  <path fill="currentColor" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25ZM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83Z"/>
+                </svg>
+              </a>
+            {% endif %}
             <a href="{% url 'large_start' scenario.id %}?fresh=1">
               {% if scenario.icon %}
                 <span class="scenario-icon-frame">
@@ -100,7 +137,7 @@
       {% else %}
         <div class="ad-slide{% if forloop.first %} is-active{% endif %}">
       {% endif %}
-          <img src="{{ banner.image.url }}" alt="">
+          <img src="{{ banner.image.url }}" alt="" {% if forloop.first %}fetchpriority="high"{% else %}loading="lazy" decoding="async"{% endif %}>
           <span class="ad-caption">
             <strong>{{ banner.title_for_current_language }}</strong>
             {% if banner.description_for_current_language %}
@@ -210,13 +247,13 @@
         {% csrf_token %}
         {% for preset in card_logo_presets %}
           <button class="logo-choice{% if card_logo_choice.key == preset.key %} is-selected{% endif %}" type="submit" name="preset" value="{{ preset.key }}">
-            <img src="{{ preset.url }}" alt="{{ preset.label }}">
+            <img data-src="{{ preset.url }}" alt="{{ preset.label }}" width="64" height="64">
             <span>{{ preset.label }}</span>
           </button>
         {% endfor %}
         {% if card_logo_custom %}
           <button class="logo-choice{% if card_logo_choice.key == card_logo_custom.key %} is-selected{% endif %}" type="submit" name="preset" value="{{ card_logo_custom.key }}">
-            <img src="{{ card_logo_custom.url }}" alt="{{ card_logo_custom.label }}">
+            <img data-src="{{ card_logo_custom.url }}" alt="{{ card_logo_custom.label }}" width="64" height="64">
             <span>{{ card_logo_custom.label }}</span>
           </button>
         {% endif %}
@@ -243,7 +280,7 @@
       {% endif %}
     </div>
   </dialog>
-  <script src="{% static 'js/quick-settings.js' %}?v=2"></script>
+  <script src="{% static 'js/quick-settings.js' %}?v=3"></script>
   <script>
     (function () {
       function rotate(root, itemSelector, fallbackMs) {

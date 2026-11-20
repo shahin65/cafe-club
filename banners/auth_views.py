@@ -1,17 +1,18 @@
 from urllib.parse import urlsplit, urlunsplit
 
 from django.conf import settings
-from django.contrib.auth import login
+from django.contrib import messages
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
-from django.http import HttpResponseRedirect, JsonResponse
-from django.shortcuts import redirect, render
+from django.http import HttpResponseRedirect
+from django.shortcuts import redirect
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils.translation import check_for_language
-from django.views.decorators.http import require_GET, require_POST
+from django.views.decorators.http import require_POST
 from django.views.i18n import LANGUAGE_QUERY_PARAMETER
 
-from banners.accounts import SimpleClubRegisterForm
+from banners.catalog import rename_package
+from banners.pay_views import start_checkout
 
 
 def _safe_next(request, fallback="profile"):
@@ -27,44 +28,43 @@ def _safe_next(request, fallback="profile"):
     return reverse(fallback)
 
 
+def login_page(request):
+    return redirect("profile")
+
+
 def register(request):
+    return redirect("profile")
+
+
+def _display_name_changes(request):
     if request.user.is_authenticated:
-        return redirect("profile")
-    form = SimpleClubRegisterForm(request.POST or None)
-    next_url = _safe_next(request, fallback="")
-    if request.method == "POST" and form.is_valid():
-        user = form.save()
-        login(request, user)
-        return redirect(next_url or "profile")
-    if next_url.startswith("/account/profile"):
-        from banners.profile_views import profile_page_context
-
-        context = profile_page_context(request)
-        context.update({"register_form": form, "show_auth_methods": True})
-        return render(request, "account/profile.html", context)
-    return render(
-        request,
-        "account/register.html",
-        {"form": form, "next": next_url, "show_auth_methods": True},
-    )
-
-
-@require_GET
-def username_available(request):
-    username = (request.GET.get("username") or "").strip()[:40]
-    if not username:
-        return JsonResponse({"available": False, "reason": "empty"})
-    field = User._meta.get_field("username")
+        profile = getattr(request.user, "club_profile", None)
+        return int(getattr(profile, "display_name_changes", 0) or 0)
     try:
-        username = field.clean(username, None)
-    except ValidationError:
-        return JsonResponse({"available": False, "reason": "invalid"})
-    query = User.objects.filter(username=username)
+        return int(request.session.get("display_name_changes") or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _current_display_name(request):
     if request.user.is_authenticated:
-        query = query.exclude(pk=request.user.pk)
-    if query.exists():
-        return JsonResponse({"available": False, "reason": "taken"})
-    return JsonResponse({"available": True, "reason": "ok"})
+        profile = getattr(request.user, "club_profile", None)
+        return ((profile.display_name if profile else "") or "").strip()
+    return (request.session.get("profile_display_name") or "").strip()
+
+
+def _apply_free_display_name(request, display_name):
+    if request.user.is_authenticated:
+        profile = getattr(request.user, "club_profile", None)
+        if not profile:
+            return
+        profile.display_name = display_name
+        profile.display_name_changes = (profile.display_name_changes or 0) + 1
+        profile.save(update_fields=["display_name", "display_name_changes"])
+        return
+    request.session["profile_display_name"] = display_name
+    request.session["display_name_changes"] = _display_name_changes(request) + 1
+    request.session.modified = True
 
 
 @require_POST
@@ -76,27 +76,44 @@ def save_username(request):
         next_url, allowed_hosts={request.get_host()}, require_https=request.is_secure()
     ):
         next_url = "/"
-    if request.user.is_authenticated:
-        if username:
-            field = User._meta.get_field("username")
-            try:
-                field.clean(username, request.user)
-            except ValidationError:
-                return redirect(next_url)
-            clash = User.objects.filter(username=username).exclude(pk=request.user.pk)
-            if not clash.exists():
-                request.user.username = username
-                request.user.save(update_fields=["username"])
-        profile = getattr(request.user, "club_profile", None)
-        if profile:
-            profile.display_name = display_name
-            profile.save(update_fields=["display_name"])
-    else:
-        if not username:
+    if request.user.is_authenticated and username:
+        field = User._meta.get_field("username")
+        try:
+            field.clean(username, request.user)
+        except ValidationError:
             return redirect(next_url)
+        clash = User.objects.filter(username=username).exclude(pk=request.user.pk)
+        if not clash.exists():
+            request.user.username = username
+            request.user.save(update_fields=["username"])
+    elif not request.user.is_authenticated and username:
         request.session["profile_username"] = username
-        request.session["profile_display_name"] = display_name
         request.session.modified = True
+    current = _current_display_name(request)
+    if not display_name or display_name == current:
+        return redirect(next_url)
+    if _display_name_changes(request) >= 1:
+        request.session["pending_paid_display_name"] = display_name
+        request.session.modified = True
+        if not request.user.is_authenticated:
+            messages.info(
+                request,
+                "ویرایش دوم نام نمایشی ۵۰٬۰۰۰ تومان است. ابتدا با تلگرام یا بله ثبت‌نام کنید و بعد پرداخت کنید.",
+            )
+            return redirect("profile")
+        package = rename_package()
+        if not package:
+            messages.error(request, "محصول ویرایش نام در دسترس نیست.")
+            return redirect("profile")
+        return start_checkout(
+            request,
+            package,
+            fail_url="profile",
+            return_to="profile",
+            payload={"display_name": display_name},
+        )
+    _apply_free_display_name(request, display_name)
+    messages.success(request, "نام نمایشی ذخیره شد. ویرایش بعدی ۵۰٬۰۰۰ تومان است.")
     return redirect(next_url)
 
 

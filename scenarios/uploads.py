@@ -2,12 +2,14 @@ from pathlib import Path
 from uuid import uuid4
 
 from django.contrib.admin.views.decorators import staff_member_required
+from django.core.exceptions import ValidationError
 from django.core.files.storage import default_storage
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
-from PIL import Image
 
-ALLOWED_TYPES = {"image/jpeg": ".jpg", "image/png": ".png", "image/gif": ".gif", "image/webp": ".webp"}
+from banners.images import optimize_upload
+from banners.media import public_media_url
+
 MAX_BYTES = 4 * 1024 * 1024
 
 
@@ -19,18 +21,14 @@ def upload_page_image(request):
         return JsonResponse({"uploaded": 0, "error": {"message": "فایل تصویر را انتخاب کنید."}}, status=400)
     if upload.size > MAX_BYTES:
         return JsonResponse({"uploaded": 0, "error": {"message": "حجم تصویر نباید بیشتر از ۴ مگابایت باشد."}}, status=400)
-    suffix = ALLOWED_TYPES.get(upload.content_type)
-    if not suffix:
-        name = Path(upload.name or "").suffix.lower()
-        suffix = {".jpg": ".jpg", ".jpeg": ".jpg", ".png": ".png", ".gif": ".gif", ".webp": ".webp"}.get(name)
-    if not suffix:
-        return JsonResponse({"uploaded": 0, "error": {"message": "فقط تصویر JPG، PNG، GIF یا WebP مجاز است."}}, status=400)
     try:
-        Image.open(upload).verify()
-    except Exception:
-        return JsonResponse({"uploaded": 0, "error": {"message": "فایل انتخاب‌شده یک تصویر معتبر نیست."}}, status=400)
-    upload.seek(0)
-    filename = f"scenario_pages/{uuid4().hex}{suffix}"
-    saved = default_storage.save(filename, upload)
-    url = request.build_absolute_uri(default_storage.url(saved))
+        stored = optimize_upload(upload, max_edge=1440, images_only=True)
+    except ValidationError as exc:
+        message = " ".join(exc.messages) if hasattr(exc, "messages") else str(exc)
+        return JsonResponse({"uploaded": 0, "error": {"message": message}}, status=400)
+    filename = f"scenario_pages/{uuid4().hex}.webp"
+    saved = default_storage.save(filename, stored)
+    url = public_media_url(saved) or default_storage.url(saved)
+    if not str(url).startswith(("http://", "https://")):
+        url = request.build_absolute_uri(url)
     return JsonResponse({"uploaded": 1, "fileName": Path(saved).name, "url": url})

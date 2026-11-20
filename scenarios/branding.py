@@ -1,14 +1,10 @@
-from io import BytesIO
 from pathlib import Path
-from uuid import uuid4
 
-from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.shortcuts import redirect
 from django.templatetags.static import static
 from django.urls import reverse
 from django.views.decorators.http import require_POST
-from PIL import Image
 
 from scenarios.models import CardBranding
 
@@ -87,14 +83,14 @@ def _store_upload(prefix, upload):
     suffix = ICON_TYPES.get(Path(upload.name or "").suffix.lower())
     if not suffix:
         return None
-    raw = upload.read()
-    if not raw:
-        return None
+    from banners.images import optimize_image
+    from django.core.exceptions import ValidationError
+
     try:
-        Image.open(BytesIO(raw)).verify()
-    except Exception:
+        stored = optimize_image(upload, max_edge=512)
+    except ValidationError:
         return None
-    return default_storage.save(f"card_logos/{prefix}/{uuid4().hex}{suffix}", ContentFile(raw))
+    return default_storage.save(f"card_logos/{prefix}/{stored.name}", stored)
 
 
 def _save_session(request, payload):

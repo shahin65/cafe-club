@@ -15,7 +15,6 @@ def favicon(request):
 
 @require_GET
 def web_manifest(request):
-    icon = request.build_absolute_uri(static("Logo.png"))
     return JsonResponse(
         {
             "id": "/",
@@ -31,7 +30,6 @@ def web_manifest(request):
             "lang": "fa",
             "dir": "rtl",
             "icons": [
-                {"src": icon, "sizes": "1024x1024", "type": "image/png", "purpose": "any"},
                 {
                     "src": request.build_absolute_uri(static("pwa-192.png")),
                     "sizes": "192x192",

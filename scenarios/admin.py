@@ -5,6 +5,7 @@ from django import forms
 from django.contrib import admin, messages
 from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
+from django.core.files.uploadedfile import UploadedFile
 from django.db.models import Q
 from django.forms.models import BaseInlineFormSet, inlineformset_factory
 from django.utils.html import format_html, format_html_join
@@ -617,11 +618,11 @@ class ScenarioAdmin(admin.ModelAdmin):
     change_list_template = "admin/scenarios/scenario/change_list.html"
     list_display = ("name", "catalog_group", "slug", "is_large", "large_kind", "owner", "player_modes", "has_final_move", "has_death_lottery", "is_featured", "home_order")
     list_filter = (ScenarioCatalogFilter, "is_large", "large_kind", "is_featured", "has_final_move", "has_death_lottery", "owner")
-    search_fields = ("name", "name_en", "slug")
+    search_fields = ("name", "slug")
     ordering = ("home_order", "id")
     inlines = (ScenarioSizeInline,)
     fieldsets = (
-        ("سناریو", {"fields": ("name", "name_en", "slug", "owner", "guest_key", "icon", "is_large", "large_kind", "has_final_move", "has_death_lottery")}),
+        ("سناریو", {"fields": ("name", "slug", "owner", "guest_key", "icon", "is_large", "large_kind", "has_final_move", "has_death_lottery")}),
         (
             "صفحه اول",
             {
@@ -633,14 +634,14 @@ class ScenarioAdmin(admin.ModelAdmin):
             "رول‌بوک‌ها",
             {
                 "classes": ("collapse",),
-                "fields": ("rulebook_title_fa", "rulebook_body_fa", "rulebook_title_en", "rulebook_body_en"),
+                "fields": ("rulebook_title_fa", "rulebook_body_fa"),
             },
         ),
         (
             "قوانین",
             {
                 "classes": ("collapse",),
-                "fields": ("rules_title_fa", "rules_body_fa", "rules_title_en", "rules_body_en"),
+                "fields": ("rules_title_fa", "rules_body_fa"),
             },
         ),
     )
@@ -663,9 +664,15 @@ class ScenarioAdmin(admin.ModelAdmin):
             kwargs["widget"] = ClearableAdminImageWidget
         if db_field.name in {"rulebook_body_fa", "rules_body_fa"}:
             kwargs["widget"] = PageHtmlWidget(language="fa")
-        elif db_field.name in {"rulebook_body_en", "rules_body_en"}:
-            kwargs["widget"] = PageHtmlWidget(language="en")
         return super().formfield_for_dbfield(db_field, request, **kwargs)
+
+    def save_model(self, request, obj, form, change):
+        upload = form.cleaned_data.get("icon") if form and hasattr(form, "cleaned_data") else None
+        if isinstance(upload, UploadedFile):
+            from banners.images import optimize_image
+
+            obj.icon = optimize_image(upload, max_edge=720)
+        super().save_model(request, obj, form, change)
 
     def save_related(self, request, form, formsets, change):
         super().save_related(request, form, formsets, change)

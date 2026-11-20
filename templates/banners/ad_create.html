@@ -19,36 +19,8 @@
         </ul>
       {% endif %}
       {% if needs_blue_tick %}
-        <p class="wizard-error">{% trans "برای درج آگهی رایگان باید تیک آبی اکانتتان را فعال کنید." %}</p>
-        <section class="blue-tick-request">
-          <h2>{% trans "درخواست برای فعال سازی تیک آبی" %}</h2>
-          {% if pending_blue_tick %}
-            <p class="blue-tick-wait">{{ blue_tick_wait_message }}</p>
-          {% elif request.user.is_authenticated %}
-            {% if rejected_blue_tick %}
-              <p class="blue-tick-rejected">{{ blue_tick_rejected_message }}</p>
-            {% endif %}
-            <form class="wizard-form" action="{% url 'request_blue_tick' %}" method="post">
-              {% csrf_token %}
-              <input type="hidden" name="next" value="{% url 'ad_create' %}">
-              <label>{% trans "نام و نام خانوادگی" %}
-                <input type="text" name="full_name" maxlength="80" required>
-              </label>
-              <label>{% trans "شماره تماس" %}
-                <input type="tel" name="phone" maxlength="20" required dir="ltr">
-              </label>
-              <label>لطفا یک بیوگرافی از خود برای ما ارسال کنید تا با شما تماس حاصل شده و تیک آبی اکانت شما فعال شود
-                <textarea name="biography" rows="5" maxlength="2000" required></textarea>
-              </label>
-              <button class="choice tournament-btn wizard-submit blue-tick-activate-btn" type="submit">
-                <img src="{% static 'Icon-BlueTick.png' %}" alt="" width="22" height="22">
-                <span>{% if rejected_blue_tick %}{% trans "درخواست مجدد تیک آبی" %}{% else %}{% trans "فعالسازی تیک آبی" %}{% endif %}</span>
-              </button>
-            </form>
-          {% else %}
-            <p><a class="wizard-link" href="{% url 'login' %}?next={% url 'ad_create' %}">{% trans "برای ارسال فرم درخواست تیک آبی ابتدا وارد شوید." %}</a></p>
-          {% endif %}
-        </section>
+        <p class="wizard-error">{% trans "برای درج آگهی رایگان با تلگرام یا بله ثبت‌نام کنید تا تیک آبی شما فعال شود." %}</p>
+        <p><a class="wizard-link" href="{% url 'profile' %}">{% trans "رفتن به پروفایل و ثبت‌نام" %}</a></p>
       {% else %}
         {% if ads_unlimited %}
           <p class="venue-submit-intro">{% trans "پلن رایگان تا ۱۲ ساعت پس از زمان برگزاری نمایش داده می‌شود. برای حساب مدیریت محدودیت سه آگهی در ماه اعمال نمی‌شود." %}</p>

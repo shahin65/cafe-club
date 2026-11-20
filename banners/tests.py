@@ -1,7 +1,12 @@
-from io import BytesIO
+from io import BytesIO, StringIO
 import base64
 import json
+import re
 from unittest.mock import patch
+
+from django.core.cache import cache
+from django.core.management import call_command
+from django.urls import reverse
 
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
@@ -9,7 +14,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from datetime import timedelta
 
 from django.test import TestCase, override_settings
-from django.utils import timezone, translation
+from django.utils import timezone
 from PIL import Image
 
 from django.contrib.admin.sites import AdminSite
@@ -91,7 +96,7 @@ class BannerSeedTests(TestCase):
         manifest = self.client.get("/manifest.webmanifest")
         self.assertEqual(manifest.status_code, 200)
         self.assertEqual(manifest.json()["short_name"], "کافه کلاب")
-        self.assertTrue(any("Logo.png" in icon["src"] for icon in manifest.json()["icons"]))
+        self.assertTrue(any("pwa-192.png" in icon["src"] for icon in manifest.json()["icons"]))
         worker = self.client.get("/sw.js")
         self.assertEqual(worker.status_code, 200)
         install = self.client.get("/install/")
@@ -124,30 +129,14 @@ class BannerSeedTests(TestCase):
         self.assertNotContains(persian, "site-nav")
 
         english = self.client.get("/en/")
-        self.assertContains(english, 'dir="ltr"')
-        self.assertContains(english, "Mysterious Nights at Cafe Club")
-        self.assertContains(english, "Guest")
-        self.assertContains(english, 'href="/en/nights/"')
-        self.assertContains(english, 'href="/en/games/"')
-        self.assertContains(english, 'href="/en/tables/"')
-
-        switched = self.client.post("/i18n/setlang/", {"language": "en", "next": "/"})
-        self.assertRedirects(switched, "/en/")
-        back = self.client.post("/i18n/setlang/", {"language": "fa", "next": "/en/"})
-        self.assertRedirects(back, "/")
-        nested = self.client.post("/i18n/setlang/", {"language": "fa", "next": "/en/nights/"})
+        self.assertRedirects(english, "/")
+        nested = self.client.get("/en/nights/")
         self.assertRedirects(nested, "/nights/")
-        no_slash = self.client.post("/i18n/setlang/", {"language": "fa", "next": "/en"})
-        self.assertRedirects(no_slash, "/")
-        persian_again = self.client.get("/")
-        self.assertContains(persian_again, 'dir="rtl"')
-        self.assertContains(persian_again, "شب‌های مرموز کافه کلاب")
-        self.client.post("/i18n/setlang/", {"language": "en", "next": "/"})
-        bounced = self.client.get("/")
-        self.assertRedirects(bounced, "/en/")
-        stayed = self.client.get("/", follow=True)
-        self.assertContains(stayed, 'dir="ltr"')
-        self.assertContains(stayed, "Mysterious Nights at Cafe Club")
+        self.assertContains(persian, "shell-nav.js")
+        self.assertContains(persian, 'id="cc-shell"')
+        partial = self.client.get("/", HTTP_X_CAFECLUB_NAV="1")
+        self.assertEqual(partial["X-CafeClub-Nav"], "1")
+        self.assertIn("no-store", partial["Cache-Control"])
 
     def test_admin_stays_persian_and_rtl_even_with_english_cookie(self):
         user = User.objects.create_superuser("admin", "admin@example.com", "pass-word-123")
@@ -175,9 +164,8 @@ class BannerSeedTests(TestCase):
 
         changelist = self.client.get("/admin/banners/banner/")
         self.assertContains(changelist, "عنوان فارسی")
-        self.assertContains(changelist, "عنوان انگلیسی")
+        self.assertNotContains(changelist, "عنوان انگلیسی")
         self.assertContains(changelist, "شب‌های مرموز کافه کلاب")
-        self.assertContains(changelist, "Hunt in the Dark City")
         self.assertContains(changelist, "banners/Banner1.webp")
         self.assertNotContains(changelist, "Select this object")
         self.assertContains(changelist, "انتخاب این مورد برای یک اقدام")
@@ -197,10 +185,7 @@ class BannerSeedTests(TestCase):
 
     def test_language_specific_titles(self):
         banner = Banner.objects.get(display_order=2)
-        with translation.override("fa"):
-            self.assertEqual(banner.title_for_current_language(), "ایستگاه بازی کنسول")
-        with translation.override("en"):
-            self.assertEqual(banner.title_for_current_language(), "Console Gaming Station")
+        self.assertEqual(banner.title_for_current_language(), "ایستگاه بازی کنسول")
 
     def test_profile_username_is_saved_for_the_guest(self):
         saved = self.client.post("/account/username/", {"username": "میزبان", "next": "/"})
@@ -248,12 +233,8 @@ class BannerSeedTests(TestCase):
                 "next": "/\\example.com/",
             },
         )
-        self.assertTrue(User.objects.filter(username="redirectcheck").exists())
         self.assertRedirects(response, "/account/profile/")
-        self.assertTrue(UserProfile.objects.filter(user__username="redirectcheck").exists())
-        public_id = User.objects.get(username="redirectcheck").club_profile.public_id
-        self.assertGreaterEqual(public_id, 100000)
-        self.assertLessEqual(public_id, 999999)
+        self.assertFalse(User.objects.filter(username="redirectcheck").exists())
 
 
 class ProfileAndBlueTickTests(TestCase):
@@ -266,10 +247,14 @@ class ProfileAndBlueTickTests(TestCase):
         self.assertContains(page, "پروفایل")
         self.assertContains(page, "profile-sheet")
         self.assertContains(page, "ثبت نام")
-        self.assertContains(page, "Icon-Gmail.png")
-        self.assertContains(page, "ثبت نام سریع با جیمیل")
-        self.assertContains(page, "ثبت نام کاربری و گذرواژه")
+        self.assertContains(page, "Icon-Telegram.svg")
+        self.assertContains(page, "ثبت‌نام از طریق تلگرام")
+        self.assertContains(page, "Icon-Bale.svg")
+        self.assertContains(page, "ثبت‌نام از طریق بله")
+        self.assertNotContains(page, "ثبت نام سریع با جیمیل")
+        self.assertNotContains(page, "ثبت نام کاربری و گذرواژه")
         self.assertNotContains(page, "فعالسازی تیک آبی")
+        self.assertNotContains(page, "تیک طلایی")
         self.assertNotContains(page, "ثبت کلاب یا کافه")
         user = User.objects.create_user("host", "host@gmail.com", "pass-word-123")
         self.client.force_login(user)
@@ -279,27 +264,28 @@ class ProfileAndBlueTickTests(TestCase):
         self.assertNotContains(logged, "امکانات تیک آبی")
         self.assertContains(logged, "Icon-BlueTick-Inactive.png")
         self.assertContains(logged, "نام نمایشی")
-        self.assertContains(logged, "فعالسازی تیک آبی")
-        self.assertContains(logged, "می‌توانی جیمیلت را هم به پروفایل وصل کنی")
+        self.assertContains(logged, "تیک طلایی")
+        self.assertContains(logged, "Icon-GoldTick.png")
+        self.assertContains(logged, "اگر به نظرت در جامعه مافیا شناخته‌شده هستی")
+        self.assertNotContains(logged, "فعالسازی تیک آبی")
+        self.assertContains(logged, "اتصال به بله")
+        self.assertNotContains(logged, "می‌توانی جیمیلت را هم به پروفایل وصل کنی")
         self.assertContains(logged, "خروج")
 
-    def test_simple_password_register_and_unique_username_check(self):
-        taken = User.objects.create_user("cafehost", password="123456")
-        available = self.client.get("/account/username/available/", {"username": "cafehost"})
-        self.assertEqual(available.json()["available"], False)
-        free = self.client.get("/account/username/available/", {"username": "clubnew"})
-        self.assertEqual(free.json()["available"], True)
+    def test_password_and_gmail_signup_are_gone(self):
+        page = self.client.get("/account/profile/")
+        self.assertNotContains(page, 'name="password"')
+        self.assertNotContains(page, "google/start")
         created = self.client.post(
             "/account/register/",
             {"username": "clubnew", "password": "123456", "next": "/account/profile/"},
         )
         self.assertRedirects(created, "/account/profile/")
-        self.assertTrue(User.objects.filter(username="clubnew").exists())
-        self.client.logout()
-        clash = self.client.post("/account/register/", {"username": taken.username, "password": "654321"})
-        self.assertContains(clash, "این نام کاربری قبلاً گرفته شده است.")
+        self.assertFalse(User.objects.filter(username="clubnew").exists())
+        login_page = self.client.get("/account/login/")
+        self.assertRedirects(login_page, "/account/profile/")
 
-    def test_rejected_blue_tick_can_be_requested_again(self):
+    def test_rejected_gold_tick_can_be_requested_again(self):
         user = User.objects.create_user("host", "host@example.com", "123456")
         BlueTickRequest.objects.create(
             user=user,
@@ -311,10 +297,10 @@ class ProfileAndBlueTickTests(TestCase):
         )
         self.client.force_login(user)
         page = self.client.get("/account/profile/")
-        self.assertContains(page, "درخواست تیک آبی شما رد شد")
-        self.assertContains(page, "درخواست مجدد تیک آبی")
+        self.assertContains(page, "درخواست تیک طلایی شما رد شد")
+        self.assertContains(page, "ارسال مجدد رزومه")
         sent = self.client.post(
-            "/account/profile/blue-tick/",
+            "/account/profile/gold-tick/",
             {
                 "full_name": "علی میزبان",
                 "phone": "09121234567",
@@ -323,15 +309,15 @@ class ProfileAndBlueTickTests(TestCase):
         )
         self.assertRedirects(sent, "/account/profile/")
         waiting = self.client.get("/account/profile/")
-        self.assertContains(waiting, "درخواست شما طی ساعات آینده بررسی می‌شود")
-        self.assertNotContains(waiting, "blue-tick-activate-btn")
+        self.assertContains(waiting, "رزومه شما طی ساعات آینده بررسی می‌شود")
+        self.assertNotContains(waiting, "gold-tick-activate-btn")
 
-    def test_admin_can_activate_blue_tick_by_public_id(self):
+    def test_admin_can_activate_gold_tick_by_public_id(self):
         user = User.objects.create_user("player", "player@example.com", "pass-word-123")
         admin = User.objects.create_superuser("admin", "admin@example.com", "pass-word-123")
         self.client.force_login(admin)
         panel = self.client.get("/admin/banners/userprofile/")
-        self.assertContains(panel, "فعال‌سازی تیک آبی")
+        self.assertContains(panel, "فعال‌سازی تیک طلایی")
         public_id = f"{user.club_profile.public_id:06d}"
         activated = self.client.post(
             "/admin/banners/userprofile/activate/",
@@ -339,10 +325,10 @@ class ProfileAndBlueTickTests(TestCase):
         )
         self.assertRedirects(activated, "/admin/banners/userprofile/")
         user.club_profile.refresh_from_db()
-        self.assertTrue(user.club_profile.is_verified)
+        self.assertTrue(user.club_profile.is_gold_verified)
         self.client.force_login(user)
         verified_header = self.client.get("/")
-        self.assertContains(verified_header, "Icon-BlueTick.png")
+        self.assertContains(verified_header, "Icon-GoldTick.png")
 
     def test_verified_user_can_save_optimized_photo_and_bio(self):
         user = User.objects.create_user("star", "star@example.com", "pass-word-123")
@@ -366,31 +352,17 @@ class ProfileAndBlueTickTests(TestCase):
             saved = Image.open(handle)
             self.assertLessEqual(max(saved.size), 512)
 
-    def test_one_click_gmail_button_goes_to_google_start(self):
+    def test_gmail_routes_are_removed(self):
         page = self.client.get("/account/profile/")
-        self.assertContains(page, 'href="/account/google/start/?next=/account/profile/"')
-        self.assertNotContains(page, "ارسال کد تایید")
+        self.assertNotContains(page, "/account/google/start/")
+        missing = self.client.get("/account/google/start/")
+        self.assertEqual(missing.status_code, 404)
 
-    def test_google_start_sends_the_browser_to_google(self):
-        from django.test import override_settings
-
-        with override_settings(
-            GOOGLE_OAUTH_CLIENT_ID="856339647231-test.apps.googleusercontent.com",
-            GOOGLE_OAUTH_CLIENT_SECRET="test-secret",
-            GOOGLE_OAUTH_REDIRECT_URI="http://testserver/account/google/callback/",
-        ):
-            response = self.client.get("/account/google/start/?next=/account/profile/")
-        self.assertEqual(response.status_code, 302)
-        location = response["Location"]
-        self.assertIn("accounts.google.com/o/oauth2/v2/auth", location)
-        self.assertIn("client_id=856339647231-test.apps.googleusercontent.com", location)
-        self.assertIn("redirect_uri=http%3A%2F%2Ftestserver%2Faccount%2Fgoogle%2Fcallback%2F", location)
-
-    def test_blue_tick_request_saves_and_shows_wait_message(self):
+    def test_gold_tick_request_saves_and_shows_wait_message(self):
         user = User.objects.create_user("host", "host@example.com", "pass-word-123")
         self.client.force_login(user)
         sent = self.client.post(
-            "/account/profile/blue-tick/",
+            "/account/profile/gold-tick/",
             {
                 "full_name": "علی میزبان",
                 "phone": "09121234567",
@@ -399,8 +371,8 @@ class ProfileAndBlueTickTests(TestCase):
         )
         self.assertRedirects(sent, "/account/profile/")
         page = self.client.get("/account/profile/")
-        self.assertContains(page, "درخواست شما طی ساعات آینده بررسی می‌شود")
-        self.assertNotContains(page, "blue-tick-activate-btn")
+        self.assertContains(page, "رزومه شما طی ساعات آینده بررسی می‌شود")
+        self.assertNotContains(page, "gold-tick-activate-btn")
         self.assertTrue(BlueTickRequest.objects.filter(user=user, full_name="علی میزبان").exists())
 
     def test_admin_dashboard_shows_red_counts_for_pending_items(self):
@@ -428,10 +400,372 @@ class ProfileAndBlueTickTests(TestCase):
         self.assertContains(dashboard, "نظرات کافه")
         self.assertContains(dashboard, "پیام جدید")
         self.assertContains(dashboard, "/admin/scenarios/scenariocomment/?is_approved__exact=0")
-        self.assertContains(dashboard, "تیک آبی")
+        self.assertContains(dashboard, "تیک طلایی")
         self.assertContains(dashboard, "admin-alarm-count")
         messages = self.client.get("/admin/scenarios/scenariocomment/?is_approved__exact=0")
         self.assertContains(messages, "یک پیام جدید")
+
+    def test_guest_can_set_display_name_for_free(self):
+        page = self.client.get("/account/profile/")
+        self.assertContains(page, "نام نمایشی")
+        self.assertContains(page, "data-blue-tick-hint")
+        self.assertContains(page, "با ثبت تلفن همراه از طریق بات بله و تلگرام")
+        saved = self.client.post(
+            "/account/username/",
+            {"display_name": "مهمان میز", "next": "/account/profile/"},
+        )
+        self.assertRedirects(saved, "/account/profile/")
+        shown = self.client.get("/account/profile/")
+        self.assertContains(shown, "مهمان میز")
+        self.assertEqual(self.client.session["display_name_changes"], 1)
+
+    @override_settings(BITPAY_API_KEY="", DEBUG=True)
+    @patch("banners.pay_views.bitpay_configured", return_value=False)
+    def test_second_display_name_edit_costs_fifty_thousand(self, _configured):
+        self.client.post("/account/username/", {"display_name": "اول", "next": "/account/profile/"})
+        second = self.client.post("/account/username/", {"display_name": "دوم", "next": "/account/profile/"})
+        self.assertRedirects(second, "/account/profile/")
+        self.assertEqual(self.client.session["pending_paid_display_name"], "دوم")
+        user = User.objects.create_user("renamer", "renamer@example.com", "pass-word-123")
+        user.club_profile.display_name = "اول"
+        user.club_profile.display_name_changes = 1
+        user.club_profile.save(update_fields=["display_name", "display_name_changes"])
+        self.client.force_login(user)
+        paid = self.client.post("/account/username/", {"display_name": "دوم", "next": "/account/profile/"})
+        self.assertEqual(paid.status_code, 302)
+        user.club_profile.refresh_from_db()
+        self.assertEqual(user.club_profile.display_name, "دوم")
+        self.assertEqual(user.club_profile.display_name_changes, 2)
+        txn = PaymentTransaction.objects.get(user=user)
+        self.assertEqual(txn.package.sku, "rename_50k")
+        self.assertEqual(txn.amount_toman, 50000)
+        self.assertEqual(txn.status, "completed")
+
+    def test_superadmin_promotes_user_to_admin_with_gold_tick(self):
+        User.objects.create_superuser("root", "root@example.com", "pass-word-123")
+        member = User.objects.create_user("helper", "helper@example.com", "pass-word-123")
+        profile = member.club_profile
+        profile.apply_staff_rank("admin")
+        profile.can_manage_quick = True
+        profile.save()
+        member.refresh_from_db()
+        profile.refresh_from_db()
+        self.assertTrue(member.is_staff)
+        self.assertFalse(member.is_superuser)
+        self.assertTrue(profile.is_gold_verified)
+        self.assertTrue(profile.can_manage_quick)
+        profile.apply_staff_rank("superadmin")
+        member.refresh_from_db()
+        profile.refresh_from_db()
+        self.assertTrue(member.is_superuser)
+        self.assertTrue(profile.can_edit_rulebook)
+
+
+def _otp_from_bot(mocked_api):
+    for call in reversed(mocked_api.call_args_list):
+        args = call[0]
+        if not args or args[0] != "sendMessage":
+            continue
+        payload = args[1] if len(args) > 1 else {}
+        text = str((payload or {}).get("text") or "")
+        match = re.search(r"<code>(\d{6})</code>", text)
+        if match:
+            return match.group(1)
+    return ""
+
+
+class TelegramSignupTests(TestCase):
+    def setUp(self):
+        cache.clear()
+
+    @override_settings(TELEGRAM_BOT_TOKEN="test-token", TELEGRAM_BOT_USERNAME="CafeClubAuthBot")
+    @patch("banners.telegram.api")
+    def test_telegram_own_contact_completes_signup(self, mocked_api):
+        mocked_api.return_value = {"ok": True, "result": True}
+        start = self.client.post("/account/telegram/start/")
+        self.assertEqual(start.status_code, 200)
+        self.assertTrue(start.json()["success"])
+        self.assertIn("auth_", start.json()["url"])
+        ticket = self.client.session["telegram_ticket"]
+        from banners.telegram import handle_update
+
+        handle_update(
+            {
+                "message": {
+                    "chat": {"id": 77},
+                    "from": {"id": 77},
+                    "text": "/start auth_" + ticket,
+                }
+            }
+        )
+        handle_update(
+            {
+                "message": {
+                    "chat": {"id": 77},
+                    "from": {"id": 77},
+                    "contact": {
+                        "phone_number": "09129876543",
+                        "user_id": 77,
+                        "first_name": "T",
+                    },
+                }
+            }
+        )
+        status = self.client.get("/account/telegram/status/")
+        self.assertFalse(status.json()["success"])
+        self.assertTrue(status.json().get("awaiting_code"))
+        code = _otp_from_bot(mocked_api)
+        self.assertEqual(len(code), 6)
+        verify = self.client.post(
+            "/account/messenger/verify-code/",
+            data='{"code":"%s"}' % code,
+            content_type="application/json",
+        )
+        body = verify.json()
+        self.assertTrue(body["success"])
+        self.assertEqual(body["redirect"], reverse("profile"))
+        self.assertIn("ثبت‌نام شما انجام شد", body["message"])
+        user = User.objects.get(username="09129876543")
+        self.assertFalse(user.has_usable_password())
+        self.assertEqual(user.club_profile.telegram_chat_id, "77")
+        self.assertEqual(user.club_profile.mobile, "09129876543")
+        self.assertTrue(user.club_profile.is_verified)
+
+    @override_settings(TELEGRAM_BOT_TOKEN="test-token", TELEGRAM_BOT_USERNAME="CafeClubAuthBot")
+    @patch("banners.telegram.api")
+    def test_telegram_rejects_foreign_contact(self, mocked_api):
+        mocked_api.return_value = {"ok": True, "result": True}
+        start = self.client.post("/account/telegram/start/")
+        ticket = self.client.session["telegram_ticket"]
+        from banners.telegram import handle_update
+
+        handle_update(
+            {
+                "message": {
+                    "chat": {"id": 5},
+                    "from": {"id": 5},
+                    "text": "/start auth_" + ticket,
+                }
+            }
+        )
+        handle_update(
+            {
+                "message": {
+                    "chat": {"id": 5},
+                    "from": {"id": 5},
+                    "contact": {
+                        "phone_number": "09120000000",
+                        "user_id": 99,
+                        "first_name": "Other",
+                    },
+                }
+            }
+        )
+        status = self.client.get("/account/telegram/status/")
+        self.assertFalse(status.json()["success"])
+        self.assertTrue(status.json()["pending"])
+
+    @override_settings(
+        TELEGRAM_BOT_TOKEN="test-token",
+        TELEGRAM_API_BASE_URL="https://tg-proxy.example",
+        TELEGRAM_PROXY_SECRET="proxy-secret",
+    )
+    @patch("banners.telegram.urllib.request.urlopen")
+    def test_telegram_api_uses_cloudflare_base(self, mocked_open):
+        class _Resp:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return False
+
+            def read(self):
+                return b'{"ok":true,"result":true}'
+
+        mocked_open.return_value = _Resp()
+        from banners.telegram import api
+
+        result = api("sendMessage", {"chat_id": 1, "text": "ok"})
+        self.assertTrue(result.get("ok"))
+        request = mocked_open.call_args[0][0]
+        self.assertEqual(request.full_url, "https://tg-proxy.example/bottest-token/sendMessage")
+        self.assertEqual(request.get_header("X-cafeclub-proxy-secret"), "proxy-secret")
+
+    @override_settings(TELEGRAM_WEBHOOK_SECRET="hook-secret")
+    @patch("banners.telegram.handle_update")
+    def test_telegram_webhook_requires_secret_header(self, mocked_handle):
+        url = reverse("telegram_webhook")
+        denied = self.client.post(url, data='{"update_id":1}', content_type="application/json")
+        self.assertEqual(denied.status_code, 403)
+        mocked_handle.assert_not_called()
+        ok = self.client.post(
+            url,
+            data='{"update_id":1,"message":{"text":"/start"}}',
+            content_type="application/json",
+            HTTP_X_TELEGRAM_BOT_API_SECRET_TOKEN="hook-secret",
+        )
+        self.assertEqual(ok.status_code, 200)
+        self.assertTrue(ok.json()["ok"])
+        mocked_handle.assert_called_once()
+
+    @override_settings(
+        TELEGRAM_BOT_TOKEN="test-token",
+        TELEGRAM_WEBHOOK_SECRET="hook-secret",
+        PUBLIC_SITE_URL="https://cafeclub.amytisapp.ir",
+        TELEGRAM_WEBHOOK_URL="",
+    )
+    @patch("banners.telegram.api")
+    def test_set_telegram_webhook_command(self, mocked_api):
+        mocked_api.return_value = {"ok": True, "result": True}
+        out = StringIO()
+        call_command("set_telegram_webhook", stdout=out)
+        mocked_api.assert_any_call(
+            "setWebhook",
+            {
+                "url": "https://cafeclub.amytisapp.ir/auth/telegram/webhook/",
+                "allowed_updates": ["message"],
+                "drop_pending_updates": True,
+                "secret_token": "hook-secret",
+            },
+        )
+
+    @override_settings(BALE_BOT_TOKEN="", BALE_AUTH_BOT_TOKEN="", BALE_BOT_USERNAME="")
+    def test_bale_start_requires_bot_config(self):
+        response = self.client.post("/account/bale/start/")
+        self.assertEqual(response.status_code, 503)
+        self.assertIn("بله", response.json()["message"])
+
+
+class BaleSignupTests(TestCase):
+    def setUp(self):
+        cache.clear()
+
+    @override_settings(BALE_BOT_TOKEN="test-token", BALE_BOT_USERNAME="CafeClubAuthBot")
+    @patch("banners.bale.api")
+    def test_bale_own_contact_completes_signup(self, mocked_api):
+        mocked_api.return_value = {"ok": True, "result": True}
+        start = self.client.post("/account/bale/start/")
+        self.assertEqual(start.status_code, 200)
+        self.assertTrue(start.json()["success"])
+        self.assertIn("auth_", start.json()["url"])
+        self.assertIn("ble.ir", start.json()["url"])
+        ticket = self.client.session["bale_ticket"]
+        from banners.bale import handle_update
+
+        handle_update(
+            {
+                "message": {
+                    "chat": {"id": 44},
+                    "from": {"id": 44},
+                    "text": "/start auth_" + ticket,
+                }
+            }
+        )
+        handle_update(
+            {
+                "message": {
+                    "chat": {"id": 44},
+                    "from": {"id": 44},
+                    "contact": {
+                        "phone_number": "09121234567",
+                        "user_id": 44,
+                        "first_name": "S",
+                    },
+                }
+            }
+        )
+        status = self.client.get("/account/bale/status/")
+        self.assertFalse(status.json()["success"])
+        self.assertTrue(status.json().get("awaiting_code"))
+        code = _otp_from_bot(mocked_api)
+        self.assertEqual(len(code), 6)
+        verify = self.client.post(
+            "/account/messenger/verify-code/",
+            data='{"code":"%s"}' % code,
+            content_type="application/json",
+        )
+        body = verify.json()
+        self.assertTrue(body["success"])
+        self.assertEqual(body["redirect"], reverse("profile"))
+        self.assertIn("ثبت‌نام شما انجام شد", body["message"])
+        user = User.objects.get(username="09121234567")
+        self.assertFalse(user.has_usable_password())
+        self.assertEqual(user.club_profile.bale_chat_id, "44")
+        self.assertEqual(user.club_profile.mobile, "09121234567")
+        self.assertTrue(user.club_profile.is_verified)
+
+    @override_settings(BALE_BOT_TOKEN="test-token", BALE_BOT_USERNAME="CafeClubAuthBot")
+    @patch("banners.bale.api")
+    def test_bale_rejects_foreign_contact(self, mocked_api):
+        mocked_api.return_value = {"ok": True, "result": True}
+        start = self.client.post("/account/bale/start/")
+        ticket = self.client.session["bale_ticket"]
+        from banners.bale import handle_update
+
+        handle_update(
+            {
+                "message": {
+                    "chat": {"id": 9},
+                    "from": {"id": 9},
+                    "text": "/start auth_" + ticket,
+                }
+            }
+        )
+        handle_update(
+            {
+                "message": {
+                    "chat": {"id": 9},
+                    "from": {"id": 9},
+                    "contact": {
+                        "phone_number": "09120000000",
+                        "user_id": 88,
+                        "first_name": "Other",
+                    },
+                }
+            }
+        )
+        status = self.client.get("/account/bale/status/")
+        self.assertFalse(status.json()["success"])
+        self.assertTrue(status.json()["pending"])
+
+    @override_settings(BALE_WEBHOOK_SECRET="bale-hook-secret")
+    @patch("banners.bale.handle_update")
+    def test_bale_webhook_requires_secret_path(self, mocked_handle):
+        denied = self.client.post(
+            "/auth/bale/webhook/wrong/",
+            data='{"update_id":1}',
+            content_type="application/json",
+        )
+        self.assertEqual(denied.status_code, 403)
+        mocked_handle.assert_not_called()
+        ok = self.client.post(
+            "/auth/bale/webhook/bale-hook-secret/",
+            data='{"update_id":1,"message":{"text":"/start"}}',
+            content_type="application/json",
+        )
+        self.assertEqual(ok.status_code, 200)
+        self.assertTrue(ok.json()["ok"])
+        mocked_handle.assert_called_once()
+
+    @override_settings(
+        BALE_AUTH_BOT_TOKEN="auth-token",
+        BALE_BOT_TOKEN="assistant-token",
+        BALE_WEBHOOK_SECRET="bale-hook-secret",
+        PUBLIC_SITE_URL="https://cafeclub.amytisapp.ir",
+        BALE_WEBHOOK_URL="",
+    )
+    @patch("banners.bale.api")
+    def test_set_bale_webhook_command(self, mocked_api):
+        mocked_api.return_value = {"ok": True, "result": True}
+        out = StringIO()
+        call_command("set_bale_webhook", stdout=out)
+        mocked_api.assert_any_call(
+            "setWebhook",
+            {
+                "url": "https://cafeclub.amytisapp.ir/auth/bale/webhook/bale-hook-secret/",
+                "drop_pending_updates": True,
+            },
+        )
 
 
 def make_venue(name="کافه شب", city="تهران", lat=35.6892, lng=51.3890, **extra):
@@ -679,7 +1013,7 @@ class PlacesTests(TestCase):
         self.assertContains(places, "پلن‌های تبلیغاتی")
         self.assertContains(places, 'href="/location/promo/"')
         guest = self.client.get("/location/promo/")
-        self.assertRedirects(guest, "/account/login/?next=/location/promo/")
+        self.assertRedirects(guest, "/account/login/?next=/location/promo/", fetch_redirect_response=False)
         user = User.objects.create_user("clubads", "clubads@example.com", "pass-word-123")
         self.client.force_login(user)
         form = self.client.get("/location/promo/")
@@ -723,7 +1057,9 @@ class PlacesTests(TestCase):
         self.assertRedirects(gold, "/")
         home = self.client.get("/")
         self.assertContains(home, "کلاب طلایی صفحه اول")
-        self.assertContains(home, "کافه / کلاب")
+        self.assertContains(home, "تهران")
+        self.assertContains(home, "ونک")
+        self.assertContains(home, "home-promo-logo")
         ads = self.client.get("/ads/")
         self.assertNotContains(ads, "نردبان طلایی کلاب")
         self.assertNotContains(ads, "is-club")
@@ -741,15 +1077,17 @@ class AppSettingsPageTests(TestCase):
         self.assertNotContains(home, "دانلود مستقیم اپلیکیشن اندروید")
         page = self.client.get("/settings/")
         html = page.content.decode()
-        self.assertContains(page, "دانلود مستقیم اپلیکیشن اندروید")
-        self.assertContains(page, "https://example.com/app.apk")
+        self.assertNotContains(page, "دانلود مستقیم اپلیکیشن اندروید")
+        self.assertNotContains(page, "https://example.com/app.apk")
         self.assertContains(page, "ما را در شبکه‌های اجتماعی دنبال کنید")
         self.assertContains(page, "https://instagram.com/cafeclub")
-        self.assertContains(page, "زبان برنامه")
+        self.assertContains(page, "مترجم گوگل")
         self.assertContains(page, "Icon-Language.png")
-        self.assertLess(html.find("دانلود اپلیکیشن"), html.find("شبکه‌های اجتماعی"))
-        self.assertLess(html.find("ما را در شبکه‌های اجتماعی"), html.rfind("زبان برنامه"))
-        self.assertLess(html.rfind("زبان برنامه"), html.find("سیاست حفظ حریم خصوصی"))
+        self.assertContains(page, 'data-lang="en"')
+        self.assertContains(page, "js/translate.js")
+        self.assertNotContains(page, "زبان برنامه")
+        self.assertLess(html.find("ما را در شبکه‌های اجتماعی"), html.rfind("مترجم گوگل"))
+        self.assertLess(html.rfind("مترجم گوگل"), html.find("سیاست حفظ حریم خصوصی"))
         self.assertContains(page, 'href="/privacy/"')
         self.assertContains(page, 'href="/terms/"')
         self.assertContains(page, "شرایط استفاده از خدمات")
@@ -787,21 +1125,10 @@ class EventAdTests(TestCase):
         user = User.objects.create_user("host", "host@example.com", "pass-word-123")
         self.client.force_login(user)
         page = self.client.get("/ads/create/")
-        self.assertContains(page, "برای درج آگهی رایگان باید تیک آبی اکانتتان را فعال کنید")
-        self.assertContains(page, "فعالسازی تیک آبی")
+        self.assertContains(page, "برای درج آگهی رایگان با تلگرام یا بله ثبت‌نام کنید تا تیک آبی شما فعال شود")
+        self.assertContains(page, "رفتن به پروفایل و ثبت‌نام")
+        self.assertNotContains(page, "فعالسازی تیک آبی")
         self.assertNotContains(page, "نام ایونت")
-        sent = self.client.post(
-            "/account/profile/blue-tick/",
-            {
-                "full_name": "علی میزبان",
-                "phone": "09120000000",
-                "biography": "گرداننده میز",
-                "next": "/ads/create/",
-            },
-        )
-        self.assertRedirects(sent, "/ads/create/")
-        again = self.client.get("/ads/create/")
-        self.assertContains(again, "درخواست شما طی ساعات آینده بررسی می‌شود")
 
     def test_verified_user_can_post_ad_and_admin_is_notified(self):
         user = User.objects.create_user("star", "star@example.com", "pass-word-123")
@@ -967,7 +1294,7 @@ class EventAdTests(TestCase):
         self.assertRedirects(created, "/ads/")
         self.assertEqual(EventAd.objects.filter(user=admin_user).count(), 4)
 
-    @override_settings(DEBUG=True)
+    @override_settings(DEBUG=True, BITPAY_API_KEY="", BAZAAR_REFRESH_TOKEN="", MYKET_ACCESS_TOKEN="")
     def test_create_form_has_four_plans_and_paid_plan_extends_display(self):
         user = User.objects.create_user("planhost", "planhost@example.com", "pass-word-123")
         user.club_profile.is_verified = True
@@ -1019,7 +1346,7 @@ class EventAdTests(TestCase):
         self.assertEqual(gold.expires_at, gold.event_at + timedelta(days=7))
         self.assertTrue(gold.show_on_home)
 
-    @override_settings(DEBUG=True)
+    @override_settings(DEBUG=True, BITPAY_API_KEY="", BAZAAR_REFRESH_TOKEN="", MYKET_ACCESS_TOKEN="")
     def test_paid_plan_skips_monthly_free_quota(self):
         user = User.objects.create_user("paidquota", "paidquota@example.com", "pass-word-123")
         user.club_profile.is_verified = True
@@ -1137,6 +1464,7 @@ class EventAdTests(TestCase):
         self.assertContains(profile, "در حال نمایش")
 
     @override_settings(DEBUG=True)
+    @override_settings(DEBUG=True, BITPAY_API_KEY="", BAZAAR_REFRESH_TOKEN="", MYKET_ACCESS_TOKEN="")
     def test_owner_can_boost_ad_to_the_top(self):
         user = User.objects.create_user("ladder", "ladder@example.com", "pass-word-123")
         user.club_profile.is_verified = True
@@ -1340,7 +1668,8 @@ class AppSourceTests(TestCase):
         user.club_profile.refresh_from_db()
         self.assertEqual(user.club_profile.app_source, "direct")
         direct_settings = self.client.get("/settings/")
-        self.assertContains(direct_settings, "https://example.com/app.apk")
+        self.assertNotContains(direct_settings, "https://example.com/app.apk")
+        self.assertNotContains(direct_settings, "دانلود مستقیم اپلیکیشن اندروید")
         self.assertNotContains(direct_settings, "https://cafebazaar.ir/app/ir.cafeclub.amytis")
 
     def test_android_webview_on_home_binds_direct_like_referral(self):
@@ -1394,11 +1723,11 @@ class BlockedAccountTests(TestCase):
         user.club_profile.is_blocked = True
         user.club_profile.save(update_fields=["is_blocked"])
         failed = self.client.post("/account/login/", {"username": "locked", "password": "pass-word-123"})
-        self.assertEqual(failed.status_code, 200)
-        self.assertContains(failed, "این اکانت مسدود شده است")
+        self.assertRedirects(failed, "/account/profile/")
+        self.assertFalse(failed.wsgi_request.user.is_authenticated)
         self.client.force_login(user)
         bounced = self.client.get("/")
-        self.assertRedirects(bounced, "/account/login/")
+        self.assertRedirects(bounced, "/account/login/", fetch_redirect_response=False)
         admin = User.objects.create_superuser("blocker", "blocker@example.com", "pass-word-123")
         self.client.force_login(admin)
         board = self.client.get("/admin/banners/userprofile/")
@@ -1792,5 +2121,28 @@ class DevLabTests(TestCase):
         dashboard = self.client.get("/admin/")
         self.assertContains(dashboard, "آزمایشگاه توسعه")
         self.assertContains(dashboard, "/dev-lab/")
+
+
+class MediaOptimizeTests(TestCase):
+    def test_images_are_compressed_to_webp(self):
+        from banners.images import optimize_image
+
+        buffer = BytesIO()
+        Image.new("RGB", (1600, 900), (12, 80, 40)).save(buffer, format="PNG")
+        uploaded = SimpleUploadedFile("wide.png", buffer.getvalue(), content_type="image/png")
+        stored = optimize_image(uploaded, max_edge=720)
+        self.assertTrue(stored.name.endswith(".webp"))
+        image = Image.open(stored)
+        self.assertLessEqual(max(image.size), 720)
+        self.assertEqual(image.format, "WEBP")
+
+    def test_video_uses_ffmpeg_when_available(self):
+        from banners.media import prepare_video
+
+        uploaded = SimpleUploadedFile("clip.mp4", b"not-a-real-mp4", content_type="video/mp4")
+        with patch("banners.media.find_ffmpeg", return_value=""):
+            stored = prepare_video(uploaded)
+        self.assertEqual(stored.name, "clip.mp4")
+        self.assertEqual(stored.read(), b"not-a-real-mp4")
 
 

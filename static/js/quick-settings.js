@@ -3,10 +3,19 @@
   var openButton = document.querySelector("[data-open-settings]");
   if (!dialog || !openButton) return;
 
+  function hydrateLogos() {
+    dialog.querySelectorAll("img[data-src]").forEach(function (img) {
+      if (!img.getAttribute("src")) {
+        img.src = img.getAttribute("data-src");
+      }
+    });
+  }
+
   function showPanel(name) {
     dialog.querySelectorAll("[data-panel]").forEach(function (panel) {
       panel.hidden = panel.dataset.panel !== name;
     });
+    if (name === "logo") hydrateLogos();
   }
 
   function openSettings(panel) {

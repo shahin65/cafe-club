@@ -1,6 +1,5 @@
 {% extends "base.html" %}
 {% load i18n static %}
-{% get_current_language as LANGUAGE_CODE %}
 
 {% block title %}{% trans "تنظیمات" %} | {% trans "کافه کلاب" %}{% endblock %}
 
@@ -48,21 +47,16 @@
     <section class="settings-block settings-language">
       <h2>
         <img src="{% static 'Icon-Language.png' %}" alt="" width="24" height="24">
-        {% trans "زبان برنامه" %}
+        {% trans "مترجم گوگل" %}
       </h2>
-      <div class="language-form">
-        <form action="{% url 'set_language' %}" method="post">
-          {% csrf_token %}
-          <input type="hidden" name="next" value="{{ request.get_full_path }}">
-          <input type="hidden" name="language" value="fa">
-          <button type="submit" {% if LANGUAGE_CODE == 'fa' %}aria-pressed="true"{% endif %}>فارسی</button>
-        </form>
-        <form action="{% url 'set_language' %}" method="post">
-          {% csrf_token %}
-          <input type="hidden" name="next" value="{{ request.get_full_path }}">
-          <input type="hidden" name="language" value="en">
-          <button type="submit" {% if LANGUAGE_CODE == 'en' %}aria-pressed="true"{% endif %}>English</button>
-        </form>
+      <p class="settings-translate-lead">{% trans "زبان نمایش سایت را انتخاب کن. ترجمه با سرویس گوگل انجام می‌شود." %}</p>
+      <div class="lang-grid notranslate" role="group" aria-label="{% trans 'زبان سایت' %}" translate="no">
+        <button class="lang-btn" type="button" data-lang="fa">فارسی</button>
+        <button class="lang-btn" type="button" data-lang="en">English</button>
+        <button class="lang-btn" type="button" data-lang="ar">العربية</button>
+        <button class="lang-btn" type="button" data-lang="tr">Türkçe</button>
+        <button class="lang-btn" type="button" data-lang="ru">Русский</button>
+        <button class="lang-btn" type="button" data-lang="es">Español</button>
       </div>
     </section>
 

@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import branding, custom_views, large_views, views
+from . import branding, custom_views, large_views, staff_views, views
 
 urlpatterns = [
     path("my-scenarios/create/", custom_views.custom_name, name="custom_name"),
@@ -27,6 +27,14 @@ urlpatterns = [
     path("scenario/<path:slug>/rules/", views.scenario_rules_by_slug, name="scenario_rules_slug"),
     path("scenario/<path:slug>/comments/", views.scenario_comments_by_slug, name="scenario_comments_slug"),
     path("settings/logo/", branding.save_card_logo, name="card_logo"),
+    path("staff/quick/new/", staff_views.quick_edit, name="staff_quick_new"),
+    path("staff/quick/<int:scenario_id>/", staff_views.quick_edit, name="staff_quick_edit"),
+    path("staff/quick/<int:scenario_id>/delete/", staff_views.quick_delete, name="staff_quick_delete"),
+    path("staff/large/new/", staff_views.large_edit, name="staff_large_new"),
+    path("staff/large/<int:scenario_id>/", staff_views.large_edit, name="staff_large_edit"),
+    path("staff/large/<int:scenario_id>/delete/", staff_views.large_delete, name="staff_large_delete"),
+    path("staff/scenario/<int:scenario_id>/rulebook/", staff_views.page_edit, {"kind": "rulebook"}, name="staff_rulebook"),
+    path("staff/scenario/<int:scenario_id>/rules/", staff_views.page_edit, {"kind": "rules"}, name="staff_rules"),
     path("deal/<int:scenario_id>/", views.start, name="deal_start"),
     path("deal/<int:scenario_id>/<int:player_count>/", views.choose_mode, name="deal_mode"),
     path(

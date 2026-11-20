@@ -84,6 +84,17 @@ SECURE_CONTENT_TYPE_NOSNIFF = True
 SESSION_COOKIE_NAME = "cafeclub_sessionid"
 CSRF_COOKIE_NAME = "cafeclub_csrftoken"
 
+PUBLIC_SITE_URL = (config_value("PUBLIC_SITE_URL", "") or "").rstrip("/")
+TELEGRAM_BOT_TOKEN = config_value("TELEGRAM_BOT_TOKEN", "") or ""
+TELEGRAM_BOT_USERNAME = config_value("TELEGRAM_BOT_USERNAME", "") or ""
+TELEGRAM_API_BASE_URL = (config_value("TELEGRAM_API_BASE_URL", "") or "").rstrip("/")
+TELEGRAM_PROXY_SECRET = config_value("TELEGRAM_PROXY_SECRET", "") or ""
+TELEGRAM_WEBHOOK_SECRET = config_value("TELEGRAM_WEBHOOK_SECRET", "") or ""
+TELEGRAM_WEBHOOK_URL = config_value("TELEGRAM_WEBHOOK_URL", "") or ""
+BALE_BOT_USERNAME = config_value("BALE_BOT_USERNAME", "") or ""
+BALE_AUTH_BOT_TOKEN = config_value("BALE_AUTH_BOT_TOKEN", "") or ""
+BALE_WEBHOOK_SECRET = config_value("BALE_WEBHOOK_SECRET", "") or ""
+BALE_WEBHOOK_URL = config_value("BALE_WEBHOOK_URL", "") or ""
 GAPGPT_API_KEY = config_value("GAPGPT_API_KEY", "") or ""
 GAPGPT_BASE_URL = config_value("GAPGPT_BASE_URL", "") or ""
 GAPGPT_MODEL = config_value("GAPGPT_MODEL", "") or ""
@@ -98,6 +109,29 @@ BAZAAR_REDIRECT_URI = config_value("BAZAAR_REDIRECT_URI", "") or ""
 BAZAAR_RSA = config_value("BAZAAR_RSA", "") or ""
 MYKET_ACCESS_TOKEN = config_value("MYKET_ACCESS_TOKEN", "") or ""
 ANDROID_PACKAGE_NAME = config_value("ANDROID_PACKAGE_NAME", "ir.cafeclub.amytis") or "ir.cafeclub.amytis"
+
+AWS_ACCESS_KEY_ID = config_value("AWS_ACCESS_KEY_ID", AWS_ACCESS_KEY_ID) or ""
+AWS_SECRET_ACCESS_KEY = config_value("AWS_SECRET_ACCESS_KEY", AWS_SECRET_ACCESS_KEY) or ""
+AWS_STORAGE_BUCKET_NAME = config_value("AWS_STORAGE_BUCKET_NAME", AWS_STORAGE_BUCKET_NAME) or "cafeclub-media"
+AWS_S3_ENDPOINT_URL = config_value("AWS_S3_ENDPOINT_URL", AWS_S3_ENDPOINT_URL) or "https://s3.ir-central1.arvanstorage.ir"
+AWS_S3_REGION_NAME = config_value("AWS_S3_REGION_NAME", AWS_S3_REGION_NAME) or "ir-central1"
+AWS_S3_CUSTOM_DOMAIN = config_value("AWS_S3_CUSTOM_DOMAIN", "") or (
+    f"{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.arvanstorage.ir"
+)
+FFMPEG_BIN = config_value("FFMPEG_BIN", FFMPEG_BIN) or ""
+ARVAN_MEDIA_ENABLED = bool(AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY and AWS_STORAGE_BUCKET_NAME)
+STORAGES = {
+    "default": {
+        "BACKEND": (
+            "config.custom_storages.ArvanMediaStorage"
+            if ARVAN_MEDIA_ENABLED
+            else "django.core.files.storage.FileSystemStorage"
+        ),
+    },
+    "staticfiles": {
+        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+    },
+}
 
 LOGGING = {
     "version": 1,

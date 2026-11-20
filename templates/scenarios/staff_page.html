@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% load i18n static %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block extrahead %}
+  <script src="https://cdn.jsdelivr.net/npm/tinymce@7.6.1/tinymce.min.js"></script>
+{% endblock %}
+
+{% block content %}
+  <section class="sheet wizard-sheet staff-sheet">
+    <h1>{{ title }}</h1>
+    <p>{{ scenario.display_name }}</p>
+    {% if error %}<p class="wizard-error">{{ error }}</p>{% endif %}
+    <form class="wizard-form" method="post">
+      {% csrf_token %}
+      <label>{% trans "عنوان صفحه" %}<input type="text" name="title" value="{{ page_title }}" maxlength="160"></label>
+      <label>{% trans "متن" %}
+        <textarea class="page-html-editor" name="body" rows="18" data-page-html="1" data-editor-language="fa" data-upload-url="{% url 'scenario_page_image' %}">{{ page_body }}</textarea>
+      </label>
+      <button class="choice wizard-submit" type="submit">{% trans "ذخیره" %}</button>
+    </form>
+  </section>
+{% endblock %}
+
+{% block extrascripts %}
+  <script src="{% static 'admin/js/page_html_widget.js' %}"></script>
+{% endblock %}

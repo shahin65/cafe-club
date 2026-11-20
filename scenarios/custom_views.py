@@ -6,7 +6,6 @@ from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.translation import gettext as _
 from django.views.decorators.http import require_http_methods
-from PIL import Image
 
 from scenarios.models import (
     GUEST_SCENARIO_KEY,
@@ -90,12 +89,14 @@ def _store_icon(user_id, upload):
     suffix = ICON_TYPES.get(Path(upload.name or "").suffix.lower())
     if not suffix:
         return None
+    from banners.images import optimize_image
+    from django.core.exceptions import ValidationError
+
     try:
-        Image.open(upload).verify()
-    except Exception:
+        stored = optimize_image(upload, max_edge=720)
+    except ValidationError:
         return None
-    upload.seek(0)
-    return default_storage.save(f"user_scenario_icons/{user_id}/{uuid4().hex}{suffix}", upload)
+    return default_storage.save(f"user_scenario_icons/{user_id}/{stored.name}", stored)
 
 
 def wizard_step(draft):

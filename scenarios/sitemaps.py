@@ -6,9 +6,9 @@ from scenarios.models import Scenario
 class ScenarioRulebookSitemap(Sitemap):
     changefreq = "weekly"
     priority = 0.8
-    i18n = True
-    alternates = True
-    x_default = True
+    i18n = False
+    alternates = False
+    x_default = False
 
     def items(self):
         return [item for item in Scenario.objects.filter(owner__isnull=True).exclude(slug="") if item.has_indexable_page("rulebook")]
@@ -20,9 +20,9 @@ class ScenarioRulebookSitemap(Sitemap):
 class ScenarioRulesSitemap(Sitemap):
     changefreq = "weekly"
     priority = 0.8
-    i18n = True
-    alternates = True
-    x_default = True
+    i18n = False
+    alternates = False
+    x_default = False
 
     def items(self):
         return [item for item in Scenario.objects.filter(owner__isnull=True).exclude(slug="") if item.has_indexable_page("rules")]

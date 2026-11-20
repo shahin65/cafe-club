@@ -18,6 +18,11 @@ html {
     overflow-x: hidden;
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
+    touch-action: manipulation;
+}
+
+html.is-cc-busy {
+    cursor: progress;
 }
 
 body {
@@ -164,7 +169,8 @@ body[data-deal-play] .tab-bar {
     font-weight: 500;
 }
 
-.blue-tick {
+.blue-tick,
+.gold-tick {
     width: 22px;
     height: 22px;
     object-fit: contain;
@@ -172,7 +178,8 @@ body[data-deal-play] .tab-bar {
     flex: none;
 }
 
-.profile-hero .blue-tick {
+.profile-hero .blue-tick,
+.profile-hero .gold-tick {
     width: 28px;
     height: 28px;
 }
@@ -316,11 +323,17 @@ a.tab {
     opacity: 0.5;
 }
 
-.tab img {
+.tab img,
+.tab-icon {
     width: 32px;
     height: 32px;
     flex: none;
     object-fit: contain;
+}
+
+.tab-icon {
+    display: block;
+    fill: currentColor;
 }
 
 .tab[aria-disabled="true"] {
@@ -333,7 +346,8 @@ a.tab {
     font-weight: 700;
 }
 
-.tab.is-active img {
+.tab.is-active img,
+.tab.is-active .tab-icon {
     width: 40px;
     height: 40px;
     flex: none;
@@ -1401,7 +1415,7 @@ h1, h2 {
 
 .role-name {
     margin: 0;
-    font-family: Lalezar, Vazirmatn, sans-serif;
+    font-family: Vazirmatn, Tahoma, sans-serif;
     font-size: clamp(1.7rem, 18cqw, 3rem);
     font-weight: 400;
     line-height: 1.15;
@@ -1534,7 +1548,7 @@ button.choice {
     place-items: center;
     text-align: center;
     direction: rtl;
-    font-family: Lalezar, Vazirmatn, sans-serif;
+    font-family: Vazirmatn, Tahoma, sans-serif;
     font-size: clamp(0.95rem, 3.5vw, 1.4rem);
     font-weight: 400;
     line-height: 1.05;
@@ -1566,7 +1580,7 @@ button.choice {
     display: grid;
     place-items: center;
     margin: 0;
-    font-family: Lalezar, Vazirmatn, sans-serif;
+    font-family: Vazirmatn, Tahoma, sans-serif;
     font-size: clamp(2.6rem, 12vw, 4.2rem);
     line-height: 1;
     color: #fff6df;
@@ -1915,16 +1929,13 @@ dialog.settings-dialog:not([open]) {
     object-fit: contain;
 }
 
-.language-form {
+.lang-grid {
     display: grid;
+    grid-template-columns: 1fr 1fr;
     gap: 8px;
 }
 
-.language-form form {
-    display: grid;
-}
-
-.language-form button {
+.lang-btn {
     padding: 12px 14px;
     border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: 12px;
@@ -1932,6 +1943,17 @@ dialog.settings-dialog:not([open]) {
     color: inherit;
     font: inherit;
     cursor: pointer;
+}
+
+.lang-btn.is-active {
+    background: linear-gradient(180deg, #8a6844 0%, #5c422c 100%);
+    border-color: #c4a574;
+}
+
+.settings-translate-lead {
+    margin: 0 0 12px;
+    color: rgba(244, 240, 232, 0.82);
+    font-size: 0.92rem;
 }
 
 .settings-page {
@@ -2341,14 +2363,54 @@ dialog.settings-dialog:not([open]) {
     gap: 10px;
 }
 
+.profile-auth-methods[hidden],
+.wizard-form[hidden],
+.profile-display-form[hidden] {
+    display: none !important;
+}
+
 .profile-auth-lead {
     margin: 0;
     color: rgba(244, 240, 232, 0.86);
     font-size: 0.92rem;
 }
 
-.profile-method-gmail {
-    background: linear-gradient(180deg, #f4f0e8, #d8c4a0);
+.profile-method-telegram {
+    background: linear-gradient(180deg, #4ec4f3, #1e96d1);
+    border-color: rgba(180, 230, 255, 0.55);
+    color: #f4fbff;
+}
+
+.profile-method-bale {
+    background: linear-gradient(180deg, #5ad4f0, #0098c8);
+    border-color: rgba(180, 230, 255, 0.55);
+    color: #f4fbff;
+}
+
+.profile-method-btn.is-on {
+    opacity: 0.72;
+    cursor: default;
+}
+
+.auth-status {
+    margin: 0;
+    color: rgba(244, 240, 232, 0.9);
+    font-size: 0.88rem;
+}
+
+.auth-status.is-error {
+    color: #ff8b8b;
+}
+
+.messenger-code-timer {
+    margin: 0;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+}
+
+.profile-messengers {
+    display: grid;
+    gap: 10px;
 }
 
 .profile-login-link {
@@ -2451,7 +2513,8 @@ dialog.settings-dialog:not([open]) {
     height: 18px;
 }
 
-.blue-tick-activate-btn {
+.blue-tick-activate-btn,
+.gold-tick-activate-btn {
     justify-content: center;
     background: linear-gradient(180deg, #5aa7ff, #1d5fd0);
     border-color: rgba(170, 210, 255, 0.55);
@@ -2459,7 +2522,14 @@ dialog.settings-dialog:not([open]) {
     font-weight: 800;
 }
 
-.blue-tick-rejected {
+.gold-tick-activate-btn {
+    background: linear-gradient(180deg, #e6c27a, #9a6b1f);
+    border-color: rgba(255, 220, 140, 0.55);
+    color: #2a1c08;
+}
+
+.blue-tick-rejected,
+.gold-tick-rejected {
     color: #ff8b8b;
     font-weight: 700;
 }
@@ -2480,7 +2550,8 @@ dialog.settings-dialog:not([open]) {
     cursor: pointer;
 }
 
-.blue-tick-request {
+.blue-tick-request,
+.gold-tick-request {
     display: grid;
     gap: 10px;
     padding: 14px;
@@ -2489,12 +2560,17 @@ dialog.settings-dialog:not([open]) {
     border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
-.blue-tick-request h2 {
+.blue-tick-request h2,
+.gold-tick-request h2 {
     margin: 0;
     font-size: 1.05rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
-.blue-tick-wait {
+.blue-tick-wait,
+.gold-tick-wait {
     color: var(--gold);
     font-weight: 700;
 }
@@ -2559,8 +2635,8 @@ dialog.settings-dialog:not([open]) {
     }
 
     .venue-logo {
-        width: 72px;
-        height: 72px;
+        width: 80px;
+        height: 80px;
     }
 
     .venue-meta {
@@ -2721,7 +2797,7 @@ dialog.settings-dialog:not([open]) {
 .place-card {
     position: relative;
     display: grid;
-    grid-template-columns: 64px minmax(0, 1fr);
+    grid-template-columns: 76px minmax(0, 1fr);
     gap: 12px;
     align-items: center;
     padding: 10px;
@@ -2758,12 +2834,25 @@ dialog.settings-dialog:not([open]) {
         rgba(18, 12, 8, 0.72);
 }
 
+.place-card-logo {
+    width: 76px;
+    height: 76px;
+    display: grid;
+    place-items: center;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.06);
+    overflow: hidden;
+}
+
 .place-card img,
 .place-card-fallback {
-    width: 64px;
-    height: 64px;
-    object-fit: cover;
-    border-radius: 12px;
+    width: 100%;
+    height: 100%;
+    max-width: 76px;
+    max-height: 76px;
+    object-fit: contain;
+    object-position: center;
+    border-radius: 0;
 }
 
 .place-card-fallback {
@@ -2772,6 +2861,7 @@ dialog.settings-dialog:not([open]) {
     background: rgba(230, 194, 122, 0.16);
     color: #e6c27a;
     font-size: 1.2rem;
+    border-radius: 16px;
 }
 
 .place-card div {
@@ -3091,10 +3181,13 @@ html[dir="rtl"] .places-frost select {
 }
 
 .venue-logo {
-    width: 88px;
-    height: 88px;
+    width: 96px;
+    height: 96px;
     margin: 0;
-    object-fit: cover;
+    padding: 8px;
+    object-fit: contain;
+    object-position: center;
+    background: rgba(255, 255, 255, 0.06);
     border-radius: 18px;
 }
 
@@ -3576,8 +3669,8 @@ dialog.nav-sheet:not([open]) {
 
 .home-promo-ads {
     max-width: 920px;
-    margin: 0 auto 8px;
-    padding: 6px 10px;
+    margin: 0 auto 16px;
+    padding: 8px 10px;
 }
 
 .home-promo-list {
@@ -3588,28 +3681,62 @@ dialog.nav-sheet:not([open]) {
     list-style: none;
 }
 
-.home-promo-list a {
+.home-promo-link {
     display: grid;
-    grid-template-columns: 56px minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) 92px minmax(0, 1fr);
     align-items: center;
-    gap: 8px;
+    gap: 10px;
+    min-height: 92px;
     color: inherit;
     text-decoration: none;
 }
 
+.home-promo-title {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+    text-align: start;
+}
+
+.home-promo-title strong {
+    font-size: 1rem;
+    font-weight: 700;
+    line-height: 1.35;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.home-promo-title small {
+    font-size: 0.8rem;
+    opacity: 0.82;
+}
+
+.home-promo-logo {
+    width: 88px;
+    height: 88px;
+    display: grid;
+    place-items: center;
+    border-radius: 18px;
+    background: rgba(8, 8, 12, 0.42);
+    overflow: hidden;
+}
+
 .home-promo-list img {
-    width: 56px;
-    height: 36px;
-    object-fit: cover;
-    border-radius: 8px;
+    width: 80px;
+    height: 80px;
+    object-fit: contain;
+    object-position: center;
+    border-radius: 0;
 }
 
 .home-promo-list li {
     grid-area: 1 / 1;
-    padding: 4px 6px;
-    border-radius: 10px;
+    padding: 10px 12px;
+    border-radius: 18px;
     border: 1px solid rgba(230, 194, 122, 0.45);
-    background: linear-gradient(180deg, rgba(230, 194, 122, 0.14), rgba(8, 8, 12, 0.28));
+    background: linear-gradient(180deg, rgba(230, 194, 122, 0.16), rgba(8, 8, 12, 0.32));
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
@@ -3622,28 +3749,17 @@ dialog.nav-sheet:not([open]) {
     pointer-events: auto;
 }
 
-.home-promo-list a > span {
-    display: grid;
-    gap: 1px;
-    min-width: 0;
-}
-
-.home-promo-list strong {
-    font-size: 0.82rem;
-    font-weight: 700;
-    line-height: 1.25;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
 .home-promo-meta {
+    min-width: 0;
     font-style: normal;
-    font-size: 0.68rem;
-    opacity: 0.86;
-    white-space: nowrap;
+    font-size: 0.86rem;
+    line-height: 1.4;
+    opacity: 0.9;
+    text-align: end;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
     overflow: hidden;
-    text-overflow: ellipsis;
 }
 
 .ad-section-title {
@@ -4565,7 +4681,7 @@ button.choice.tournament-end,
 
 .tournament-share-board h1 {
     margin: 0 0 8px;
-    font-family: Lalezar, Vazirmatn, sans-serif;
+    font-family: Vazirmatn, Tahoma, sans-serif;
 }
 
 .tournament-share-round {
@@ -4854,4 +4970,55 @@ button.choice.tournament-end,
     list-style: none;
     display: grid;
     gap: 8px;
+}
+
+#google_translate_element,
+.goog-te-banner-frame,
+.skiptranslate iframe,
+body > .skiptranslate {
+    display: none !important;
+    pointer-events: none !important;
+}
+
+body {
+    top: 0 !important;
+}
+
+select.notranslate font,
+option.notranslate font {
+    font: inherit !important;
+}
+
+.blue-tick-hint {
+    display: inline-grid;
+    place-items: center;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+}
+
+.blue-tick-sheet p {
+    margin: 0 0 12px;
+    line-height: 1.8;
+}
+
+.staff-sheet .staff-size {
+    display: grid;
+    gap: 10px;
+    margin: 0 0 16px;
+    padding: 12px;
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.staff-role-row {
+    display: grid;
+    gap: 8px;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.staff-delete {
+    background: rgba(180, 60, 60, 0.35);
 }

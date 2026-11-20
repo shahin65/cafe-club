@@ -1,16 +1,14 @@
 {% load i18n static %}
-{% get_current_language as LANGUAGE_CODE %}
-{% get_current_language_bidi as LANGUAGE_BIDI %}
 <!DOCTYPE html>
-<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
+<html lang="fa" dir="rtl">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>{% block title %}{% trans "کافه کلاب" %}{% endblock %}</title>
   {% block extrahead %}{% endblock %}
   <link rel="icon" href="{% url 'favicon' %}" sizes="any">
-  <link rel="icon" type="image/png" href="{% static 'Logo.png' %}">
-  <link rel="apple-touch-icon" href="{% static 'Logo.png' %}">
+  <link rel="icon" type="image/png" href="{% static 'pwa-192.png' %}">
+  <link rel="apple-touch-icon" href="{% static 'pwa-192.png' %}">
   <link rel="manifest" href="{% url 'web_manifest' %}">
   <meta name="theme-color" content="#000000">
   <meta name="mobile-web-app-capable" content="yes">
@@ -19,11 +17,11 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Lalezar&family=Vazirmatn:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{% static 'css/site.css' %}?v=90">
+  <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/site.css' %}?v=96">
 </head>
 <body{% if role_deal_active %} data-deal-active="1"{% endif %}{% if deal_play_chrome %} data-deal-play="1" data-deal-cancel="{% url 'deal_cancel' %}"{% endif %}>
-  <header class="app-bar">
+  <header class="app-bar" id="cc-chrome-top">
     {% if deal_play_chrome %}
       <div class="deal-chrome-actions">
         <a class="deal-chrome-btn deal-safe" href="{% url 'deal_cancel' %}" data-deal-home aria-label="{% trans 'خانه' %}">
@@ -47,17 +45,23 @@
       {% else %}
         <img class="blue-tick" src="{% static 'Icon-BlueTick-Inactive.png' %}" alt="" width="22" height="22">
       {% endif %}
+      {% if club_profile.is_gold_verified %}
+        <img class="gold-tick" src="{% static 'Icon-GoldTick.png' %}" alt="" width="22" height="22">
+      {% endif %}
     </a>
   </header>
-  <main>
+  <main id="cc-shell">
     {% block content %}{% endblock %}
+    {% block extra_js %}{% endblock %}
+    {% block extrascripts %}{% endblock %}
   </main>
+  <div id="cc-chrome-dock">
   {% block tab_bar %}
     {% if not deal_play_chrome %}
       {% include "_default_tabs.html" %}
     {% endif %}
   {% endblock %}
-  {% block extra_js %}{% endblock %}
+  </div>
   <dialog class="nav-sheet call-sheet" data-call-sheet>
     <form method="dialog">
       <h2>{% trans "تماس تلفنی" %}</h2>
@@ -96,10 +100,12 @@
       <button type="button" class="choice tournament-btn" data-offline-retry>{% trans "تلاش مجدد" %}</button>
     </div>
   </div>
-  <script src="{% static 'js/call.js' %}?v=2"></script>
-  <script src="{% static 'js/external-nav.js' %}?v=1"></script>
-  <script src="{% static 'js/pwa.js' %}?v=5"></script>
-  {% block extrascripts %}{% endblock %}
+  <div id="google_translate_element" hidden></div>
+  <script src="{% static 'js/call.js' %}?v=2" defer></script>
+  <script src="{% static 'js/external-nav.js' %}?v=1" defer></script>
+  <script src="{% static 'js/pwa.js' %}?v=7" defer></script>
+  <script src="{% static 'js/translate.js' %}?v=1" defer></script>
+  <script src="{% static 'js/shell-nav.js' %}?v=2" defer></script>
   <script>
     (function () {
       var pendingDealHref = "";

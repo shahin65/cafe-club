@@ -5,6 +5,9 @@ from django.utils import timezone
 from banners.models import CoinPackage
 from banners.promo import PLANS, VENUE_PLANS, plan_expires_at
 
+RENAME_SKU = "rename_50k"
+RENAME_PRICE_TOMAN = 50000
+
 LAB_BAZAAR_SKU = "lab_bazaar_5k"
 LAB_MYKET_SKU = "lab_myket_5k"
 LAB_PACKAGES = (
@@ -119,6 +122,25 @@ def lab_package(sku):
     return CoinPackage.objects.filter(sku=sku, kind=CoinPackage.KIND_LAB, is_active=True).first()
 
 
+def ensure_rename_package():
+    CoinPackage.objects.update_or_create(
+        sku=RENAME_SKU,
+        defaults={
+            "title": "ویرایش نام نمایشی",
+            "kind": CoinPackage.KIND_PROFILE,
+            "plan_key": "rename",
+            "price_toman": RENAME_PRICE_TOMAN,
+            "sort_order": 50,
+            "is_active": True,
+        },
+    )
+    return CoinPackage.objects.filter(sku=RENAME_SKU, is_active=True).first()
+
+
+def rename_package():
+    return ensure_rename_package()
+
+
 def fulfill_purchase(txn):
     package = txn.package
     channel = txn.source or txn.gateway
@@ -126,4 +148,11 @@ def fulfill_purchase(txn):
         apply_ad_plan(txn.event_ad, package.plan_key, channel)
     elif package.kind == CoinPackage.KIND_VENUE and txn.venue_id and package.plan_key:
         apply_venue_plan(txn.venue, package.plan_key, channel)
+    elif package.kind == CoinPackage.KIND_PROFILE:
+        name = str((txn.payload or {}).get("display_name") or "").strip()[:40]
+        profile = getattr(txn.user, "club_profile", None)
+        if profile and name:
+            profile.display_name = name
+            profile.display_name_changes = (profile.display_name_changes or 0) + 1
+            profile.save(update_fields=["display_name", "display_name_changes"])
     return txn

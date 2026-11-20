@@ -1,5 +1,4 @@
 from django.conf import settings
-from django.conf.urls.i18n import i18n_patterns
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.contrib.sitemaps.views import sitemap
@@ -7,7 +6,7 @@ from django.http import HttpResponse
 from django.urls import include, path
 from django.views.decorators.http import require_GET
 
-from banners import auth_views, profile_views, pwa_views
+from banners import messenger_views, pwa_views
 from scenarios.sitemaps import SITEMAPS
 from scenarios.uploads import upload_page_image
 
@@ -35,9 +34,13 @@ def robots_txt(request):
 urlpatterns = [
     path("admin/ai-assistant/", include("assistant.urls")),
     path("admin/", admin.site.urls),
-    path("i18n/setlang/", auth_views.set_language, name="set_language"),
-    path("account/google/start/", profile_views.google_start, name="google_start"),
-    path("account/google/callback/", profile_views.google_callback, name="google_callback"),
+    path("auth/telegram/webhook/", messenger_views.telegram_webhook, name="telegram_webhook"),
+    path(
+        "auth/telegram/webhook/<str:secret>/",
+        messenger_views.telegram_webhook,
+        name="telegram_webhook_legacy",
+    ),
+    path("auth/bale/webhook/<str:secret>/", messenger_views.bale_webhook, name="bale_webhook"),
     path("favicon.ico", pwa_views.favicon, name="favicon"),
     path("manifest.webmanifest", pwa_views.web_manifest, name="web_manifest"),
     path("sw.js", pwa_views.service_worker, name="service_worker"),
@@ -47,11 +50,10 @@ urlpatterns = [
     path("app/<slug:source>/", pwa_views.capture_app_source, name="app_source"),
 ]
 
-urlpatterns += i18n_patterns(
+urlpatterns += [
     path("", include("banners.urls")),
     path("", include("scenarios.urls")),
-    prefix_default_language=False,
-)
+]
 
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

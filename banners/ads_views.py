@@ -12,8 +12,7 @@ from banners.gateways import gateway_for_source
 from banners.geo import ensure_guest_key, navigation_links, parse_coord
 from banners.images import optimize_ad_image
 from banners.jalali import HOUR_CHOICES, format_jalali_datetime, free_ad_date_choices, parse_event_at
-from banners.models import BLUE_TICK_REJECTED_MESSAGE, BLUE_TICK_WAIT_MESSAGE, EventAd, EventAdLike
-from banners.profile_views import blue_tick_state
+from banners.models import EventAd, EventAdLike
 from banners.pay_views import install_source, start_checkout
 from banners.promo import CREATE_PLANS, PLANS, PLAN_GOLD, create_plan_key, plan_expires_at, plan_or_none
 
@@ -144,17 +143,12 @@ def _ad_form_context(request, values, remaining, error="", unlimited=False):
 @require_http_methods(["GET", "POST"])
 def create_ad(request):
     profile = getattr(request.user, "club_profile", None) if request.user.is_authenticated else None
-    tick_state = blue_tick_state(request.user)
     if not request.user.is_authenticated or not profile or not profile.is_verified:
         return render(
             request,
             "banners/ad_create.html",
             {
                 "needs_blue_tick": True,
-                "pending_blue_tick": tick_state["pending_blue_tick"],
-                "rejected_blue_tick": tick_state["rejected_blue_tick"],
-                "blue_tick_wait_message": BLUE_TICK_WAIT_MESSAGE,
-                "blue_tick_rejected_message": BLUE_TICK_REJECTED_MESSAGE,
                 "values": {},
             },
         )

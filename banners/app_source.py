@@ -24,7 +24,7 @@ def incoming_source(request):
     return ""
 
 SOURCE_DOWNLOAD_KEYS = {
-    "direct": {"android", "ios"},
+    "direct": {"ios"},
     "bazaar": {"bazaar"},
     "myket": {"myket"},
 }
@@ -83,5 +83,4 @@ def filter_downloads(downloads, source):
     keys = SOURCE_DOWNLOAD_KEYS.get(normalize_source(source))
     if not keys:
         return downloads
-    matched = [link for link in downloads if link.key in keys]
-    return matched or downloads
+    return [link for link in downloads if link.key in keys]

@@ -2,6 +2,7 @@ from django.templatetags.static import static
 
 from scenarios.branding import PRESET_LABELS, PRESETS, current_card_logo, custom_logo_choice
 from scenarios.dealing import SESSION_KEY, deal_is_active
+from scenarios.staff import staff_flags
 
 DEAL_PLAY_URLS = frozenset({"deal_board", "deal_card", "large_play"})
 
@@ -31,6 +32,17 @@ def branding(request):
         profile_display_name = (request.session.get("profile_display_name") or "").strip()
         profile_shown_name = profile_display_name or profile_username
     app_source = getattr(request, "app_source", "") or ""
+    if club_profile:
+        display_name_changes = int(club_profile.display_name_changes or 0)
+    else:
+        try:
+            display_name_changes = int(request.session.get("display_name_changes") or 0)
+        except (TypeError, ValueError):
+            display_name_changes = 0
+    pending_paid_display_name = (request.session.get("pending_paid_display_name") or "").strip()
+    if club_profile and pending_paid_display_name and club_profile.display_name == pending_paid_display_name:
+        request.session.pop("pending_paid_display_name", None)
+        pending_paid_display_name = ""
     return {
         "card_back_logo": choice["url"],
         "card_logo_choice": choice,
@@ -43,6 +55,9 @@ def branding(request):
         "profile_display_name": profile_display_name,
         "profile_shown_name": profile_shown_name,
         "club_profile": club_profile,
+        "display_name_changes": display_name_changes,
+        "pending_paid_display_name": pending_paid_display_name,
+        "staff_flags": staff_flags(request.user),
         "app_source": app_source,
         "from_installed_app": bool(app_source),
     }

@@ -55,7 +55,7 @@ def _alarms():
         },
         {
             "key": "ticks",
-            "label": "تیک آبی",
+            "label": "تیک طلایی",
             "count": ticks,
             "url": reverse("admin:banners_bluetickrequest_changelist") + "?is_reviewed__exact=0",
         },

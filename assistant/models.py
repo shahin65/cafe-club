@@ -19,7 +19,7 @@ SCOPES = (
     (SCOPE_COMMENTS, "نظرات کاربران"),
     (SCOPE_ADS, "آگهی‌ها"),
     (SCOPE_VENUES, "ثبت کافه و کلاب"),
-    (SCOPE_TICKS, "درخواست تیک آبی"),
+    (SCOPE_TICKS, "درخواست تیک طلایی"),
 )
 
 STATUS_PENDING = "pending"
@@ -55,7 +55,7 @@ SOURCES = (
     (SOURCE_VENUE_COMMENT, "نظر کافه"),
     (SOURCE_AD, "آگهی"),
     (SOURCE_VENUE, "ثبت کافه"),
-    (SOURCE_TICK, "تیک آبی"),
+    (SOURCE_TICK, "تیک طلایی"),
 )
 
 KIND_HOURLY = "hourly"

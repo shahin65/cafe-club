@@ -50,8 +50,8 @@
         CafeClub.retry();
         return;
       }
+      hideOffline();
       if (navigator.onLine) {
-        hideOffline();
         window.location.reload();
         return;
       }

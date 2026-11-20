@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+  <section class="sheet wizard-sheet staff-sheet">
+    <h1>{{ title }}</h1>
+    <p>{% trans "سناریو تعداد بالا، نقش‌های کاتالوگ و تصویر را از همین صفحه ویرایش کنید." %}</p>
+    {% if error %}<p class="wizard-error">{{ error }}</p>{% endif %}
+    <form class="wizard-form" method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+      <label>{% trans "اسم سناریو" %}<input type="text" name="name" value="{{ scenario.name|default:'' }}" required maxlength="120"></label>
+      <label>{% trans "نوع" %}
+        <select name="large_kind">
+          {% for value, label in kind_choices %}
+            <option value="{{ value }}"{% if kind == value %} selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>{% trans "ترتیب" %}<input type="number" name="home_order" min="0" value="{{ scenario.home_order|default:0 }}"></label>
+      <label>{% trans "تصویر سناریو" %}<input type="file" name="icon" accept="image/*"></label>
+      <label class="wizard-check"><input type="checkbox" name="has_final_move" value="1"{% if scenario.has_final_move %} checked{% endif %}> {% trans "کارت حرکت آخر دارد" %}</label>
+      <label class="wizard-check"><input type="checkbox" name="has_death_lottery" value="1"{% if scenario.has_death_lottery %} checked{% endif %}> {% trans "قرعه مرگ دارد" %}</label>
+      {% for side in sides %}
+        <fieldset class="staff-size">
+          <legend>{{ side.label }}</legend>
+          {% for role in side.roles %}
+            <div class="staff-role-row">
+              <input type="hidden" name="{{ side.key }}_id_{{ forloop.counter0 }}" value="{{ role.id }}">
+              <label>{% trans "اسم نقش" %}<input type="text" name="{{ side.key }}_name_{{ forloop.counter0 }}" value="{{ role.name }}" maxlength="80"></label>
+              <label>{% trans "توضیح" %}<input type="text" name="{{ side.key }}_desc_{{ forloop.counter0 }}" value="{{ role.description }}" maxlength="300"></label>
+              <label class="wizard-check"><input type="checkbox" name="{{ side.key }}_qty_{{ forloop.counter0 }}" value="1"{% if role.allows_quantity %} checked{% endif %}> {% trans "تعدادپذیر" %}</label>
+            </div>
+          {% endfor %}
+        </fieldset>
+      {% endfor %}
+      <fieldset class="staff-size">
+        <legend>{% trans "کارت‌های حرکت آخر" %}</legend>
+        {% for card in finals %}
+          <div class="staff-role-row">
+            <input type="hidden" name="final_id_{{ forloop.counter0 }}" value="{{ card.id }}">
+            <label>{% trans "اسم کارت" %}<input type="text" name="final_name_{{ forloop.counter0 }}" value="{{ card.name }}" maxlength="80"></label>
+            <label>{% trans "توضیح" %}<input type="text" name="final_desc_{{ forloop.counter0 }}" value="{{ card.description }}" maxlength="300"></label>
+          </div>
+        {% endfor %}
+      </fieldset>
+      <button class="choice wizard-submit" type="submit">{% trans "ذخیره" %}</button>
+    </form>
+    {% if scenario %}
+      <form class="wizard-form" method="post" action="{% url 'staff_large_delete' scenario.id %}" onsubmit="return confirm('این سناریو حذف شود؟');">
+        {% csrf_token %}
+        <button class="choice wizard-submit staff-delete" type="submit">{% trans "حذف سناریو" %}</button>
+      </form>
+    {% endif %}
+  </section>
+{% endblock %}

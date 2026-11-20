@@ -1,9 +1,7 @@
-from django.contrib.auth.views import LoginView, LogoutView
+from django.contrib.auth.views import LogoutView
 from django.urls import path
 
-from banners.accounts import ClubLoginForm
-
-from . import ads_views, auth_views, lab_views, pay_views, places_views, profile_views, pwa_views, tournament_views, views
+from . import ads_views, auth_views, lab_views, messenger_views, pay_views, places_views, profile_views, pwa_views, tournament_views, views
 
 urlpatterns = [
     path("", views.home, name="home"),
@@ -11,24 +9,18 @@ urlpatterns = [
     path("settings/", views.app_settings, name="app_settings"),
     path("privacy/", views.legal_page, {"key": "privacy"}, name="privacy"),
     path("terms/", views.legal_page, {"key": "terms"}, name="terms"),
-    path(
-        "account/login/",
-        LoginView.as_view(
-            template_name="account/login.html",
-            redirect_authenticated_user=True,
-            authentication_form=ClubLoginForm,
-        ),
-        name="login",
-    ),
+    path("account/login/", auth_views.login_page, name="login"),
     path("account/logout/", LogoutView.as_view(), name="logout"),
     path("account/register/", auth_views.register, name="register"),
-    path("account/username/available/", auth_views.username_available, name="username_available"),
     path("account/username/", auth_views.save_username, name="save_username"),
     path("account/profile/", profile_views.profile_page, name="profile"),
-    path("account/gmail/send/", profile_views.send_gmail_code, name="gmail_send"),
-    path("account/gmail/verify/", profile_views.verify_gmail_code, name="gmail_verify"),
+    path("account/telegram/start/", messenger_views.telegram_start, name="telegram_start"),
+    path("account/telegram/status/", messenger_views.telegram_status, name="telegram_status"),
+    path("account/bale/start/", messenger_views.bale_start, name="bale_start"),
+    path("account/bale/status/", messenger_views.bale_status, name="bale_status"),
+    path("account/messenger/verify-code/", messenger_views.messenger_verify_code, name="messenger_verify_code"),
     path("account/profile/details/", profile_views.save_profile_details, name="profile_details"),
-    path("account/profile/blue-tick/", profile_views.request_blue_tick, name="request_blue_tick"),
+    path("account/profile/gold-tick/", profile_views.request_gold_tick, name="request_gold_tick"),
     path("pay/checkout/<int:txn_id>/", pay_views.checkout_page, name="pay_checkout"),
     path("pay/bitpay/callback/", pay_views.bitpay_callback, name="bitpay_callback"),
     path("pay/verify/bazaar/", pay_views.verify_bazaar, name="verify_bazaar"),

@@ -119,7 +119,7 @@ def format_report(data):
         f"نظرات: دریافتی {comments['received']}، تأیید {comments['approved']}، پاسخ {comments['replied']}، بازبینی {comments['needs_review']}، رد {comments['rejected']}\n"
         f"آگهی‌ها: دریافتی {ads['received']}، تأیید {ads['approved']}، بازبینی {ads['needs_review']}، رد {ads['rejected']}\n"
         f"کافه و کلاب: دریافتی {venues['received']}، تأیید {venues['approved']}، بازبینی {venues['needs_review']}، رد {venues['rejected']}\n"
-        f"تیک آبی: دریافتی {ticks['received']}، تأیید {ticks['approved']}، بازبینی {ticks['needs_review']}، رد {ticks['rejected']}\n"
+        f"تیک طلایی: دریافتی {ticks['received']}، تأیید {ticks['approved']}، بازبینی {ticks['needs_review']}، رد {ticks['rejected']}\n"
         f"معوق از بازه‌های قبل: {data['backlog']}\n"
         f"خطاهای پردازش: {data['errors']}"
     )

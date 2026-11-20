@@ -1,6 +1,7 @@
 from django import forms
 from django.conf import settings
 from django.contrib import admin, messages
+from django.contrib.auth.models import User
 from django.core.files.uploadedfile import UploadedFile
 from django.db.models import Count, Q, Sum
 from django.shortcuts import redirect
@@ -16,33 +17,26 @@ from banners.venues import publish_venue_submission
 
 
 class BannerAdmin(admin.ModelAdmin):
+    exclude = ("title_en", "description_en")
     list_display = (
         "image_preview",
         "title_fa",
-        "title_en",
         "display_order",
         "is_active",
     )
     list_display_links = ("title_fa",)
     list_editable = ("display_order", "is_active")
     list_filter = ("is_active",)
-    search_fields = ("title_fa", "title_en", "description_fa", "description_en")
-    search_help_text = "جستجو در عنوان و توضیحات فارسی و انگلیسی"
+    search_fields = ("title_fa", "description_fa")
+    search_help_text = "جستجو در عنوان و توضیحات فارسی"
     ordering = ("display_order", "pk")
     empty_value_display = "—"
     readonly_fields = ("image_preview_large",)
     actions = ("activate_banners", "deactivate_banners")
     fieldsets = (
         (
-            "محتوای فارسی",
+            "محتوا",
             {"fields": ("title_fa", "description_fa")},
-        ),
-        (
-            "محتوای انگلیسی",
-            {
-                "fields": ("title_en", "description_en"),
-                "description": "این متن‌ها فقط وقتی دیده می‌شوند که زبان سایت انگلیسی باشد.",
-            },
         ),
         (
             "تصویر",
@@ -61,8 +55,6 @@ class BannerAdmin(admin.ModelAdmin):
     def get_form(self, request, obj=None, change=False, **kwargs):
         form = super().get_form(request, obj, change, **kwargs)
         ltr_fields = {
-            "title_en": None,
-            "description_en": None,
             "external_url": "https://",
             "internal_url": "/nights/",
         }
@@ -76,10 +68,12 @@ class BannerAdmin(admin.ModelAdmin):
         description = form.base_fields.get("description_fa")
         if description is not None:
             description.widget.attrs["rows"] = 4
-        description_en = form.base_fields.get("description_en")
-        if description_en is not None:
-            description_en.widget.attrs["rows"] = 4
         return form
+
+    def save_model(self, request, obj, form, change):
+        if not (obj.title_en or "").strip():
+            obj.title_en = obj.title_fa
+        super().save_model(request, obj, form, change)
 
     @admin.display(description="پیش‌نمایش")
     def image_preview(self, obj):
@@ -113,20 +107,111 @@ class BannerAdmin(admin.ModelAdmin):
 admin.site.register(Banner, BannerAdmin)
 
 
+class UserProfileAdminForm(forms.ModelForm):
+    staff_rank = forms.ChoiceField(
+        label="نقش پنل",
+        choices=(
+            ("user", "کاربر"),
+            ("admin", "ادمین"),
+            ("superadmin", "سوپر ادمین"),
+        ),
+        help_text="فقط سوپر ادمین می‌تواند کاربر را به ادمین یا سوپر ادمین ارتقاء دهد.",
+    )
+
+    class Meta:
+        model = UserProfile
+        fields = "__all__"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance.pk:
+            self.fields["staff_rank"].initial = self.instance.staff_rank()
+        else:
+            self.fields["staff_rank"].initial = "user"
+
+
 class UserProfileAdmin(admin.ModelAdmin):
+    form = UserProfileAdminForm
     change_list_template = "admin/banners/userprofile/change_list.html"
-    list_display = ("public_id_display", "user", "google_email", "app_source", "is_verified", "is_blocked")
-    list_filter = ("is_verified", "is_blocked", "app_source")
+    list_display = (
+        "public_id_display",
+        "user",
+        "staff_rank_display",
+        "mobile",
+        "app_source",
+        "is_verified",
+        "is_gold_verified",
+        "is_blocked",
+    )
+    list_filter = ("is_verified", "is_gold_verified", "is_blocked", "app_source", "can_manage_quick", "can_manage_large")
     list_editable = ("is_blocked",)
-    search_fields = ("public_id", "user__username", "display_name", "google_email")
-    search_help_text = "جستجو با شناسه شش‌رقمی، نام کاربری یا جیمیل"
-    readonly_fields = ("public_id", "user", "google_email", "google_sub")
-    fields = ("user", "public_id", "display_name", "is_verified", "is_blocked", "app_source", "google_email", "bio", "photo")
+    search_fields = ("public_id", "user__username", "display_name", "mobile", "telegram_chat_id")
+    search_help_text = "جستجو با شناسه شش‌رقمی، نام کاربری یا موبایل"
+    readonly_fields = ("public_id", "user", "mobile", "telegram_chat_id", "bale_chat_id")
+    fields = (
+        "user",
+        "public_id",
+        "display_name",
+        "staff_rank",
+        "can_manage_quick",
+        "can_manage_large",
+        "can_edit_rulebook",
+        "can_edit_rules",
+        "is_verified",
+        "is_gold_verified",
+        "is_blocked",
+        "app_source",
+        "mobile",
+        "telegram_chat_id",
+        "bale_chat_id",
+        "bio",
+        "photo",
+    )
     actions = ("block_accounts", "unblock_accounts")
+
+    def staff_rank_display(self, obj):
+        return {"superadmin": "سوپر ادمین", "admin": "ادمین"}.get(obj.staff_rank(), "کاربر")
+
+    staff_rank_display.short_description = "نقش"
+
+    def get_fields(self, request, obj=None):
+        fields = list(self.fields)
+        if not request.user.is_superuser:
+            for name in (
+                "staff_rank",
+                "can_manage_quick",
+                "can_manage_large",
+                "can_edit_rulebook",
+                "can_edit_rules",
+            ):
+                if name in fields:
+                    fields.remove(name)
+        return fields
+
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        if not request.user.is_superuser:
+            for name in (
+                "staff_rank",
+                "can_manage_quick",
+                "can_manage_large",
+                "can_edit_rulebook",
+                "can_edit_rules",
+            ):
+                form.base_fields.pop(name, None)
+        return form
 
     def save_model(self, request, obj, form, change):
         if obj.user.is_superuser:
             obj.is_blocked = False
+        if request.user.is_superuser and "staff_rank" in form.cleaned_data:
+            rank = form.cleaned_data["staff_rank"]
+            target = obj.user
+            only_super = User.objects.filter(is_superuser=True).count() <= 1
+            if target.is_superuser and rank != "superadmin" and only_super:
+                self.message_user(request, "نمی‌توان تنها سوپر ادمین را از این نقش خارج کرد.", level=messages.ERROR)
+            else:
+                obj.apply_staff_rank(rank)
         super().save_model(request, obj, form, change)
 
     @admin.action(description="مسدود کردن اکانت‌های انتخاب‌شده")
@@ -170,17 +255,17 @@ class UserProfileAdmin(admin.ModelAdmin):
             self.message_user(request, "کاربری با این شناسه پیدا نشد.", level=messages.ERROR)
             return redirect("admin:banners_userprofile_changelist")
         if action == "deactivate":
-            profile.is_verified = False
-            profile.save(update_fields=["is_verified"])
-            self.message_user(request, f"تیک آبی {profile.public_id_display()} خاموش شد.")
+            profile.is_gold_verified = False
+            profile.save(update_fields=["is_gold_verified"])
+            self.message_user(request, f"تیک طلایی {profile.public_id_display()} خاموش شد.")
         else:
-            profile.is_verified = True
-            profile.save(update_fields=["is_verified"])
+            profile.is_gold_verified = True
+            profile.save(update_fields=["is_gold_verified"])
             BlueTickRequest.objects.filter(user=profile.user, is_reviewed=False).update(
                 is_reviewed=True,
                 status=BlueTickRequest.STATUS_APPROVED,
             )
-            self.message_user(request, f"تیک آبی {profile.public_id_display()} برای {profile.user.get_username()} فعال شد.")
+            self.message_user(request, f"تیک طلایی {profile.public_id_display()} برای {profile.user.get_username()} فعال شد.")
         return redirect("admin:banners_userprofile_changelist")
 
 
@@ -493,10 +578,10 @@ class SiteLinkAdmin(admin.ModelAdmin):
     list_display = ("icon_preview", "title", "group", "key", "url", "is_active", "sort_order")
     list_filter = ("group", "is_active")
     list_editable = ("is_active", "sort_order")
-    search_fields = ("title", "title_en", "url")
+    search_fields = ("title", "url")
     ordering = ("group", "sort_order", "id")
     fieldsets = (
-        ("مورد", {"fields": ("group", "key", "title", "title_en")}),
+        ("مورد", {"fields": ("group", "key", "title")}),
         ("لینک و تصویر", {"fields": ("url", "image"), "description": "لینک دانلود یا شبکه اجتماعی و آیکون مربوط به همان مورد."}),
         ("نمایش", {"fields": ("is_active", "sort_order")}),
     )
@@ -516,16 +601,15 @@ class SiteLinkAdmin(admin.ModelAdmin):
 
 class LegalPageAdmin(admin.ModelAdmin):
     list_display = ("title", "key")
-    search_fields = ("title", "title_en", "body", "body_en")
-    fields = ("key", "title", "title_en", "body", "body_en")
+    search_fields = ("title", "body")
+    fields = ("key", "title", "body")
     readonly_fields = ("key",)
 
     def get_form(self, request, obj=None, change=False, **kwargs):
         form = super().get_form(request, obj, change, **kwargs)
-        for name in ("body", "body_en"):
-            field = form.base_fields.get(name)
-            if field is not None:
-                field.widget.attrs["rows"] = 18
+        field = form.base_fields.get("body")
+        if field is not None:
+            field.widget.attrs["rows"] = 18
         return form
 
     def has_add_permission(self, request):

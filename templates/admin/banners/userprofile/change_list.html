@@ -2,16 +2,16 @@
 
 {% block content %}
 <div class="cafe-blue-tick">
-  <h2>فعال‌سازی تیک آبی</h2>
-  <p>شناسه شش‌رقمی کاربر را وارد کنید و تیک آبی را روشن یا خاموش کنید.</p>
+  <h2>فعال‌سازی تیک طلایی</h2>
+  <p>شناسه شش‌رقمی کاربر را وارد کنید و تیک طلایی را روشن یا خاموش کنید.</p>
   <form method="post" action="{% url 'admin:banners_userprofile_activate' %}">
     {% csrf_token %}
     <label>
       شناسه کاربر
       <input type="text" name="public_id" inputmode="numeric" maxlength="6" required placeholder="123456" dir="ltr">
     </label>
-    <button type="submit" name="action" value="activate">فعال‌سازی تیک آبی</button>
-    <button type="submit" name="action" value="deactivate">خاموش کردن تیک آبی</button>
+    <button type="submit" name="action" value="activate">فعال‌سازی تیک طلایی</button>
+    <button type="submit" name="action" value="deactivate">خاموش کردن تیک طلایی</button>
   </form>
 </div>
 {{ block.super }}

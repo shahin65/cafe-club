@@ -47,6 +47,8 @@ def success_url(txn):
         return reverse("location")
     if package.kind == CoinPackage.KIND_LAB:
         return reverse("dev_lab")
+    if package.kind == CoinPackage.KIND_PROFILE:
+        return reverse("profile")
     return reverse("ads")
 
 
@@ -62,6 +64,8 @@ def success_message(txn):
         return f"پلن {plan.get('title', package.title)} برای «{name}» فعال شد."
     if package.kind == CoinPackage.KIND_LAB:
         return f"خرید آزمایشی «{package.title}» ثبت شد."
+    if package.kind == CoinPackage.KIND_PROFILE:
+        return "نام نمایشی با موفقیت به‌روز شد."
     return "پرداخت با موفقیت انجام شد."
 
 
@@ -108,9 +112,12 @@ def _complete(txn, *, purchase_token="", trans_id="", payload=None):
     return locked
 
 
-def start_checkout(request, package, *, event_ad=None, venue=None, fail_url="ads", return_to="", gateway=""):
+def start_checkout(request, package, *, event_ad=None, venue=None, fail_url="ads", return_to="", gateway="", payload=None):
     source = install_source(request)
     gateway = gateway or gateway_for_source(source)
+    data = dict(payload or {})
+    if return_to:
+        data["return"] = return_to
     txn = PaymentTransaction.objects.create(
         user=request.user,
         package=package,
@@ -120,7 +127,7 @@ def start_checkout(request, package, *, event_ad=None, venue=None, fail_url="ads
         source=source,
         amount_toman=package.price_toman,
         status=PaymentTransaction.STATUS_PENDING,
-        payload={"return": return_to} if return_to else {},
+        payload=data,
     )
     bypass = (
         settings.DEBUG

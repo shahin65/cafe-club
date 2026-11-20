@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+  <section class="sheet wizard-sheet staff-sheet">
+    <h1>{{ title }}</h1>
+    <p>{% trans "نام، تصویر و نقش‌های سناریو تقسیم نقش سریع را از همین صفحه به‌روز کنید." %}</p>
+    {% if error %}<p class="wizard-error">{{ error }}</p>{% endif %}
+    <form class="wizard-form" method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+      <label>{% trans "اسم سناریو" %}<input type="text" name="name" value="{{ scenario.name|default:'' }}" required maxlength="120"></label>
+      <label>{% trans "ترتیب صفحه اول" %}<input type="number" name="home_order" min="0" value="{{ scenario.home_order|default:0 }}"></label>
+      <label>{% trans "تصویر سناریو" %}<input type="file" name="icon" accept="image/*"></label>
+      <label class="wizard-check"><input type="checkbox" name="has_final_move" value="1"{% if scenario.has_final_move %} checked{% endif %}> {% trans "کارت حرکت آخر دارد" %}</label>
+      <label class="wizard-check"><input type="checkbox" name="has_death_lottery" value="1"{% if scenario.has_death_lottery %} checked{% endif %}> {% trans "قرعه مرگ دارد" %}</label>
+      {% for size in size_forms %}
+        <fieldset class="staff-size">
+          <legend>{% trans "حالت تعداد" %} {{ forloop.counter }}</legend>
+          <label>{% trans "تعداد نفرات" %}<input type="number" name="player_{{ forloop.counter0 }}" min="0" max="80" value="{{ size.player }}"></label>
+          <label>{% trans "تعداد مافیا" %}<input type="number" name="mafia_count_{{ forloop.counter0 }}" min="0" value="{{ size.mafia }}"></label>
+          <label>{% trans "نقش‌های مافیا (هر خط یک نقش)" %}<textarea name="mafia_names_{{ forloop.counter0 }}" rows="3">{{ size.mafia_names }}</textarea></label>
+          <label>{% trans "تعداد شهروند" %}<input type="number" name="citizen_count_{{ forloop.counter0 }}" min="0" value="{{ size.citizen }}"></label>
+          <label>{% trans "نقش‌های شهروند" %}<textarea name="citizen_names_{{ forloop.counter0 }}" rows="3">{{ size.citizen_names }}</textarea></label>
+          <label>{% trans "تعداد مستقل" %}<input type="number" name="independent_count_{{ forloop.counter0 }}" min="0" value="{{ size.independent }}"></label>
+          <label>{% trans "نقش‌های مستقل" %}<textarea name="independent_names_{{ forloop.counter0 }}" rows="2">{{ size.independent_names }}</textarea></label>
+          <label>{% trans "تعداد گرگینه" %}<input type="number" name="werewolf_count_{{ forloop.counter0 }}" min="0" value="{{ size.werewolf }}"></label>
+          <label>{% trans "نقش‌های گرگینه" %}<textarea name="werewolf_names_{{ forloop.counter0 }}" rows="2">{{ size.werewolf_names }}</textarea></label>
+        </fieldset>
+      {% endfor %}
+      <button class="choice wizard-submit" type="submit">{% trans "ذخیره" %}</button>
+    </form>
+    {% if scenario %}
+      <form class="wizard-form" method="post" action="{% url 'staff_quick_delete' scenario.id %}" onsubmit="return confirm('این سناریو حذف شود؟');">
+        {% csrf_token %}
+        <button class="choice wizard-submit staff-delete" type="submit">{% trans "حذف سناریو" %}</button>
+      </form>
+    {% endif %}
+  </section>
+{% endblock %}

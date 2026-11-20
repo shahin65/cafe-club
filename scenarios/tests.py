@@ -424,13 +424,14 @@ class ScenarioPagesAndCommentsTests(TestCase):
         self.assertContains(rulebook, "doc-back")
         self.assertContains(rulebook, "scenario-doc places-frost")
         self.assertContains(rulebook, 'rel="canonical"')
-        self.assertContains(rulebook, 'hreflang="en"')
+        self.assertNotContains(rulebook, 'hreflang="en"')
+        self.assertContains(rulebook, 'hreflang="fa"')
         self.assertContains(rulebook, 'name="description"')
         self.assertContains(rulebook, "application/ld+json")
         self.assertContains(rulebook, "Icon-Rules.png")
         self.assertContains(rulebook, "Icon-Search.png")
         english = self.client.get(f"/en/scenario/{scenario.pk}/rulebook/")
-        self.assertContains(english, "Inspector rulebook")
+        self.assertRedirects(english, scenario.get_rulebook_url())
         rules = self.client.get(scenario.get_rules_url())
         self.assertContains(rules, "قوانین بازپرس")
         self.assertContains(rules, "scenario-doc places-frost")
@@ -438,7 +439,7 @@ class ScenarioPagesAndCommentsTests(TestCase):
         self.assertContains(sitemap, f"/scenario/{scenario.pk}/rulebook/")
         self.assertContains(sitemap, "/rulebook/")
         self.assertContains(sitemap, "/rules/")
-        self.assertContains(sitemap, "/en/scenario/")
+        self.assertNotContains(sitemap, "/en/scenario/")
         robots = self.client.get("/robots.txt")
         self.assertContains(robots, "Sitemap:")
         self.assertContains(robots, "Disallow: /admin/")
@@ -1186,3 +1187,67 @@ class LargeScenarioDealTests(TestCase):
         host = self.client.get("/deal/host/")
         self.assertContains(host, "گرگینه")
         self.assertNotContains(host, "حرکت آخر")
+
+
+class StaffSiteEditorTests(TestCase):
+    def test_superuser_can_add_quick_scenario_from_the_site(self):
+        user = get_user_model().objects.create_superuser("boss", "boss@example.com", "pass-word-123")
+        self.client.force_login(user)
+        home = self.client.get("/")
+        self.assertContains(home, "/staff/quick/new/")
+        created = self.client.post(
+            "/staff/quick/new/",
+            {
+                "name": "سناریو سریع تست",
+                "home_order": "9",
+                "player_0": "2",
+                "mafia_count_0": "1",
+                "mafia_names_0": "پدرخوانده",
+                "citizen_count_0": "1",
+                "citizen_names_0": "شهروند",
+                "independent_count_0": "0",
+                "werewolf_count_0": "0",
+            },
+        )
+        self.assertEqual(created.status_code, 302)
+        scenario = Scenario.objects.get(name="سناریو سریع تست")
+        self.assertFalse(scenario.is_custom())
+        self.assertEqual(scenario.sizes.first().player_count, 2)
+        page = self.client.get(f"/staff/scenario/{scenario.id}/rulebook/")
+        self.assertContains(page, "ویرایش رول‌بوک")
+        saved = self.client.post(
+            f"/staff/scenario/{scenario.id}/rulebook/",
+            {"title": "رول‌بوک تست", "body": "<p>متن رول‌بوک</p>"},
+        )
+        self.assertEqual(saved.status_code, 302)
+        scenario.refresh_from_db()
+        self.assertIn("متن رول‌بوک", scenario.rulebook_body_fa)
+
+    def test_admin_without_permission_cannot_edit_quick(self):
+        user = get_user_model().objects.create_user("editor", "editor@example.com", "pass-word-123")
+        user.is_staff = True
+        user.save(update_fields=["is_staff"])
+        self.client.force_login(user)
+        denied = self.client.get("/staff/quick/new/")
+        self.assertEqual(denied.status_code, 302)
+        user.club_profile.can_manage_large = True
+        user.club_profile.save(update_fields=["can_manage_large"])
+        packs = {item.large_kind: item for item in seed_large_scenarios()}
+        advanced = packs[KIND_ADVANCED]
+        home = self.client.get("/")
+        self.assertContains(home, f"/staff/large/{advanced.id}/")
+        edited = self.client.post(
+            f"/staff/large/{advanced.id}/",
+            {
+                "name": "پیشرفته ویرایش‌شده",
+                "large_kind": KIND_ADVANCED,
+                "home_order": "1",
+                "mafia_name_0": "مافیای ساده",
+                "mafia_qty_0": "1",
+                "citizen_name_0": "شهروند ساده",
+                "citizen_qty_0": "1",
+            },
+        )
+        self.assertEqual(edited.status_code, 302)
+        advanced.refresh_from_db()
+        self.assertEqual(advanced.name, "پیشرفته ویرایش‌شده")

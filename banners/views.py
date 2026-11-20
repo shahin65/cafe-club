@@ -74,14 +74,14 @@ def _featured_home_items():
         show_on_home=True,
         expires_at__gt=now,
     ).order_by("-boosted_at", "-id"):
-        meta = " · ".join(part for part in (ad.scenario, ad.weekday_display(), ad.date_display()) if part)
         items.append(
             {
                 "key": f"ad-{ad.id}",
                 "href": reverse("ad_detail", args=[ad.id]),
                 "image_url": ad.image.url,
                 "title": ad.event_name,
-                "meta": meta,
+                "subtitle": ad.scenario or "",
+                "meta": " · ".join(part for part in (ad.city, ad.district) if part),
                 "sort": ad.boosted_at or ad.created_at,
             }
         )
@@ -97,7 +97,8 @@ def _featured_home_items():
                 "href": reverse("venue_detail", args=[venue.id]),
                 "image_url": cover.url if cover else "",
                 "title": venue.name,
-                "meta": " · ".join(part for part in ("کافه / کلاب", venue.city) if part),
+                "subtitle": "",
+                "meta": " · ".join(part for part in (venue.city, venue.address) if part),
                 "sort": venue.boosted_at or venue.created_at,
             }
         )
@@ -111,7 +112,7 @@ def page(request, page):
 
 def app_settings(request):
     links = SiteLink.objects.filter(is_active=True).exclude(url="")
-    downloads = [link for link in links if link.group == SiteLink.GROUP_DOWNLOAD]
+    downloads = [link for link in links if link.group == SiteLink.GROUP_DOWNLOAD and link.key != SiteLink.KEY_ANDROID]
     downloads = filter_downloads(downloads, getattr(request, "app_source", ""))
     socials = [link for link in links if link.group == SiteLink.GROUP_SOCIAL]
     return render(

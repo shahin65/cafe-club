@@ -4,9 +4,6 @@ from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.db import models
-from django.utils.translation import get_language
-
-
 class Banner(models.Model):
     title_fa = models.CharField(
         "عنوان فارسی",
@@ -95,13 +92,9 @@ class Banner(models.Model):
             )
 
     def title_for_current_language(self):
-        if (get_language() or "fa").startswith("en"):
-            return self.title_en or self.title_fa
         return self.title_fa or self.title_en
 
     def description_for_current_language(self):
-        if (get_language() or "fa").startswith("en"):
-            return self.description_en or self.description_fa
         return self.description_fa or self.description_en
 
     def public_url(self):
@@ -118,16 +111,6 @@ class Banner(models.Model):
             return ""
         if not path.startswith("/"):
             path = f"/{path}"
-        language = (get_language() or settings.LANGUAGE_CODE).split("-")[0]
-        language_codes = {code for code, _name in settings.LANGUAGES}
-        parts = path.split("/")
-        if len(parts) > 1 and parts[1] in language_codes:
-            remainder = "/".join(parts[2:])
-            path = f"/{remainder}" if remainder else "/"
-        if language != settings.LANGUAGE_CODE:
-            if path == "/":
-                return f"/{language}/"
-            return f"/{language}{path}"
         return path
 
 
@@ -164,7 +147,17 @@ class UserProfile(models.Model):
         blank=True,
         help_text="اگر پر شود، این نام به‌جای نام کاربری به خود کاربر و دیگران نشان داده می‌شود.",
     )
-    is_verified = models.BooleanField("تیک آبی", default=False)
+    display_name_changes = models.PositiveSmallIntegerField(
+        "تعداد ویرایش نام نمایشی",
+        default=0,
+        help_text="بار اول رایگان است. از بار دوم به بعد مشمول هزینه می‌شود.",
+    )
+    is_verified = models.BooleanField(
+        "تیک آبی",
+        default=False,
+        help_text="پس از ثبت‌نام با شماره در تلگرام یا بله به‌صورت خودکار فعال می‌شود.",
+    )
+    is_gold_verified = models.BooleanField("تیک طلایی", default=False)
     is_blocked = models.BooleanField(
         "مسدود",
         default=False,
@@ -174,6 +167,9 @@ class UserProfile(models.Model):
     photo = models.ImageField("عکس پروفایل", upload_to="profiles", blank=True)
     google_email = models.EmailField("جیمیل متصل", blank=True, null=True, unique=True)
     google_sub = models.CharField("شناسه گوگل", max_length=64, blank=True, null=True, unique=True)
+    mobile = models.CharField("موبایل تاییدشده", max_length=16, blank=True, null=True, unique=True)
+    telegram_chat_id = models.CharField("شناسه چت تلگرام", max_length=64, blank=True, null=True, unique=True)
+    bale_chat_id = models.CharField("شناسه چت بله", max_length=64, blank=True, null=True, unique=True)
     home_scenario_ids = models.JSONField(
         "سناریوهای صفحه اصلی",
         default=list,
@@ -197,9 +193,29 @@ class UserProfile(models.Model):
         default="",
         help_text="اگر کاربر از لینک رفرال نسخه دایرکت، بازار یا مایکت وارد شده باشد اینجا ثبت می‌شود.",
     )
+    can_manage_quick = models.BooleanField(
+        "ویرایش تقسیم نقش سریع",
+        default=False,
+        help_text="ادمین می‌تواند سناریوهای تقسیم نقش سریع را از داخل سایت اضافه، ویرایش یا حذف کند.",
+    )
+    can_manage_large = models.BooleanField(
+        "ویرایش سناریو تعداد بالا",
+        default=False,
+        help_text="ادمین می‌تواند تقسیم نقش سناریو تعداد بالا را از داخل سایت ویرایش و تکمیل کند.",
+    )
+    can_edit_rulebook = models.BooleanField(
+        "ویرایش رول‌بوک",
+        default=False,
+        help_text="ادمین می‌تواند متن رول‌بوک سناریوها را از داخل سایت ویرایش کند.",
+    )
+    can_edit_rules = models.BooleanField(
+        "ویرایش قوانین",
+        default=False,
+        help_text="ادمین می‌تواند متن قوانین سناریوها را از داخل سایت ویرایش کند.",
+    )
     class Meta:
-        verbose_name = "تیک آبی"
-        verbose_name_plural = "تیک آبی"
+        verbose_name = "پروفایل کاربر"
+        verbose_name_plural = "پروفایل کاربران"
         ordering = ["public_id"]
 
     def __str__(self):
@@ -216,16 +232,53 @@ class UserProfile(models.Model):
             return name
         return self.user.get_username()
 
+    def staff_rank(self):
+        if self.user.is_superuser:
+            return "superadmin"
+        if self.user.is_staff:
+            return "admin"
+        return "user"
+
+    def apply_staff_rank(self, rank):
+        user = self.user
+        if rank == "superadmin":
+            user.is_superuser = True
+            user.is_staff = True
+            self.is_gold_verified = True
+            self.can_manage_quick = True
+            self.can_manage_large = True
+            self.can_edit_rulebook = True
+            self.can_edit_rules = True
+        elif rank == "admin":
+            user.is_superuser = False
+            user.is_staff = True
+            self.is_gold_verified = True
+        else:
+            user.is_superuser = False
+            user.is_staff = False
+        user.save(update_fields=["is_staff", "is_superuser"])
+        self.save()
+
     def save(self, *args, **kwargs):
         if not self.public_id:
             self.public_id = allocate_public_id()
         if self.google_email:
             self.google_email = self.google_email.strip().lower()
+        if not self.mobile:
+            self.mobile = None
+        if not self.telegram_chat_id:
+            self.telegram_chat_id = None
+        if not self.bale_chat_id:
+            self.bale_chat_id = None
+        if self.user_id and (self.user.is_staff or self.user.is_superuser):
+            self.is_gold_verified = True
         super().save(*args, **kwargs)
 
 
-BLUE_TICK_WAIT_MESSAGE = "درخواست شما طی ساعات آینده بررسی می‌شود و نتیجه در همین قسمت اعلام می‌شود."
-BLUE_TICK_REJECTED_MESSAGE = "درخواست تیک آبی شما رد شد. می‌توانید دوباره درخواست بدهید."
+GOLD_TICK_WAIT_MESSAGE = "رزومه شما طی ساعات آینده بررسی می‌شود و نتیجه در همین قسمت اعلام می‌شود."
+GOLD_TICK_REJECTED_MESSAGE = "درخواست تیک طلایی شما رد شد. می‌توانید دوباره رزومه بفرستید."
+BLUE_TICK_WAIT_MESSAGE = GOLD_TICK_WAIT_MESSAGE
+BLUE_TICK_REJECTED_MESSAGE = GOLD_TICK_REJECTED_MESSAGE
 
 
 class BlueTickRequest(models.Model):
@@ -257,8 +310,8 @@ class BlueTickRequest(models.Model):
     )
 
     class Meta:
-        verbose_name = "درخواست تیک آبی"
-        verbose_name_plural = "درخواست‌های تیک آبی"
+        verbose_name = "درخواست تیک طلایی"
+        verbose_name_plural = "درخواست‌های تیک طلایی"
         ordering = ["-created_at"]
 
     def __str__(self):
@@ -269,9 +322,9 @@ class BlueTickRequest(models.Model):
         self.is_reviewed = True
         self.save(update_fields=["status", "is_reviewed"])
         profile = getattr(self.user, "club_profile", None)
-        if profile and not profile.is_verified:
-            profile.is_verified = True
-            profile.save(update_fields=["is_verified"])
+        if profile and not profile.is_gold_verified:
+            profile.is_gold_verified = True
+            profile.save(update_fields=["is_gold_verified"])
 
     def mark_rejected(self):
         self.status = self.STATUS_REJECTED
@@ -633,8 +686,6 @@ class SiteLink(models.Model):
         return self.title
 
     def display_title(self):
-        if (get_language() or "fa").startswith("en"):
-            return self.title_en or self.title
         return self.title or self.title_en
 
 
@@ -685,13 +736,9 @@ class LegalPage(models.Model):
         return self.title
 
     def display_title(self):
-        if (get_language() or "fa").startswith("en"):
-            return self.title_en or self.title
         return self.title or self.title_en
 
     def display_body(self):
-        if (get_language() or "fa").startswith("en"):
-            return self.body_en or self.body
         return self.body or self.body_en
 
 
@@ -699,10 +746,12 @@ class CoinPackage(models.Model):
     KIND_AD = "ad"
     KIND_VENUE = "venue"
     KIND_LAB = "lab"
+    KIND_PROFILE = "profile"
     KIND_CHOICES = [
         (KIND_AD, "پلن آگهی"),
         (KIND_VENUE, "پلن کجا برم؟"),
         (KIND_LAB, "تست آزمایشگاه"),
+        (KIND_PROFILE, "پروفایل"),
     ]
 
     sku = models.SlugField("شناسه محصول (SKU)", unique=True, max_length=40)

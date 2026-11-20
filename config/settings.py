@@ -1,4 +1,5 @@
 import os
+import sys
 from pathlib import Path
 
 from django.core.exceptions import ImproperlyConfigured
@@ -36,6 +37,8 @@ ALLOWED_HOSTS = [
     for host in os.environ.get("DJANGO_ALLOWED_HOSTS", "127.0.0.1,localhost").split(",")
     if host.strip()
 ]
+if DEBUG and "*" not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append("*")
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -52,10 +55,10 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "config.middleware.CafeClubNavMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.locale.LocaleMiddleware",
-    "config.middleware.PersistChosenLanguageMiddleware",
-    "config.middleware.ForceAdminPersianMiddleware",
+    "config.middleware.DropEnglishPrefixMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -107,7 +110,6 @@ AUTH_PASSWORD_VALIDATORS = [
 LANGUAGE_CODE = "fa"
 LANGUAGES = [
     ("fa", "فارسی"),
-    ("en", "English"),
 ]
 TIME_ZONE = "Asia/Tehran"
 USE_I18N = True
@@ -121,19 +123,76 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
+AWS_ACCESS_KEY_ID = os.environ.get("AWS_ACCESS_KEY_ID", "")
+AWS_SECRET_ACCESS_KEY = os.environ.get("AWS_SECRET_ACCESS_KEY", "")
+AWS_STORAGE_BUCKET_NAME = os.environ.get("AWS_STORAGE_BUCKET_NAME", "cafeclub-media")
+AWS_S3_ENDPOINT_URL = os.environ.get("AWS_S3_ENDPOINT_URL", "https://s3.ir-central1.arvanstorage.ir")
+AWS_S3_REGION_NAME = os.environ.get("AWS_S3_REGION_NAME", "ir-central1")
+AWS_S3_FILE_OVERWRITE = os.environ.get("AWS_S3_FILE_OVERWRITE", "False").lower() in {"1", "true", "yes", "on"}
+AWS_QUERYSTRING_AUTH = os.environ.get("AWS_QUERYSTRING_AUTH", "False").lower() in {"1", "true", "yes", "on"}
+AWS_S3_SIGNATURE_VERSION = os.environ.get("AWS_S3_SIGNATURE_VERSION", "s3v4")
+AWS_S3_ADDRESSING_STYLE = os.environ.get("AWS_S3_ADDRESSING_STYLE", "path")
+AWS_DEFAULT_ACL = os.environ.get("AWS_DEFAULT_ACL", "public-read")
+AWS_S3_CUSTOM_DOMAIN = os.environ.get(
+    "AWS_S3_CUSTOM_DOMAIN",
+    f"{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.arvanstorage.ir",
+)
+AWS_S3_OBJECT_PARAMETERS = {
+    "CacheControl": "public, max-age=31536000, immutable",
+}
+FFMPEG_BIN = os.environ.get("FFMPEG_BIN", "")
+
+_running_tests = "test" in sys.argv or os.environ.get("CAFECLUB_DISABLE_ARVAN", "").lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
+try:
+    import storages  # noqa: F401
+    _has_django_storages = True
+except ImportError:
+    _has_django_storages = False
+ARVAN_MEDIA_ENABLED = (
+    bool(AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY and AWS_STORAGE_BUCKET_NAME)
+    and _has_django_storages
+    and not _running_tests
+)
+
+STORAGES = {
+    "default": {
+        "BACKEND": (
+            "config.custom_storages.ArvanMediaStorage"
+            if ARVAN_MEDIA_ENABLED
+            else "django.core.files.storage.FileSystemStorage"
+        ),
+    },
+    "staticfiles": {
+        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+    },
+}
+
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 LOGIN_URL = "login"
-LOGIN_REDIRECT_URL = "home"
+LOGIN_REDIRECT_URL = "profile"
 LOGOUT_REDIRECT_URL = "home"
 DEFAULT_FROM_EMAIL = os.environ.get("DJANGO_DEFAULT_FROM_EMAIL", "Cafe Club <noreply@localhost>")
 EMAIL_BACKEND = os.environ.get(
     "DJANGO_EMAIL_BACKEND",
     "django.core.mail.backends.console.EmailBackend",
 )
-GOOGLE_OAUTH_CLIENT_ID = os.environ.get("GOOGLE_OAUTH_CLIENT_ID", "")
-GOOGLE_OAUTH_CLIENT_SECRET = os.environ.get("GOOGLE_OAUTH_CLIENT_SECRET", "")
-GOOGLE_OAUTH_REDIRECT_URI = os.environ.get("GOOGLE_OAUTH_REDIRECT_URI", "")
+PUBLIC_SITE_URL = os.environ.get("PUBLIC_SITE_URL", "").rstrip("/")
+TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+TELEGRAM_BOT_USERNAME = os.environ.get("TELEGRAM_BOT_USERNAME", "")
+TELEGRAM_API_BASE_URL = (os.environ.get("TELEGRAM_API_BASE_URL", "") or "").rstrip("/")
+TELEGRAM_PROXY_SECRET = os.environ.get("TELEGRAM_PROXY_SECRET", "")
+TELEGRAM_WEBHOOK_SECRET = os.environ.get("TELEGRAM_WEBHOOK_SECRET", "")
+TELEGRAM_WEBHOOK_URL = os.environ.get("TELEGRAM_WEBHOOK_URL", "")
+BALE_BOT_USERNAME = os.environ.get("BALE_BOT_USERNAME", "")
+BALE_AUTH_BOT_TOKEN = os.environ.get("BALE_AUTH_BOT_TOKEN", "")
+BALE_WEBHOOK_SECRET = os.environ.get("BALE_WEBHOOK_SECRET", "")
+BALE_WEBHOOK_URL = os.environ.get("BALE_WEBHOOK_URL", "")
 GAPGPT_API_KEY = os.environ.get("GAPGPT_API_KEY", "")
 GAPGPT_BASE_URL = os.environ.get("GAPGPT_BASE_URL", "")
 GAPGPT_MODEL = os.environ.get("GAPGPT_MODEL", "")

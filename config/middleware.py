@@ -1,64 +1,42 @@
 from django.conf import settings
 from django.http import HttpResponseRedirect
 from django.shortcuts import render
-from django.utils import translation
 from django.utils.deprecation import MiddlewareMixin
-from django.utils.translation import check_for_language
 
 from banners.accounts import user_is_blocked
 from banners.app_source import incoming_source, persist_source, read_source, set_source_cookie
-from banners.auth_views import language_prefixed_path
 from banners.digits import persianize_html_digits
 
-_UNPREFIXED_ROOTS = (
-    "/admin",
-    "/i18n/",
-    "/account/google/",
-    "/favicon.ico",
-    "/manifest.webmanifest",
-    "/sw.js",
-    "/robots.txt",
-    "/sitemap.xml",
-    "/staff/",
-    "/static/",
-    "/media/",
-    "/app/",
-)
 
-
-def _is_unprefixed_root(path):
-    if path == "/admin" or path.startswith("/admin/"):
-        return True
-    return any(path == root or path.startswith(root) for root in _UNPREFIXED_ROOTS)
-
-
-class PersistChosenLanguageMiddleware(MiddlewareMixin):
-    """Keep the language chosen in settings even after Back to an unprefixed URL."""
+class CafeClubNavMiddleware(MiddlewareMixin):
+    """Mark in-app shell fetches and cache hashed static files."""
 
     def process_request(self, request):
-        path = request.path
-        if _is_unprefixed_root(path):
+        request.cc_partial = request.headers.get("X-CafeClub-Nav") == "1"
+
+    def process_response(self, request, response):
+        if getattr(request, "cc_partial", False):
+            response["X-CafeClub-Nav"] = "1"
+            response["Cache-Control"] = "private, no-store"
+            response["Vary"] = "X-CafeClub-Nav"
+            return response
+        path = request.path or ""
+        if path.startswith("/static/") and not response.get("Cache-Control"):
+            response["Cache-Control"] = "public, max-age=31536000, immutable"
+        return response
+
+class DropEnglishPrefixMiddleware(MiddlewareMixin):
+    """Old English URLs redirect to the Persian site."""
+
+    def process_request(self, request):
+        path = request.path or ""
+        if path != "/en" and not path.startswith("/en/"):
             return
-        if translation.get_language_from_path(request.path_info):
-            return
-        cookie = request.COOKIES.get(settings.LANGUAGE_COOKIE_NAME)
-        if not cookie or not check_for_language(cookie) or cookie == settings.LANGUAGE_CODE:
-            return
-        prefixed = language_prefixed_path(path, cookie)
-        if prefixed == path:
-            return
+        rest = path[3:] or "/"
+        if not rest.startswith("/"):
+            rest = f"/{rest}"
         query = request.META.get("QUERY_STRING")
-        return HttpResponseRedirect(f"{prefixed}?{query}" if query else prefixed)
-
-
-class ForceAdminPersianMiddleware(MiddlewareMixin):
-    """Keep the administration panel in Persian even if the public site is English."""
-
-    def process_request(self, request):
-        path = request.path
-        if path == "/admin" or path.startswith("/admin/"):
-            translation.activate("fa")
-            request.LANGUAGE_CODE = "fa"
+        return HttpResponseRedirect(f"{rest}?{query}" if query else rest)
 
 
 class AttachAppSourceMiddleware(MiddlewareMixin):
@@ -141,9 +119,6 @@ class PersianDigitsMiddleware(MiddlewareMixin):
     """Show Western digits as Persian numerals on the public Farsi site."""
 
     def process_response(self, request, response):
-        language = getattr(request, "LANGUAGE_CODE", "") or ""
-        if not language.startswith("fa"):
-            return response
         path = request.path or ""
         if path == "/admin" or path.startswith("/admin/") or path.startswith("/static/") or path.startswith("/media/"):
             return response
